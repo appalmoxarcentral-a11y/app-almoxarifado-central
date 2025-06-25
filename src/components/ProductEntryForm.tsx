@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,8 +16,6 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Product, ProductEntry } from '@/types';
 
-const MOCK_USUARIO_ID = "550e8400-e29b-41d4-a716-446655440000";
-
 export function ProductEntryForm() {
   const [selectedProduct, setSelectedProduct] = useState('');
   const [quantidade, setQuantidade] = useState('');
@@ -25,6 +24,19 @@ export function ProductEntryForm() {
   const [dataEntrada, setDataEntrada] = useState(format(new Date(), 'yyyy-MM-dd'));
 
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  // Verificar se o usuário está autenticado
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Acesso Negado</h2>
+          <p className="text-gray-600">Você precisa estar logado para registrar entradas.</p>
+        </div>
+      </div>
+    );
+  }
 
   // Buscar produtos
   const { data: produtos, isLoading: isLoadingProdutos } = useQuery({
@@ -73,7 +85,7 @@ export function ProductEntryForm() {
           lote: entryData.lote,
           vencimento: entryData.vencimento,
           data_entrada: entryData.data_entrada,
-          usuario_id: MOCK_USUARIO_ID
+          usuario_id: user.id // Usar o ID do usuário autenticado
         }]);
       
       if (error) throw error;
