@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,13 +15,15 @@ import { ptBR } from 'date-fns/locale';
 import type { ProductEntry, Dispensation } from '@/types';
 
 export function HistoryView() {
-  const [filtroData, setFiltroData] = useState('');
+  const [filtroDataInicial, setFiltroDataInicial] = useState('');
+  const [filtroDataFinal, setFiltroDataFinal] = useState('');
   const [filtroProduto, setFiltroProduto] = useState('all');
+  const [filtroPaciente, setFiltroPaciente] = useState('all');
   const [filtroTipo, setFiltroTipo] = useState('todos');
 
   // Buscar entradas
   const { data: entradas, isLoading: isLoadingEntradas } = useQuery({
-    queryKey: ['historico-entradas', filtroData, filtroProduto],
+    queryKey: ['historico-entradas', filtroDataInicial, filtroDataFinal, filtroProduto],
     queryFn: async () => {
       let query = supabase
         .from('entradas_produtos')
@@ -34,8 +37,11 @@ export function HistoryView() {
         `)
         .order('created_at', { ascending: false });
 
-      if (filtroData) {
-        query = query.gte('data_entrada', filtroData);
+      if (filtroDataInicial) {
+        query = query.gte('data_entrada', filtroDataInicial);
+      }
+      if (filtroDataFinal) {
+        query = query.lte('data_entrada', filtroDataFinal);
       }
       if (filtroProduto && filtroProduto !== 'all') {
         query = query.eq('produto_id', filtroProduto);
@@ -49,7 +55,7 @@ export function HistoryView() {
 
   // Buscar dispensações
   const { data: dispensacoes, isLoading: isLoadingDispensacoes } = useQuery({
-    queryKey: ['historico-dispensacoes', filtroData, filtroProduto],
+    queryKey: ['historico-dispensacoes', filtroDataInicial, filtroDataFinal, filtroProduto, filtroPaciente],
     queryFn: async () => {
       let query = supabase
         .from('dispensacoes')
@@ -67,11 +73,17 @@ export function HistoryView() {
         `)
         .order('created_at', { ascending: false });
 
-      if (filtroData) {
-        query = query.gte('data_dispensa', filtroData);
+      if (filtroDataInicial) {
+        query = query.gte('data_dispensa', filtroDataInicial);
+      }
+      if (filtroDataFinal) {
+        query = query.lte('data_dispensa', filtroDataFinal);
       }
       if (filtroProduto && filtroProduto !== 'all') {
         query = query.eq('produto_id', filtroProduto);
+      }
+      if (filtroPaciente && filtroPaciente !== 'all') {
+        query = query.eq('paciente_id', filtroPaciente);
       }
 
       const { data, error } = await query;
@@ -88,6 +100,20 @@ export function HistoryView() {
         .from('produtos')
         .select('id, descricao, codigo')
         .order('descricao');
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Buscar pacientes para filtro
+  const { data: pacientes } = useQuery({
+    queryKey: ['pacientes-filtro'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('pacientes')
+        .select('id, nome, sus_cpf')
+        .order('nome');
       
       if (error) throw error;
       return data;
@@ -136,6 +162,14 @@ export function HistoryView() {
     if (filtroTipo === 'dispensacoes') return mov.tipo === 'dispensacao';
     return true;
   });
+
+  // Função para calcular movimentações de hoje
+  const getMovimentacoesHoje = () => {
+    const hoje = format(new Date(), 'yyyy-MM-dd');
+    return movimentacoes.filter(mov => 
+      format(new Date(mov.data), 'yyyy-MM-dd') === hoje
+    ).length;
+  };
 
   return (
     <div className="space-y-6">
@@ -189,9 +223,7 @@ export function HistoryView() {
               <div>
                 <p className="text-sm text-gray-600">Movimentações Hoje</p>
                 <p className="text-2xl font-bold text-purple-600">
-                  {movimentacoes.filter(mov => 
-                    format(new Date(mov.data), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
-                  ).length}
+                  {getMovimentacoesHoje()}
                 </p>
               </div>
             </div>
@@ -205,14 +237,23 @@ export function HistoryView() {
           <CardTitle>Filtros</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <Label htmlFor="filtroData">Data (a partir de)</Label>
+              <Label htmlFor="filtroDataInicial">Data Inicial</Label>
               <Input
-                id="filtroData"
+                id="filtroDataInicial"
                 type="date"
-                value={filtroData}
-                onChange={(e) => setFiltroData(e.target.value)}
+                value={filtroDataInicial}
+                onChange={(e) => setFiltroDataInicial(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="filtroDataFinal">Data Final</Label>
+              <Input
+                id="filtroDataFinal"
+                type="date"
+                value={filtroDataFinal}
+                onChange={(e) => setFiltroDataFinal(e.target.value)}
               />
             </div>
             <div>
@@ -232,9 +273,27 @@ export function HistoryView() {
               </Select>
             </div>
             <div>
+              <Label htmlFor="filtroPaciente">Paciente</Label>
+              <Select value={filtroPaciente} onValueChange={setFiltroPaciente}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos os pacientes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os pacientes</SelectItem>
+                  {pacientes?.map((paciente) => (
+                    <SelectItem key={paciente.id} value={paciente.id}>
+                      {paciente.nome} ({paciente.sus_cpf})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="mt-4">
+            <div>
               <Label htmlFor="filtroTipo">Tipo de Movimentação</Label>
               <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full md:w-64">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -296,7 +355,7 @@ export function HistoryView() {
                   {movimentacoesFiltradas.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-4 text-gray-500">
-                        Nenhuma movimentação encontrada
+                        Nenhuma movimentação encontrada com os filtros aplicados
                       </TableCell>
                     </TableRow>
                   )}

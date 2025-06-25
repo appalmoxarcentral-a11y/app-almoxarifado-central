@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Save, UserPlus, Trash2 } from "lucide-react";
+import { Users, Save, UserPlus, Trash2, Edit, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Patient } from "@/types";
 
@@ -13,6 +13,7 @@ export function PatientForm() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [formData, setFormData] = useState({
     nome: '',
     sus_cpf: '',
@@ -92,6 +93,30 @@ export function PatientForm() {
     loadPatients();
   }, []);
 
+  const handleEdit = (patient: Patient) => {
+    setEditingPatient(patient);
+    setFormData({
+      nome: patient.nome,
+      sus_cpf: patient.sus_cpf,
+      endereco: patient.endereco,
+      bairro: patient.bairro,
+      telefone: patient.telefone,
+      nascimento: patient.nascimento,
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingPatient(null);
+    setFormData({
+      nome: '',
+      sus_cpf: '',
+      endereco: '',
+      bairro: '',
+      telefone: '',
+      nascimento: '',
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -115,24 +140,50 @@ export function PatientForm() {
 
       const idade = calculateAge(formData.nascimento);
       
-      const { error } = await supabase
-        .from('pacientes')
-        .insert([{
-          nome: formData.nome,
-          sus_cpf: susCpfNumbers, // Salva apenas os números
-          endereco: formData.endereco,
-          bairro: formData.bairro,
-          telefone: formData.telefone,
-          nascimento: formData.nascimento,
-          idade: idade
-        }]);
+      if (editingPatient) {
+        // Atualizar paciente existente
+        const { error } = await supabase
+          .from('pacientes')
+          .update({
+            nome: formData.nome,
+            sus_cpf: susCpfNumbers,
+            endereco: formData.endereco,
+            bairro: formData.bairro,
+            telefone: formData.telefone,
+            nascimento: formData.nascimento,
+            idade: idade
+          })
+          .eq('id', editingPatient.id);
 
-      if (error) throw error;
-      
-      toast({
-        title: "Paciente cadastrado com sucesso!",
-        description: `${formData.nome} foi adicionado ao sistema.`,
-      });
+        if (error) throw error;
+        
+        toast({
+          title: "Paciente atualizado com sucesso!",
+          description: `Os dados de ${formData.nome} foram atualizados.`,
+        });
+        
+        setEditingPatient(null);
+      } else {
+        // Criar novo paciente
+        const { error } = await supabase
+          .from('pacientes')
+          .insert([{
+            nome: formData.nome,
+            sus_cpf: susCpfNumbers,
+            endereco: formData.endereco,
+            bairro: formData.bairro,
+            telefone: formData.telefone,
+            nascimento: formData.nascimento,
+            idade: idade
+          }]);
+
+        if (error) throw error;
+        
+        toast({
+          title: "Paciente cadastrado com sucesso!",
+          description: `${formData.nome} foi adicionado ao sistema.`,
+        });
+      }
       
       // Reset form
       setFormData({
@@ -149,7 +200,7 @@ export function PatientForm() {
       
     } catch (error) {
       toast({
-        title: "Erro ao cadastrar paciente",
+        title: editingPatient ? "Erro ao atualizar paciente" : "Erro ao cadastrar paciente",
         description: error instanceof Error ? error.message : "Erro desconhecido",
         variant: "destructive",
       });
@@ -199,11 +250,14 @@ export function PatientForm() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <UserPlus className="h-5 w-5" />
-            Novo Paciente
+            {editingPatient ? <Edit className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
+            {editingPatient ? 'Editar Paciente' : 'Novo Paciente'}
           </CardTitle>
           <CardDescription>
-            Preencha todos os campos obrigatórios para cadastrar um novo paciente
+            {editingPatient 
+              ? 'Atualize os dados do paciente selecionado'
+              : 'Preencha todos os campos obrigatórios para cadastrar um novo paciente'
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -231,8 +285,14 @@ export function PatientForm() {
                   required
                 />
                 {formData.sus_cpf && (
-                  <p className="text-sm text-gray-500">
+                  <p className={`text-sm ${
+                    formData.sus_cpf.length >= 11 && formData.sus_cpf.length <= 15 
+                      ? 'text-green-600' 
+                      : 'text-red-600'
+                  }`}>
                     {formData.sus_cpf.length} dígitos inseridos
+                    {formData.sus_cpf.length < 11 && ' (mínimo 11)'}
+                    {formData.sus_cpf.length > 15 && ' (máximo 15)'}
                   </p>
                 )}
               </div>
@@ -287,6 +347,12 @@ export function PatientForm() {
             </div>
 
             <div className="flex justify-end gap-4">
+              {editingPatient && (
+                <Button type="button" variant="outline" onClick={handleCancelEdit}>
+                  <X className="h-4 w-4 mr-2" />
+                  Cancelar
+                </Button>
+              )}
               <Button type="button" variant="outline" onClick={() => setFormData({
                 nome: '', sus_cpf: '', endereco: '', bairro: '', telefone: '', nascimento: ''
               })}>
@@ -294,7 +360,10 @@ export function PatientForm() {
               </Button>
               <Button type="submit" disabled={loading} className="flex items-center gap-2">
                 <Save className="h-4 w-4" />
-                {loading ? 'Salvando...' : 'Salvar Paciente'}
+                {loading 
+                  ? (editingPatient ? 'Atualizando...' : 'Salvando...') 
+                  : (editingPatient ? 'Atualizar Paciente' : 'Salvar Paciente')
+                }
               </Button>
             </div>
           </form>
@@ -324,15 +393,26 @@ export function PatientForm() {
                     </p>
                     <p className="text-sm text-gray-500">Tel: {patient.telefone}</p>
                   </div>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDelete(patient.id, patient.nome)}
-                    className="flex items-center gap-2"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Excluir
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(patient)}
+                      className="flex items-center gap-2"
+                    >
+                      <Edit className="h-4 w-4" />
+                      Editar
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDelete(patient.id, patient.nome)}
+                      className="flex items-center gap-2"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Excluir
+                    </Button>
+                  </div>
                 </div>
               ))
             )}
