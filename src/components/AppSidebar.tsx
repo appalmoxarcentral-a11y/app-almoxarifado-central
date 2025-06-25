@@ -39,7 +39,7 @@ export function AppSidebar() {
         <div className="flex items-center gap-2">
           <Activity className="h-8 w-8 text-sidebar-primary" />
           <div>
-            <h2 className="text-sidebar-foreground font-bold mx-0 text-center text-2xl">FARMÁCIA CENTRAL</h2>
+            <h2 className="text-sidebar-foreground font-bold mx-0 text-center text-3xl">FARMÁCIA CENTRAL</h2>
             <p className="text-sm text-sidebar-foreground/70">Sistema de Controle</p>
           </div>
         </div>
