@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,9 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { History, TrendingUp, TrendingDown, Package, Users, Calendar } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { History, TrendingUp, TrendingDown, Package, Users, Calendar, Filter, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import type { ProductEntry, Dispensation } from '@/types';
 
 export function HistoryView() {
@@ -20,6 +21,7 @@ export function HistoryView() {
   const [filtroProduto, setFiltroProduto] = useState('all');
   const [filtroPaciente, setFiltroPaciente] = useState('all');
   const [filtroTipo, setFiltroTipo] = useState('todos');
+  const [filtroNomePaciente, setFiltroNomePaciente] = useState('');
 
   // Buscar entradas
   const { data: entradas, isLoading: isLoadingEntradas } = useQuery({
@@ -55,7 +57,7 @@ export function HistoryView() {
 
   // Buscar dispensações
   const { data: dispensacoes, isLoading: isLoadingDispensacoes } = useQuery({
-    queryKey: ['historico-dispensacoes', filtroDataInicial, filtroDataFinal, filtroProduto, filtroPaciente],
+    queryKey: ['historico-dispensacoes', filtroDataInicial, filtroDataFinal, filtroProduto, filtroPaciente, filtroNomePaciente],
     queryFn: async () => {
       let query = supabase
         .from('dispensacoes')
@@ -88,7 +90,16 @@ export function HistoryView() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as Dispensation[];
+      
+      // Filtrar por nome do paciente se especificado
+      let filteredData = data as Dispensation[];
+      if (filtroNomePaciente) {
+        filteredData = filteredData.filter(dispensacao => 
+          dispensacao.paciente?.nome.toLowerCase().includes(filtroNomePaciente.toLowerCase())
+        );
+      }
+      
+      return filteredData;
     }
   });
 
@@ -171,58 +182,164 @@ export function HistoryView() {
     ).length;
   };
 
+  // Função para limpar filtros
+  const limparFiltros = () => {
+    setFiltroDataInicial('');
+    setFiltroDataFinal('');
+    setFiltroProduto('all');
+    setFiltroPaciente('all');
+    setFiltroNomePaciente('');
+    setFiltroTipo('todos');
+  };
+
+  // Verificar se há filtros ativos
+  const hasActiveFilters = filtroDataInicial || filtroDataFinal || filtroProduto !== 'all' || 
+                          filtroPaciente !== 'all' || filtroNomePaciente || filtroTipo !== 'todos';
+
+  // Componente de filtros para mobile
+  const MobileFilters = () => (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-4">
+        <div>
+          <Label htmlFor="filtroDataInicial">Data Inicial</Label>
+          <Input
+            id="filtroDataInicial"
+            type="date"
+            value={filtroDataInicial}
+            onChange={(e) => setFiltroDataInicial(e.target.value)}
+            className="h-12"
+          />
+        </div>
+        <div>
+          <Label htmlFor="filtroDataFinal">Data Final</Label>
+          <Input
+            id="filtroDataFinal"
+            type="date"
+            value={filtroDataFinal}
+            onChange={(e) => setFiltroDataFinal(e.target.value)}
+            className="h-12"
+          />
+        </div>
+        <div>
+          <Label htmlFor="filtroProduto">Produto</Label>
+          <Select value={filtroProduto} onValueChange={setFiltroProduto}>
+            <SelectTrigger className="h-12">
+              <SelectValue placeholder="Todos os produtos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os produtos</SelectItem>
+              {produtos?.map((produto) => (
+                <SelectItem key={produto.id} value={produto.id}>
+                  {produto.descricao} ({produto.codigo})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="filtroPaciente">Paciente (Lista)</Label>
+          <Select value={filtroPaciente} onValueChange={setFiltroPaciente}>
+            <SelectTrigger className="h-12">
+              <SelectValue placeholder="Todos os pacientes" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os pacientes</SelectItem>
+              {pacientes?.map((paciente) => (
+                <SelectItem key={paciente.id} value={paciente.id}>
+                  {paciente.nome} ({paciente.sus_cpf})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="filtroNomePaciente">Buscar por Nome</Label>
+          <Input
+            id="filtroNomePaciente"
+            value={filtroNomePaciente}
+            onChange={(e) => setFiltroNomePaciente(e.target.value)}
+            placeholder="Digite o nome do paciente"
+            className="h-12"
+          />
+        </div>
+        <div>
+          <Label htmlFor="filtroTipo">Tipo de Movimentação</Label>
+          <Select value={filtroTipo} onValueChange={setFiltroTipo}>
+            <SelectTrigger className="h-12">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todas</SelectItem>
+              <SelectItem value="entradas">Apenas Entradas</SelectItem>
+              <SelectItem value="dispensacoes">Apenas Dispensações</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      {hasActiveFilters && (
+        <Button onClick={limparFiltros} variant="outline" className="w-full h-12">
+          <X className="h-4 w-4 mr-2" />
+          Limpar Filtros
+        </Button>
+      )}
+    </div>
+  );
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6 p-4 md:p-6">
       <div className="flex items-center gap-2">
-        <History className="h-8 w-8 text-primary" />
-        <h1 className="text-3xl font-bold">Históricos</h1>
+        <History className="h-6 w-6 md:h-8 md:w-8 text-primary" />
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold">Históricos</h1>
+          <p className="text-sm md:text-base text-gray-600">Controle de movimentações</p>
+        </div>
       </div>
 
-      {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* Cards de Estatísticas - Otimizado para mobile */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-green-600" />
+          <CardContent className="p-4 md:p-6">
+            <div className="flex flex-col md:flex-row md:items-center gap-2">
+              <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-green-600" />
               <div>
-                <p className="text-sm text-gray-600">Total Entradas</p>
-                <p className="text-2xl font-bold text-green-600">{totalEntradas}</p>
+                <p className="text-xs md:text-sm text-gray-600">Entradas</p>
+                <p className="text-lg md:text-2xl font-bold text-green-600">{totalEntradas}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2">
-              <TrendingDown className="h-5 w-5 text-red-600" />
+          <CardContent className="p-4 md:p-6">
+            <div className="flex flex-col md:flex-row md:items-center gap-2">
+              <TrendingDown className="h-4 w-4 md:h-5 md:w-5 text-red-600" />
               <div>
-                <p className="text-sm text-gray-600">Total Dispensações</p>
-                <p className="text-2xl font-bold text-red-600">{totalDispensacoes}</p>
+                <p className="text-xs md:text-sm text-gray-600">Dispensações</p>
+                <p className="text-lg md:text-2xl font-bold text-red-600">{totalDispensacoes}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2">
-              <Package className="h-5 w-5 text-blue-600" />
+          <CardContent className="p-4 md:p-6">
+            <div className="flex flex-col md:flex-row md:items-center gap-2">
+              <Package className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
               <div>
-                <p className="text-sm text-gray-600">Produtos Movimentados</p>
-                <p className="text-2xl font-bold text-blue-600">{produtos?.length || 0}</p>
+                <p className="text-xs md:text-sm text-gray-600">Produtos</p>
+                <p className="text-lg md:text-2xl font-bold text-blue-600">{produtos?.length || 0}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-purple-600" />
+          <CardContent className="p-4 md:p-6">
+            <div className="flex flex-col md:flex-row md:items-center gap-2">
+              <Calendar className="h-4 w-4 md:h-5 md:w-5 text-purple-600" />
               <div>
-                <p className="text-sm text-gray-600">Movimentações Hoje</p>
-                <p className="text-2xl font-bold text-purple-600">
+                <p className="text-xs md:text-sm text-gray-600">Hoje</p>
+                <p className="text-lg md:text-2xl font-bold text-purple-600">
                   {getMovimentacoesHoje()}
                 </p>
               </div>
@@ -231,136 +348,186 @@ export function HistoryView() {
         </Card>
       </div>
 
-      {/* Filtros */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filtros</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <Label htmlFor="filtroDataInicial">Data Inicial</Label>
-              <Input
-                id="filtroDataInicial"
-                type="date"
-                value={filtroDataInicial}
-                onChange={(e) => setFiltroDataInicial(e.target.value)}
-              />
+      {/* Filtros - Desktop e Mobile */}
+      <div className="block md:hidden">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="outline" className="w-full h-12 flex items-center gap-2">
+              <Filter className="h-4 w-4" />
+              Filtros
+              {hasActiveFilters && (
+                <Badge variant="secondary" className="ml-auto">
+                  Ativos
+                </Badge>
+              )}
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="h-[90vh]">
+            <SheetHeader>
+              <SheetTitle>Filtros</SheetTitle>
+              <SheetDescription>
+                Configure os filtros para personalizar a visualização
+              </SheetDescription>
+            </SheetHeader>
+            <div className="mt-6">
+              <MobileFilters />
             </div>
-            <div>
-              <Label htmlFor="filtroDataFinal">Data Final</Label>
-              <Input
-                id="filtroDataFinal"
-                type="date"
-                value={filtroDataFinal}
-                onChange={(e) => setFiltroDataFinal(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="filtroProduto">Produto</Label>
-              <Select value={filtroProduto} onValueChange={setFiltroProduto}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos os produtos" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os produtos</SelectItem>
-                  {produtos?.map((produto) => (
-                    <SelectItem key={produto.id} value={produto.id}>
-                      {produto.descricao} ({produto.codigo})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="filtroPaciente">Paciente</Label>
-              <Select value={filtroPaciente} onValueChange={setFiltroPaciente}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos os pacientes" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os pacientes</SelectItem>
-                  {pacientes?.map((paciente) => (
-                    <SelectItem key={paciente.id} value={paciente.id}>
-                      {paciente.nome} ({paciente.sus_cpf})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="mt-4">
-            <div>
-              <Label htmlFor="filtroTipo">Tipo de Movimentação</Label>
-              <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-                <SelectTrigger className="w-full md:w-64">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todas</SelectItem>
-                  <SelectItem value="entradas">Apenas Entradas</SelectItem>
-                  <SelectItem value="dispensacoes">Apenas Dispensações</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </SheetContent>
+        </Sheet>
+      </div>
 
-      {/* Tabs de Histórico */}
+      <div className="hidden md:block">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              Filtros
+              {hasActiveFilters && (
+                <Button onClick={limparFiltros} variant="outline" size="sm">
+                  <X className="h-4 w-4 mr-2" />
+                  Limpar
+                </Button>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div>
+                <Label htmlFor="filtroDataInicial">Data Inicial</Label>
+                <Input
+                  id="filtroDataInicial"
+                  type="date"
+                  value={filtroDataInicial}
+                  onChange={(e) => setFiltroDataInicial(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="filtroDataFinal">Data Final</Label>
+                <Input
+                  id="filtroDataFinal"
+                  type="date"
+                  value={filtroDataFinal}
+                  onChange={(e) => setFiltroDataFinal(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="filtroProduto">Produto</Label>
+                <Select value={filtroProduto} onValueChange={setFiltroProduto}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todos os produtos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os produtos</SelectItem>
+                    {produtos?.map((produto) => (
+                      <SelectItem key={produto.id} value={produto.id}>
+                        {produto.descricao} ({produto.codigo})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="filtroPaciente">Paciente (Lista)</Label>
+                <Select value={filtroPaciente} onValueChange={setFiltroPaciente}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todos os pacientes" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os pacientes</SelectItem>
+                    {pacientes?.map((paciente) => (
+                      <SelectItem key={paciente.id} value={paciente.id}>
+                        {paciente.nome} ({paciente.sus_cpf})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="filtroNomePaciente">Buscar por Nome</Label>
+                <Input
+                  id="filtroNomePaciente"
+                  value={filtroNomePaciente}
+                  onChange={(e) => setFiltroNomePaciente(e.target.value)}
+                  placeholder="Digite o nome do paciente"
+                />
+              </div>
+              <div>
+                <Label htmlFor="filtroTipo">Tipo de Movimentação</Label>
+                <Select value={filtroTipo} onValueChange={setFiltroTipo}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todas</SelectItem>
+                    <SelectItem value="entradas">Apenas Entradas</SelectItem>
+                    <SelectItem value="dispensacoes">Apenas Dispensações</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tabs de Histórico - Otimizado para mobile */}
       <Tabs defaultValue="movimentacoes" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="movimentacoes">Movimentações</TabsTrigger>
-          <TabsTrigger value="logs">Logs do Sistema</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 h-12">
+          <TabsTrigger value="movimentacoes" className="text-sm">Movimentações</TabsTrigger>
+          <TabsTrigger value="logs" className="text-sm">Logs</TabsTrigger>
         </TabsList>
 
         <TabsContent value="movimentacoes">
           <Card>
             <CardHeader>
-              <CardTitle>Histórico de Movimentações</CardTitle>
+              <CardTitle className="text-lg md:text-xl">Histórico de Movimentações</CardTitle>
             </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Produto</TableHead>
-                    <TableHead>Quantidade</TableHead>
-                    <TableHead>Lote</TableHead>
-                    <TableHead>Paciente</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {movimentacoesFiltradas.map((mov, index) => (
-                    <TableRow key={`${mov.tipo}-${mov.id}-${index}`}>
-                      <TableCell>
-                        {format(new Date(mov.data), 'dd/MM/yyyy', { locale: ptBR })}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={mov.tipo === 'entrada' ? 'default' : 'secondary'}>
-                          {mov.tipo === 'entrada' ? (
-                            <><TrendingUp className="h-3 w-3 mr-1" /> Entrada</>
-                          ) : (
-                            <><TrendingDown className="h-3 w-3 mr-1" /> Dispensação</>
-                          )}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{mov.descricao_produto}</TableCell>
-                      <TableCell>{mov.quantidade}</TableCell>
-                      <TableCell>{mov.lote}</TableCell>
-                      <TableCell>{mov.paciente || '-'}</TableCell>
-                    </TableRow>
-                  ))}
-                  {movimentacoesFiltradas.length === 0 && (
+            <CardContent className="p-0 md:p-6">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-4 text-gray-500">
-                        Nenhuma movimentação encontrada com os filtros aplicados
-                      </TableCell>
+                      <TableHead className="min-w-[100px]">Data</TableHead>
+                      <TableHead className="min-w-[120px]">Tipo</TableHead>
+                      <TableHead className="min-w-[150px]">Produto</TableHead>
+                      <TableHead className="min-w-[80px]">Qtd</TableHead>
+                      <TableHead className="min-w-[100px]">Lote</TableHead>
+                      <TableHead className="min-w-[120px]">Paciente</TableHead>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {movimentacoesFiltradas.map((mov, index) => (
+                      <TableRow key={`${mov.tipo}-${mov.id}-${index}`}>
+                        <TableCell className="text-xs md:text-sm">
+                          {format(new Date(mov.data), 'dd/MM/yy', { locale: ptBR })}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={mov.tipo === 'entrada' ? 'default' : 'secondary'} className="text-xs">
+                            {mov.tipo === 'entrada' ? (
+                              <><TrendingUp className="h-3 w-3 mr-1" /> Entrada</>
+                            ) : (
+                              <><TrendingDown className="h-3 w-3 mr-1" /> Dispensação</>
+                            )}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs md:text-sm max-w-[150px] truncate">
+                          {mov.descricao_produto}
+                        </TableCell>
+                        <TableCell className="text-xs md:text-sm">{mov.quantidade}</TableCell>
+                        <TableCell className="text-xs md:text-sm">{mov.lote}</TableCell>
+                        <TableCell className="text-xs md:text-sm max-w-[120px] truncate">
+                          {mov.paciente || '-'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {movimentacoesFiltradas.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                          Nenhuma movimentação encontrada
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -368,30 +535,30 @@ export function HistoryView() {
         <TabsContent value="logs">
           <Card>
             <CardHeader>
-              <CardTitle>Logs do Sistema</CardTitle>
+              <CardTitle className="text-lg md:text-xl">Logs do Sistema</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {logs?.map((log) => (
                   <div key={log.id} className="border rounded-lg p-3">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-medium">{log.acao}</p>
-                        <p className="text-sm text-gray-600">Tabela: {log.tabela}</p>
+                    <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-2">
+                      <div className="flex-1">
+                        <p className="font-medium text-sm md:text-base">{log.acao}</p>
+                        <p className="text-xs md:text-sm text-gray-600">Tabela: {log.tabela}</p>
                         {log.detalhes && (
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-xs text-gray-500 mt-1 break-all">
                             {JSON.stringify(log.detalhes)}
                           </p>
                         )}
                       </div>
-                      <Badge variant="outline">
+                      <Badge variant="outline" className="text-xs self-start">
                         {format(new Date(log.created_at || ''), 'dd/MM HH:mm', { locale: ptBR })}
                       </Badge>
                     </div>
                   </div>
                 ))}
                 {(!logs || logs.length === 0) && (
-                  <p className="text-center text-gray-500 py-4">
+                  <p className="text-center text-gray-500 py-8">
                     Nenhum log encontrado
                   </p>
                 )}

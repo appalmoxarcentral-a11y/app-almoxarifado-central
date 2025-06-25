@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Save, UserPlus, Trash2, Edit, X } from "lucide-react";
+import { Users, Save, UserPlus, Trash2, Edit, X, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Patient } from "@/types";
 
@@ -13,6 +12,8 @@ export function PatientForm() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [filteredPatients, setFilteredPatients] = useState<Patient[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [formData, setFormData] = useState({
     nome: '',
@@ -79,6 +80,7 @@ export function PatientForm() {
 
       if (error) throw error;
       setPatients(data || []);
+      setFilteredPatients(data || []);
     } catch (error) {
       console.error('Erro ao carregar pacientes:', error);
       toast({
@@ -88,6 +90,20 @@ export function PatientForm() {
       });
     }
   };
+
+  // Filtrar pacientes por busca
+  useEffect(() => {
+    if (!searchTerm) {
+      setFilteredPatients(patients);
+    } else {
+      const filtered = patients.filter(patient =>
+        patient.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        patient.sus_cpf.includes(searchTerm) ||
+        patient.telefone.includes(searchTerm)
+      );
+      setFilteredPatients(filtered);
+    }
+  }, [searchTerm, patients]);
 
   useEffect(() => {
     loadPatients();
@@ -238,22 +254,22 @@ export function PatientForm() {
   const idade = calculateAge(formData.nascimento);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6 p-4 md:p-6">
       <div className="flex items-center gap-2">
-        <Users className="h-6 w-6 text-primary" />
+        <Users className="h-6 w-6 md:h-8 md:w-8 text-primary" />
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Cadastro de Pacientes</h1>
-          <p className="text-gray-600">Gerencie os dados dos pacientes da UBSF</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Cadastro de Pacientes</h1>
+          <p className="text-sm md:text-base text-gray-600">Gerencie os dados dos pacientes da UBSF</p>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
             {editingPatient ? <Edit className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
             {editingPatient ? 'Editar Paciente' : 'Novo Paciente'}
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-sm">
             {editingPatient 
               ? 'Atualize os dados do paciente selecionado'
               : 'Preencha todos os campos obrigatórios para cadastrar um novo paciente'
@@ -261,8 +277,8 @@ export function PatientForm() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div className="space-y-2">
                 <Label htmlFor="nome">Nome Completo *</Label>
                 <Input
@@ -270,6 +286,7 @@ export function PatientForm() {
                   value={formData.nome}
                   onChange={(e) => handleInputChange('nome', e.target.value)}
                   placeholder="Digite o nome completo"
+                  className="h-12"
                   required
                 />
               </div>
@@ -282,10 +299,11 @@ export function PatientForm() {
                   onChange={(e) => handleInputChange('sus_cpf', e.target.value)}
                   placeholder="Digite apenas números (11 a 15 dígitos)"
                   maxLength={15}
+                  className="h-12"
                   required
                 />
                 {formData.sus_cpf && (
-                  <p className={`text-sm ${
+                  <p className={`text-xs md:text-sm ${
                     formData.sus_cpf.length >= 11 && formData.sus_cpf.length <= 15 
                       ? 'text-green-600' 
                       : 'text-red-600'
@@ -297,13 +315,14 @@ export function PatientForm() {
                 )}
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="endereco">Endereço Completo *</Label>
                 <Input
                   id="endereco"
                   value={formData.endereco}
                   onChange={(e) => handleInputChange('endereco', e.target.value)}
                   placeholder="Rua, número, complemento"
+                  className="h-12"
                   required
                 />
               </div>
@@ -315,6 +334,7 @@ export function PatientForm() {
                   value={formData.bairro}
                   onChange={(e) => handleInputChange('bairro', e.target.value)}
                   placeholder="Bairro - Cidade"
+                  className="h-12"
                   required
                 />
               </div>
@@ -327,6 +347,7 @@ export function PatientForm() {
                   onChange={(e) => handleInputChange('telefone', e.target.value)}
                   placeholder="(00) 00000-0000"
                   maxLength={15}
+                  className="h-12"
                   required
                 />
               </div>
@@ -338,27 +359,33 @@ export function PatientForm() {
                   type="date"
                   value={formData.nascimento}
                   onChange={(e) => handleInputChange('nascimento', e.target.value)}
+                  className="h-12"
                   required
                 />
                 {idade > 0 && (
-                  <p className="text-sm text-gray-500">Idade: {idade} anos</p>
+                  <p className="text-xs md:text-sm text-gray-500">Idade: {idade} anos</p>
                 )}
               </div>
             </div>
 
-            <div className="flex justify-end gap-4">
+            <div className="flex flex-col md:flex-row justify-end gap-2 md:gap-4">
               {editingPatient && (
-                <Button type="button" variant="outline" onClick={handleCancelEdit}>
+                <Button type="button" variant="outline" onClick={handleCancelEdit} className="h-12 order-2 md:order-1">
                   <X className="h-4 w-4 mr-2" />
                   Cancelar
                 </Button>
               )}
-              <Button type="button" variant="outline" onClick={() => setFormData({
-                nome: '', sus_cpf: '', endereco: '', bairro: '', telefone: '', nascimento: ''
-              })}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setFormData({
+                  nome: '', sus_cpf: '', endereco: '', bairro: '', telefone: '', nascimento: ''
+                })}
+                className="h-12 order-3 md:order-2"
+              >
                 Limpar
               </Button>
-              <Button type="submit" disabled={loading} className="flex items-center gap-2">
+              <Button type="submit" disabled={loading} className="flex items-center justify-center gap-2 h-12 order-1 md:order-3">
                 <Save className="h-4 w-4" />
                 {loading 
                   ? (editingPatient ? 'Atualizando...' : 'Salvando...') 
@@ -373,44 +400,59 @@ export function PatientForm() {
       {/* Lista de pacientes */}
       <Card>
         <CardHeader>
-          <CardTitle>Pacientes Cadastrados ({patients.length})</CardTitle>
-          <CardDescription>Lista dos pacientes no sistema</CardDescription>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <CardTitle className="text-lg md:text-xl">Pacientes Cadastrados ({filteredPatients.length})</CardTitle>
+              <CardDescription className="text-sm">Lista dos pacientes no sistema</CardDescription>
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Buscar paciente..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 h-12 w-full md:w-64"
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {patients.length === 0 ? (
-              <p className="text-gray-500 text-center py-4">Nenhum paciente cadastrado.</p>
+            {filteredPatients.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">
+                {searchTerm ? "Nenhum paciente encontrado com o termo de busca." : "Nenhum paciente cadastrado."}
+              </p>
             ) : (
-              patients.map((patient) => (
-                <div key={patient.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <p className="font-medium">{patient.nome}</p>
-                    <p className="text-sm text-gray-500">
+              filteredPatients.map((patient) => (
+                <div key={patient.id} className="flex flex-col md:flex-row md:items-center md:justify-between p-4 border rounded-lg gap-4">
+                  <div className="flex-1">
+                    <p className="font-medium text-sm md:text-base">{patient.nome}</p>
+                    <p className="text-xs md:text-sm text-gray-500">
                       SUS/CPF: {patient.sus_cpf} | Idade: {patient.idade} anos
                     </p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-xs md:text-sm text-gray-500">
                       {patient.endereco}, {patient.bairro}
                     </p>
-                    <p className="text-sm text-gray-500">Tel: {patient.telefone}</p>
+                    <p className="text-xs md:text-sm text-gray-500">Tel: {patient.telefone}</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 md:flex-col lg:flex-row">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleEdit(patient)}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 flex-1 md:flex-none h-10"
                     >
                       <Edit className="h-4 w-4" />
-                      Editar
+                      <span className="md:hidden lg:inline">Editar</span>
                     </Button>
                     <Button
                       variant="destructive"
                       size="sm"
                       onClick={() => handleDelete(patient.id, patient.nome)}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 flex-1 md:flex-none h-10"
                     >
                       <Trash2 className="h-4 w-4" />
-                      Excluir
+                      <span className="md:hidden lg:inline">Excluir</span>
                     </Button>
                   </div>
                 </div>
