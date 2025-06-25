@@ -1,13 +1,14 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Save, Plus } from "lucide-react";
-import { UnidadeMedida } from "@/types";
+import { Package, Save, Plus, Trash2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { UnidadeMedida, Product } from "@/types";
 
 const unidadesMedida: { value: UnidadeMedida; label: string }[] = [
   { value: 'AM', label: 'Ampola (AM)' },
@@ -25,11 +26,35 @@ const unidadesMedida: { value: UnidadeMedida; label: string }[] = [
 export function ProductForm() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
   const [formData, setFormData] = useState({
     descricao: '',
     codigo: '',
     unidade_medida: '' as UnidadeMedida,
   });
+
+  const loadProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('produtos')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar produtos:', error);
+      toast({
+        title: "Erro ao carregar produtos",
+        description: "Não foi possível carregar a lista de produtos.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  useEffect(() => {
+    loadProducts();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,8 +65,16 @@ export function ProductForm() {
         throw new Error('Todos os campos são obrigatórios');
       }
 
-      // Aqui integraria com Supabase
-      console.log('Dados do produto:', { ...formData, estoque_atual: 0 });
+      const { error } = await supabase
+        .from('produtos')
+        .insert([{
+          descricao: formData.descricao,
+          codigo: formData.codigo.toUpperCase(),
+          unidade_medida: formData.unidade_medida,
+          estoque_atual: 0
+        }]);
+
+      if (error) throw error;
       
       toast({
         title: "Produto cadastrado com sucesso!",
@@ -54,6 +87,9 @@ export function ProductForm() {
         codigo: '',
         unidade_medida: '' as UnidadeMedida,
       });
+
+      // Recarregar lista
+      await loadProducts();
       
     } catch (error) {
       toast({
@@ -63,6 +99,32 @@ export function ProductForm() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string, descricao: string) => {
+    if (!confirm(`Tem certeza que deseja excluir o produto ${descricao}?`)) return;
+
+    try {
+      const { error } = await supabase
+        .from('produtos')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Produto excluído",
+        description: `${descricao} foi removido do sistema.`,
+      });
+
+      await loadProducts();
+    } catch (error) {
+      toast({
+        title: "Erro ao excluir produto",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
     }
   };
 
@@ -150,30 +212,43 @@ export function ProductForm() {
         </CardContent>
       </Card>
 
-      {/* Lista de produtos existentes - mock */}
+      {/* Lista de produtos */}
       <Card>
         <CardHeader>
-          <CardTitle>Produtos Cadastrados</CardTitle>
+          <CardTitle>Produtos Cadastrados ({products.length})</CardTitle>
           <CardDescription>Lista dos produtos no sistema</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {[
-              { codigo: 'DIP500', descricao: 'Dipirona 500mg', unidade: 'CP', estoque: 150 },
-              { codigo: 'PAR750', descricao: 'Paracetamol 750mg', unidade: 'CP', estoque: 200 },
-              { codigo: 'AMO500', descricao: 'Amoxicilina 500mg', unidade: 'CPS', estoque: 80 },
-            ].map((produto, index) => (
-              <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <p className="font-medium">{produto.descricao}</p>
-                  <p className="text-sm text-gray-500">Código: {produto.codigo} | Unidade: {produto.unidade}</p>
+            {products.length === 0 ? (
+              <p className="text-gray-500 text-center py-4">Nenhum produto cadastrado.</p>
+            ) : (
+              products.map((product) => (
+                <div key={product.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <p className="font-medium">{product.descricao}</p>
+                    <p className="text-sm text-gray-500">
+                      Código: {product.codigo} | Unidade: {product.unidade_medida}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className="font-medium">Estoque: {product.estoque_atual}</p>
+                      <p className="text-sm text-gray-500">unidades</p>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDelete(product.id, product.descricao)}
+                      className="flex items-center gap-2"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Excluir
+                    </Button>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-medium">Estoque: {produto.estoque}</p>
-                  <p className="text-sm text-gray-500">unidades</p>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </CardContent>
       </Card>

@@ -1,16 +1,18 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Save, UserPlus } from "lucide-react";
+import { Users, Save, UserPlus, Trash2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { Patient } from "@/types";
 
 export function PatientForm() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [patients, setPatients] = useState<Patient[]>([]);
   const [formData, setFormData] = useState({
     nome: '',
     sus_cpf: '',
@@ -63,6 +65,29 @@ export function PatientForm() {
     }));
   };
 
+  const loadPatients = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('pacientes')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setPatients(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar pacientes:', error);
+      toast({
+        title: "Erro ao carregar pacientes",
+        description: "Não foi possível carregar a lista de pacientes.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  useEffect(() => {
+    loadPatients();
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -76,8 +101,19 @@ export function PatientForm() {
 
       const idade = calculateAge(formData.nascimento);
       
-      // Aqui integraria com Supabase
-      console.log('Dados do paciente:', { ...formData, idade });
+      const { error } = await supabase
+        .from('pacientes')
+        .insert([{
+          nome: formData.nome,
+          sus_cpf: formData.sus_cpf,
+          endereco: formData.endereco,
+          bairro: formData.bairro,
+          telefone: formData.telefone,
+          nascimento: formData.nascimento,
+          idade: idade
+        }]);
+
+      if (error) throw error;
       
       toast({
         title: "Paciente cadastrado com sucesso!",
@@ -93,6 +129,9 @@ export function PatientForm() {
         telefone: '',
         nascimento: '',
       });
+
+      // Recarregar lista
+      await loadPatients();
       
     } catch (error) {
       toast({
@@ -102,6 +141,32 @@ export function PatientForm() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string, nome: string) => {
+    if (!confirm(`Tem certeza que deseja excluir o paciente ${nome}?`)) return;
+
+    try {
+      const { error } = await supabase
+        .from('pacientes')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Paciente excluído",
+        description: `${nome} foi removido do sistema.`,
+      });
+
+      await loadPatients();
+    } catch (error) {
+      toast({
+        title: "Erro ao excluir paciente",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
     }
   };
 
@@ -214,6 +279,45 @@ export function PatientForm() {
               </Button>
             </div>
           </form>
+        </CardContent>
+      </Card>
+
+      {/* Lista de pacientes */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Pacientes Cadastrados ({patients.length})</CardTitle>
+          <CardDescription>Lista dos pacientes no sistema</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {patients.length === 0 ? (
+              <p className="text-gray-500 text-center py-4">Nenhum paciente cadastrado.</p>
+            ) : (
+              patients.map((patient) => (
+                <div key={patient.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <p className="font-medium">{patient.nome}</p>
+                    <p className="text-sm text-gray-500">
+                      SUS/CPF: {patient.sus_cpf} | Idade: {patient.idade} anos
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {patient.endereco}, {patient.bairro}
+                    </p>
+                    <p className="text-sm text-gray-500">Tel: {patient.telefone}</p>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleDelete(patient.id, patient.nome)}
+                    className="flex items-center gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Excluir
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -9,16 +9,263 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      dispensacoes: {
+        Row: {
+          created_at: string | null
+          data_dispensa: string
+          id: string
+          lote: string
+          paciente_id: string
+          produto_id: string
+          quantidade: number
+          usuario_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          data_dispensa?: string
+          id?: string
+          lote: string
+          paciente_id: string
+          produto_id: string
+          quantidade: number
+          usuario_id: string
+        }
+        Update: {
+          created_at?: string | null
+          data_dispensa?: string
+          id?: string
+          lote?: string
+          paciente_id?: string
+          produto_id?: string
+          quantidade?: number
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispensacoes_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispensacoes_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispensacoes_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      entradas_produtos: {
+        Row: {
+          created_at: string | null
+          data_entrada: string
+          id: string
+          lote: string
+          produto_id: string
+          quantidade: number
+          usuario_id: string
+          vencimento: string
+        }
+        Insert: {
+          created_at?: string | null
+          data_entrada?: string
+          id?: string
+          lote: string
+          produto_id: string
+          quantidade: number
+          usuario_id: string
+          vencimento: string
+        }
+        Update: {
+          created_at?: string | null
+          data_entrada?: string
+          id?: string
+          lote?: string
+          produto_id?: string
+          quantidade?: number
+          usuario_id?: string
+          vencimento?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entradas_produtos_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entradas_produtos_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      logs_sistema: {
+        Row: {
+          acao: string
+          created_at: string | null
+          detalhes: Json | null
+          id: string
+          tabela: string
+          usuario_id: string | null
+        }
+        Insert: {
+          acao: string
+          created_at?: string | null
+          detalhes?: Json | null
+          id?: string
+          tabela: string
+          usuario_id?: string | null
+        }
+        Update: {
+          acao?: string
+          created_at?: string | null
+          detalhes?: Json | null
+          id?: string
+          tabela?: string
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "logs_sistema_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pacientes: {
+        Row: {
+          bairro: string
+          created_at: string | null
+          endereco: string
+          id: string
+          idade: number
+          nascimento: string
+          nome: string
+          sus_cpf: string
+          telefone: string
+        }
+        Insert: {
+          bairro: string
+          created_at?: string | null
+          endereco: string
+          id?: string
+          idade?: number
+          nascimento: string
+          nome: string
+          sus_cpf: string
+          telefone: string
+        }
+        Update: {
+          bairro?: string
+          created_at?: string | null
+          endereco?: string
+          id?: string
+          idade?: number
+          nascimento?: string
+          nome?: string
+          sus_cpf?: string
+          telefone?: string
+        }
+        Relationships: []
+      }
+      produtos: {
+        Row: {
+          codigo: string
+          created_at: string | null
+          descricao: string
+          estoque_atual: number
+          id: string
+          unidade_medida: Database["public"]["Enums"]["unidade_medida"]
+        }
+        Insert: {
+          codigo: string
+          created_at?: string | null
+          descricao: string
+          estoque_atual?: number
+          id?: string
+          unidade_medida: Database["public"]["Enums"]["unidade_medida"]
+        }
+        Update: {
+          codigo?: string
+          created_at?: string | null
+          descricao?: string
+          estoque_atual?: number
+          id?: string
+          unidade_medida?: Database["public"]["Enums"]["unidade_medida"]
+        }
+        Relationships: []
+      }
+      usuarios: {
+        Row: {
+          ativo: boolean
+          created_at: string | null
+          email: string
+          id: string
+          nome: string
+          permissoes: Json
+          senha: string
+          tipo: Database["public"]["Enums"]["tipo_usuario"]
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string | null
+          email: string
+          id?: string
+          nome: string
+          permissoes?: Json
+          senha: string
+          tipo?: Database["public"]["Enums"]["tipo_usuario"]
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string | null
+          email?: string
+          id?: string
+          nome?: string
+          permissoes?: Json
+          senha?: string
+          tipo?: Database["public"]["Enums"]["tipo_usuario"]
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      hash_senha: {
+        Args: { senha_texto: string }
+        Returns: string
+      }
     }
     Enums: {
-      [_ in never]: never
+      tipo_usuario: "ADMIN" | "COMUM"
+      unidade_medida:
+        | "AM"
+        | "CP"
+        | "BG"
+        | "FR"
+        | "CPS"
+        | "ML"
+        | "MG"
+        | "G"
+        | "KG"
+        | "UN"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +380,20 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      tipo_usuario: ["ADMIN", "COMUM"],
+      unidade_medida: [
+        "AM",
+        "CP",
+        "BG",
+        "FR",
+        "CPS",
+        "ML",
+        "MG",
+        "G",
+        "KG",
+        "UN",
+      ],
+    },
   },
 } as const

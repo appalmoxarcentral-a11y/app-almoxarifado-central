@@ -1,29 +1,102 @@
 
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, Users, Package, AlertTriangle, TrendingUp, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import { DashboardStats } from "@/types";
 
 export function Dashboard() {
-  // Mock data - em produção virá do Supabase
-  const stats = {
-    total_produtos: 245,
-    produtos_vencendo: 12,
-    produtos_estoque_baixo: 8,
-    dispensacoes_mes: 156,
-    entradas_mes: 42,
+  const [stats, setStats] = useState<DashboardStats>({
+    total_produtos: 0,
+    produtos_vencendo: 0,
+    produtos_estoque_baixo: 0,
+    dispensacoes_mes: 0,
+    entradas_mes: 0,
+  });
+
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [produtosVencendo, setProdutosVencendo] = useState<any[]>([]);
+
+  const loadDashboardData = async () => {
+    try {
+      // Carregar estatísticas gerais
+      const { data: produtos } = await supabase
+        .from('produtos')
+        .select('*');
+
+      const { data: dispensacoes } = await supabase
+        .from('dispensacoes')
+        .select('*')
+        .gte('data_dispensa', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
+
+      const { data: entradas } = await supabase
+        .from('entradas_produtos')
+        .select('*')
+        .gte('data_entrada', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
+
+      // Calcular estatísticas
+      const totalProdutos = produtos?.length || 0;
+      const produtosEstoqueBaixo = produtos?.filter(p => p.estoque_atual < 10).length || 0;
+      const dispensacoesMes = dispensacoes?.length || 0;
+      const entradasMes = entradas?.length || 0;
+
+      setStats({
+        total_produtos: totalProdutos,
+        produtos_vencendo: 0, // Será implementado quando houver dados de vencimento
+        produtos_estoque_baixo: produtosEstoqueBaixo,
+        dispensacoes_mes: dispensacoesMes,
+        entradas_mes: entradasMes,
+      });
+
+      // Carregar atividades recentes
+      const { data: recentDisp } = await supabase
+        .from('dispensacoes')
+        .select(`
+          *,
+          paciente:pacientes(nome),
+          produto:produtos(descricao)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      const { data: recentEnt } = await supabase
+        .from('entradas_produtos')
+        .select(`
+          *,
+          produto:produtos(descricao)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(2);
+
+      const activities = [
+        ...(recentDisp?.map(d => ({
+          id: d.id,
+          type: 'dispensacao',
+          produto: d.produto?.descricao || 'Produto não encontrado',
+          paciente: d.paciente?.nome || 'Paciente não encontrado',
+          quantidade: d.quantidade,
+          tempo: new Date(d.created_at).toLocaleString('pt-BR')
+        })) || []),
+        ...(recentEnt?.map(e => ({
+          id: e.id,
+          type: 'entrada',
+          produto: e.produto?.descricao || 'Produto não encontrado',
+          quantidade: e.quantidade,
+          tempo: new Date(e.created_at).toLocaleString('pt-BR')
+        })) || [])
+      ].sort((a, b) => new Date(b.tempo).getTime() - new Date(a.tempo).getTime()).slice(0, 3);
+
+      setRecentActivity(activities);
+
+    } catch (error) {
+      console.error('Erro ao carregar dados do dashboard:', error);
+    }
   };
 
-  const recentActivity = [
-    { id: 1, type: 'dispensacao', produto: 'Dipirona 500mg', paciente: 'Maria Silva', quantidade: 20, tempo: '2 min atrás' },
-    { id: 2, type: 'entrada', produto: 'Paracetamol 750mg', quantidade: 100, tempo: '15 min atrás' },
-    { id: 3, type: 'dispensacao', produto: 'Amoxicilina 500mg', paciente: 'João Santos', quantidade: 21, tempo: '32 min atrás' },
-  ];
-
-  const produtosVencendo = [
-    { produto: 'Insulina NPH', lote: 'L001', vencimento: '2024-07-15', dias: 5 },
-    { produto: 'Captopril 25mg', lote: 'L002', vencimento: '2024-07-20', dias: 10 },
-    { produto: 'Losartana 50mg', lote: 'L003', vencimento: '2024-07-25', dias: 15 },
-  ];
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -53,7 +126,7 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.total_produtos}</div>
-            <p className="text-xs opacity-80">em estoque</p>
+            <p className="text-xs opacity-80">cadastrados</p>
           </CardContent>
         </Card>
 
@@ -86,7 +159,7 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.dispensacoes_mes}</div>
-            <p className="text-xs text-muted-foreground">+12% vs mês anterior</p>
+            <p className="text-xs text-muted-foreground">este mês</p>
           </CardContent>
         </Card>
 
@@ -111,61 +184,59 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentActivity.map((activity) => (
-                <div key={activity.id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    {activity.type === 'dispensacao' ? (
-                      <div className="p-2 bg-blue-100 rounded-full">
-                        <Users className="h-4 w-4 text-blue-600" />
+              {recentActivity.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">Nenhuma atividade recente.</p>
+              ) : (
+                recentActivity.map((activity) => (
+                  <div key={activity.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      {activity.type === 'dispensacao' ? (
+                        <div className="p-2 bg-blue-100 rounded-full">
+                          <Users className="h-4 w-4 text-blue-600" />
+                        </div>
+                      ) : (
+                        <div className="p-2 bg-green-100 rounded-full">
+                          <Package className="h-4 w-4 text-green-600" />
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-medium">{activity.produto}</p>
+                        <p className="text-sm text-gray-500">
+                          {activity.type === 'dispensacao' 
+                            ? `${activity.paciente} - ${activity.quantidade} unidades`
+                            : `Entrada: ${activity.quantidade} unidades`
+                          }
+                        </p>
                       </div>
-                    ) : (
-                      <div className="p-2 bg-green-100 rounded-full">
-                        <Package className="h-4 w-4 text-green-600" />
-                      </div>
-                    )}
-                    <div>
-                      <p className="font-medium">{activity.produto}</p>
-                      <p className="text-sm text-gray-500">
-                        {activity.type === 'dispensacao' 
-                          ? `${activity.paciente} - ${activity.quantidade} unidades`
-                          : `Entrada: ${activity.quantidade} unidades`
-                        }
-                      </p>
                     </div>
+                    <Badge variant={activity.type === 'dispensacao' ? 'default' : 'secondary'}>
+                      {activity.tempo}
+                    </Badge>
                   </div>
-                  <Badge variant={activity.type === 'dispensacao' ? 'default' : 'secondary'}>
-                    {activity.tempo}
-                  </Badge>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Produtos Próximos ao Vencimento */}
+        {/* Produtos com Estoque Baixo */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-orange-500" />
-              Produtos Vencendo
+              Produtos com Estoque Baixo
             </CardTitle>
-            <CardDescription>Produtos com vencimento próximo (30 dias)</CardDescription>
+            <CardDescription>Produtos com menos de 10 unidades em estoque</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {produtosVencendo.map((produto, index) => (
-                <div key={index} className="flex items-center justify-between p-3 border rounded-lg bg-orange-50 border-orange-200">
-                  <div>
-                    <p className="font-medium text-orange-800">{produto.produto}</p>
-                    <p className="text-sm text-orange-600">
-                      Lote: {produto.lote} | Vence: {new Date(produto.vencimento).toLocaleDateString('pt-BR')}
-                    </p>
-                  </div>
-                  <Badge variant={produto.dias <= 7 ? 'destructive' : 'secondary'}>
-                    {produto.dias} dias
-                  </Badge>
-                </div>
-              ))}
+              {stats.produtos_estoque_baixo === 0 ? (
+                <p className="text-gray-500 text-center py-4">Todos os produtos com estoque adequado.</p>
+              ) : (
+                <p className="text-gray-500 text-center py-4">
+                  {stats.produtos_estoque_baixo} produto(s) com estoque baixo.
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
