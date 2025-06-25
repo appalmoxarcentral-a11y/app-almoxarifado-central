@@ -14,7 +14,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Product, Patient, Dispensation } from '@/types';
 
-const MOCK_USUARIO_ID = "550e8400-e29b-41d4-a716-446655440000"; // ID temporário para teste
+const MOCK_USUARIO_ID = "550e8400-e29b-41d4-a716-446655440000";
 
 export function DispensationForm() {
   const [selectedPatient, setSelectedPatient] = useState('');
@@ -62,11 +62,11 @@ export function DispensationForm() {
         .from('dispensacoes')
         .select(`
           *,
-          pacientes:paciente_id (
+          paciente:paciente_id (
             nome,
             sus_cpf
           ),
-          produtos:produto_id (
+          produto:produto_id (
             descricao,
             codigo,
             unidade_medida
@@ -283,12 +283,12 @@ export function DispensationForm() {
                   <div key={dispensacao.id} className="border rounded-lg p-3">
                     <div className="flex justify-between items-start">
                       <div>
-                        <p className="font-medium">{dispensacao.produtos?.descricao}</p>
+                        <p className="font-medium">{dispensacao.produto?.descricao}</p>
                         <p className="text-sm text-gray-600">
-                          {dispensacao.pacientes?.nome}
+                          {dispensacao.paciente?.nome}
                         </p>
                         <p className="text-sm text-gray-600">
-                          Lote: {dispensacao.lote} | Qtd: {dispensacao.quantidade} {dispensacao.produtos?.unidade_medida}
+                          Lote: {dispensacao.lote} | Qtd: {dispensacao.quantidade} {dispensacao.produto?.unidade_medida}
                         </p>
                       </div>
                       <Badge variant="secondary">

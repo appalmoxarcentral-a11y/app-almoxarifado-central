@@ -15,7 +15,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Product, ProductEntry } from '@/types';
 
-const MOCK_USUARIO_ID = "550e8400-e29b-41d4-a716-446655440000"; // ID temporário para teste
+const MOCK_USUARIO_ID = "550e8400-e29b-41d4-a716-446655440000";
 
 export function ProductEntryForm() {
   const [selectedProduct, setSelectedProduct] = useState('');
@@ -48,7 +48,7 @@ export function ProductEntryForm() {
         .from('entradas_produtos')
         .select(`
           *,
-          produtos:produto_id (
+          produto:produto_id (
             descricao,
             codigo,
             unidade_medida
@@ -226,9 +226,9 @@ export function ProductEntryForm() {
                   <div key={entrada.id} className="border rounded-lg p-3">
                     <div className="flex justify-between items-start">
                       <div>
-                        <p className="font-medium">{entrada.produtos?.descricao}</p>
+                        <p className="font-medium">{entrada.produto?.descricao}</p>
                         <p className="text-sm text-gray-600">
-                          Lote: {entrada.lote} | Qtd: {entrada.quantidade} {entrada.produtos?.unidade_medida}
+                          Lote: {entrada.lote} | Qtd: {entrada.quantidade} {entrada.produto?.unidade_medida}
                         </p>
                         <p className="text-xs text-gray-500">
                           Venc: {format(new Date(entrada.vencimento), 'dd/MM/yyyy', { locale: ptBR })}

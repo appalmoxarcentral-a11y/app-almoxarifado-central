@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,7 +27,7 @@ export function HistoryView() {
         .from('entradas_produtos')
         .select(`
           *,
-          produtos:produto_id (
+          produto:produto_id (
             descricao,
             codigo,
             unidade_medida
@@ -55,11 +56,11 @@ export function HistoryView() {
         .from('dispensacoes')
         .select(`
           *,
-          pacientes:paciente_id (
+          paciente:paciente_id (
             nome,
             sus_cpf
           ),
-          produtos:produto_id (
+          produto:produto_id (
             descricao,
             codigo,
             unidade_medida
@@ -119,15 +120,15 @@ export function HistoryView() {
       ...entrada,
       tipo: 'entrada' as const,
       data: entrada.data_entrada,
-      descricao_produto: entrada.produtos?.descricao || '',
+      descricao_produto: entrada.produto?.descricao || '',
       paciente: null
     })) || []),
     ...(dispensacoes?.map(dispensacao => ({
       ...dispensacao,
       tipo: 'dispensacao' as const,
       data: dispensacao.data_dispensa,
-      descricao_produto: dispensacao.produtos?.descricao || '',
-      paciente: dispensacao.pacientes?.nome || ''
+      descricao_produto: dispensacao.produto?.descricao || '',
+      paciente: dispensacao.paciente?.nome || ''
     })) || [])
   ].sort((a, b) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime());
 
