@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,7 +15,7 @@ import type { ProductEntry, Dispensation } from '@/types';
 
 export function HistoryView() {
   const [filtroData, setFiltroData] = useState('');
-  const [filtroProduto, setFiltroProduto] = useState('');
+  const [filtroProduto, setFiltroProduto] = useState('all');
   const [filtroTipo, setFiltroTipo] = useState('todos');
 
   // Buscar entradas
@@ -38,7 +37,7 @@ export function HistoryView() {
       if (filtroData) {
         query = query.gte('data_entrada', filtroData);
       }
-      if (filtroProduto) {
+      if (filtroProduto && filtroProduto !== 'all') {
         query = query.eq('produto_id', filtroProduto);
       }
 
@@ -71,7 +70,7 @@ export function HistoryView() {
       if (filtroData) {
         query = query.gte('data_dispensa', filtroData);
       }
-      if (filtroProduto) {
+      if (filtroProduto && filtroProduto !== 'all') {
         query = query.eq('produto_id', filtroProduto);
       }
 
@@ -223,7 +222,7 @@ export function HistoryView() {
                   <SelectValue placeholder="Todos os produtos" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os produtos</SelectItem>
+                  <SelectItem value="all">Todos os produtos</SelectItem>
                   {produtos?.map((produto) => (
                     <SelectItem key={produto.id} value={produto.id}>
                       {produto.descricao} ({produto.codigo})
