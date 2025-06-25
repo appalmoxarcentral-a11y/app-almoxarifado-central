@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,13 +7,18 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, User, Package, AlertTriangle } from 'lucide-react';
+import { ShoppingCart, User, Package, AlertTriangle, Plus, Trash2, X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useAuth } from '@/contexts/AuthContext';
 import type { Product, Patient, Dispensation } from '@/types';
 
-const MOCK_USUARIO_ID = "550e8400-e29b-41d4-a716-446655440000";
+interface CarrinhoItem {
+  produto: Product;
+  quantidade: number;
+  lote: string;
+}
 
 export function DispensationForm() {
   const [selectedPatient, setSelectedPatient] = useState('');
@@ -22,7 +26,9 @@ export function DispensationForm() {
   const [quantidade, setQuantidade] = useState('');
   const [lote, setLote] = useState('');
   const [dataDispensa, setDataDispensa] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [carrinho, setCarrinho] = useState<CarrinhoItem[]>([]);
 
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   // Buscar pacientes
@@ -82,31 +88,40 @@ export function DispensationForm() {
 
   // Produto selecionado para verificar estoque
   const produtoSelecionado = produtos?.find(p => p.id === selectedProduct);
+  const pacienteSelecionado = pacientes?.find(p => p.id === selectedPatient);
 
-  // Mutation para criar dispensação
+  // Mutation para dispensação múltipla
   const createDispensationMutation = useMutation({
-    mutationFn: async (dispensationData: any) => {
+    mutationFn: async (items: CarrinhoItem[]) => {
+      if (!selectedPatient || !user) {
+        throw new Error('Paciente ou usuário não selecionado');
+      }
+
+      // Criar todas as dispensações
+      const dispensationsToCreate = items.map(item => ({
+        paciente_id: selectedPatient,
+        produto_id: item.produto.id,
+        quantidade: item.quantidade,
+        lote: item.lote,
+        data_dispensa: dataDispensa,
+        usuario_id: user.id
+      }));
+
       const { error } = await supabase
         .from('dispensacoes')
-        .insert([{
-          paciente_id: dispensationData.paciente_id,
-          produto_id: dispensationData.produto_id,
-          quantidade: parseInt(dispensationData.quantidade),
-          lote: dispensationData.lote,
-          data_dispensa: dispensationData.data_dispensa,
-          usuario_id: MOCK_USUARIO_ID
-        }]);
+        .insert(dispensationsToCreate);
       
       if (error) throw error;
     },
     onSuccess: () => {
       toast({
-        title: "Dispensação registrada!",
-        description: "A dispensação foi registrada com sucesso.",
+        title: "Dispensações registradas!",
+        description: `${carrinho.length} produto(s) foram dispensados com sucesso.`,
       });
       queryClient.invalidateQueries({ queryKey: ['dispensacoes'] });
       queryClient.invalidateQueries({ queryKey: ['produtos-estoque'] });
-      // Limpar formulário
+      // Limpar carrinho e formulário
+      setCarrinho([]);
       setSelectedPatient('');
       setSelectedProduct('');
       setQuantidade('');
@@ -117,13 +132,13 @@ export function DispensationForm() {
       if (error.message?.includes('Estoque insuficiente')) {
         toast({
           title: "Estoque insuficiente",
-          description: "Não há quantidade suficiente em estoque para esta dispensação.",
+          description: "Não há quantidade suficiente em estoque para algum produto.",
           variant: "destructive",
         });
       } else {
         toast({
-          title: "Erro ao registrar dispensação",
-          description: "Não foi possível registrar a dispensação.",
+          title: "Erro ao registrar dispensações",
+          description: "Não foi possível registrar as dispensações.",
           variant: "destructive",
         });
       }
@@ -131,71 +146,211 @@ export function DispensationForm() {
     }
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!selectedPatient || !selectedProduct || !quantidade || !lote) {
+  const adicionarAoCarrinho = () => {
+    if (!selectedProduct || !quantidade || !lote) {
       toast({
         title: "Campos obrigatórios",
-        description: "Por favor, preencha todos os campos.",
+        description: "Selecione produto, quantidade e lote.",
         variant: "destructive",
       });
       return;
     }
+
+    const produto = produtos?.find(p => p.id === selectedProduct);
+    if (!produto) return;
 
     const qtd = parseInt(quantidade);
-    if (produtoSelecionado && qtd > produtoSelecionado.estoque_atual) {
+    if (qtd > produto.estoque_atual) {
       toast({
         title: "Quantidade excede estoque",
-        description: `Estoque disponível: ${produtoSelecionado.estoque_atual} ${produtoSelecionado.unidade_medida}`,
+        description: `Estoque disponível: ${produto.estoque_atual} ${produto.unidade_medida}`,
         variant: "destructive",
       });
       return;
     }
 
-    createDispensationMutation.mutate({
-      paciente_id: selectedPatient,
-      produto_id: selectedProduct,
-      quantidade,
-      lote,
-      data_dispensa: dataDispensa
+    // Verificar se produto já está no carrinho
+    const produtoJaNoCarrinho = carrinho.find(item => 
+      item.produto.id === selectedProduct && item.lote === lote
+    );
+
+    if (produtoJaNoCarrinho) {
+      toast({
+        title: "Produto já adicionado",
+        description: "Este produto com o mesmo lote já está no carrinho.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const novoItem: CarrinhoItem = {
+      produto,
+      quantidade: qtd,
+      lote
+    };
+
+    setCarrinho(prev => [...prev, novoItem]);
+    
+    // Limpar campos do produto
+    setSelectedProduct('');
+    setQuantidade('');
+    setLote('');
+
+    toast({
+      title: "Produto adicionado!",
+      description: "Produto adicionado ao carrinho.",
     });
   };
+
+  const removerDoCarrinho = (index: number) => {
+    setCarrinho(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const confirmarDispensacao = () => {
+    if (!selectedPatient) {
+      toast({
+        title: "Paciente não selecionado",
+        description: "Selecione um paciente antes de confirmar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (carrinho.length === 0) {
+      toast({
+        title: "Carrinho vazio",
+        description: "Adicione pelo menos um produto ao carrinho.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    createDispensationMutation.mutate(carrinho);
+  };
+
+  const totalItensCarrinho = carrinho.reduce((total, item) => total + item.quantidade, 0);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <ShoppingCart className="h-8 w-8 text-primary" />
-        <h1 className="text-3xl font-bold">Dispensação</h1>
+        <h1 className="text-3xl font-bold">Dispensação Múltipla</h1>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Formulário de Dispensação */}
-        <Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Seleção de Paciente */}
+        <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Registrar Dispensação
+              <User className="h-5 w-5" />
+              1. Selecionar Paciente
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="paciente">Paciente *</Label>
-                <Select value={selectedPatient} onValueChange={setSelectedPatient}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um paciente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {pacientes?.map((paciente) => (
-                      <SelectItem key={paciente.id} value={paciente.id}>
-                        {paciente.nome} - {paciente.sus_cpf}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Label htmlFor="paciente">Paciente *</Label>
+              <Select value={selectedPatient} onValueChange={setSelectedPatient}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um paciente" />
+                </SelectTrigger>
+                <SelectContent>
+                  {pacientes?.map((paciente) => (
+                    <SelectItem key={paciente.id} value={paciente.id}>
+                      {paciente.nome} - {paciente.sus_cpf}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
+            {pacienteSelecionado && (
+              <div className="mt-3 bg-blue-50 p-3 rounded-lg">
+                <div className="flex items-center gap-2 text-blue-700">
+                  <User className="h-4 w-4" />
+                  <span className="font-medium">Paciente Selecionado</span>
+                </div>
+                <p className="text-blue-600 mt-1">
+                  {pacienteSelecionado.nome} - {pacienteSelecionado.sus_cpf}
+                </p>
+              </div>
+            )}
+
+            <div className="mt-4">
+              <Label htmlFor="dataDispensa">Data da Dispensação</Label>
+              <Input
+                id="dataDispensa"
+                type="date"
+                value={dataDispensa}
+                onChange={(e) => setDataDispensa(e.target.value)}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Carrinho */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5" />
+              Carrinho ({totalItensCarrinho} itens)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {carrinho.map((item, index) => (
+                <div key={index} className="border rounded-lg p-3">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{item.produto.descricao}</p>
+                      <p className="text-xs text-gray-600">
+                        Lote: {item.lote}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        Qtd: {item.quantidade} {item.produto.unidade_medida}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => removerDoCarrinho(index)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              {carrinho.length === 0 && (
+                <p className="text-center text-gray-500 py-4">
+                  Carrinho vazio
+                </p>
+              )}
+            </div>
+
+            {carrinho.length > 0 && (
+              <Button
+                className="w-full mt-4"
+                onClick={confirmarDispensacao}
+                disabled={createDispensationMutation.isPending || !selectedPatient}
+              >
+                {createDispensationMutation.isPending 
+                  ? 'Processando...' 
+                  : `Confirmar Dispensação (${carrinho.length} produtos)`
+                }
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Adicionar Produtos */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              2. Adicionar Produtos ao Carrinho
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
               <div>
                 <Label htmlFor="produto">Produto *</Label>
                 <Select value={selectedProduct} onValueChange={setSelectedProduct}>
@@ -248,28 +403,20 @@ export function DispensationForm() {
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="dataDispensa">Data da Dispensação</Label>
-                <Input
-                  id="dataDispensa"
-                  type="date"
-                  value={dataDispensa}
-                  onChange={(e) => setDataDispensa(e.target.value)}
-                />
-              </div>
-
               <Button
-                type="submit"
+                type="button"
                 className="w-full"
-                disabled={createDispensationMutation.isPending}
+                onClick={adicionarAoCarrinho}
+                disabled={!selectedProduct || !quantidade || !lote}
               >
-                {createDispensationMutation.isPending ? 'Registrando...' : 'Registrar Dispensação'}
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar ao Carrinho
               </Button>
-            </form>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Lista de Dispensações Recentes */}
+        {/* Dispensações Recentes */}
         <Card>
           <CardHeader>
             <CardTitle>Dispensações Recentes</CardTitle>
@@ -283,11 +430,11 @@ export function DispensationForm() {
                   <div key={dispensacao.id} className="border rounded-lg p-3">
                     <div className="flex justify-between items-start">
                       <div>
-                        <p className="font-medium">{dispensacao.produto?.descricao}</p>
-                        <p className="text-sm text-gray-600">
+                        <p className="font-medium text-sm">{dispensacao.produto?.descricao}</p>
+                        <p className="text-xs text-gray-600">
                           {dispensacao.paciente?.nome}
                         </p>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-xs text-gray-600">
                           Lote: {dispensacao.lote} | Qtd: {dispensacao.quantidade} {dispensacao.produto?.unidade_medida}
                         </p>
                       </div>
