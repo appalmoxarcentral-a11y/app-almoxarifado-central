@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         nome: usuario.nome,
         email: usuario.email,
         tipo: usuario.tipo as 'ADMIN' | 'COMUM',
-        permissoes: usuario.permissoes as UserPermissions,
+        permissoes: (usuario.permissoes as unknown) as UserPermissions,
         ativo: usuario.ativo,
         created_at: usuario.created_at
       };

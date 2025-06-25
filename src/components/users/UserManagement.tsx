@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -64,7 +63,7 @@ export function UserManagement() {
         nome: usuario.nome,
         email: usuario.email,
         tipo: usuario.tipo as 'ADMIN' | 'COMUM',
-        permissoes: usuario.permissoes as UserPermissions,
+        permissoes: (usuario.permissoes as unknown) as UserPermissions,
         ativo: usuario.ativo,
         created_at: usuario.created_at
       })) as User[] || [];
