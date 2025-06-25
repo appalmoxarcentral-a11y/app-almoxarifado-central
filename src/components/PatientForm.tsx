@@ -42,12 +42,16 @@ export function PatientForm() {
     return value;
   };
 
-  const formatSusCpf = (value: string) => {
-    const numbers = value.replace(/\D/g, '');
-    if (numbers.length <= 11) {
-      return numbers.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  const validateSusCpf = (value: string) => {
+    // Remove todos os caracteres não numéricos
+    const numbersOnly = value.replace(/\D/g, '');
+    
+    // Limita a 15 dígitos
+    if (numbersOnly.length > 15) {
+      return numbersOnly.substring(0, 15);
     }
-    return value;
+    
+    return numbersOnly;
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -56,7 +60,7 @@ export function PatientForm() {
     if (field === 'telefone') {
       formattedValue = formatPhone(value);
     } else if (field === 'sus_cpf') {
-      formattedValue = formatSusCpf(value);
+      formattedValue = validateSusCpf(value);
     }
     
     setFormData(prev => ({
@@ -99,13 +103,23 @@ export function PatientForm() {
         throw new Error('Todos os campos são obrigatórios');
       }
 
+      // Validação específica do SUS/CPF
+      const susCpfNumbers = formData.sus_cpf.replace(/\D/g, '');
+      if (susCpfNumbers.length < 11 || susCpfNumbers.length > 15) {
+        throw new Error('SUS/CPF deve conter entre 11 e 15 números');
+      }
+
+      if (!/^\d+$/.test(susCpfNumbers)) {
+        throw new Error('SUS/CPF deve conter apenas números');
+      }
+
       const idade = calculateAge(formData.nascimento);
       
       const { error } = await supabase
         .from('pacientes')
         .insert([{
           nome: formData.nome,
-          sus_cpf: formData.sus_cpf,
+          sus_cpf: susCpfNumbers, // Salva apenas os números
           endereco: formData.endereco,
           bairro: formData.bairro,
           telefone: formData.telefone,
@@ -212,10 +226,15 @@ export function PatientForm() {
                   id="sus_cpf"
                   value={formData.sus_cpf}
                   onChange={(e) => handleInputChange('sus_cpf', e.target.value)}
-                  placeholder="000.000.000-00"
-                  maxLength={14}
+                  placeholder="Digite apenas números (11 a 15 dígitos)"
+                  maxLength={15}
                   required
                 />
+                {formData.sus_cpf && (
+                  <p className="text-sm text-gray-500">
+                    {formData.sus_cpf.length} dígitos inseridos
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
