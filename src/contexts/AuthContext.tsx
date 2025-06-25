@@ -1,14 +1,14 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { User } from '@/types';
+import type { User, UserPermissions } from '@/types';
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, senha: string) => Promise<boolean>;
   logout: () => void;
   isLoading: boolean;
-  hasPermission: (permission: keyof User['permissoes']) => boolean;
+  hasPermission: (permission: keyof UserPermissions) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -70,13 +70,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
 
-      // Login bem-sucedido - salvar usuário
+      // Login bem-sucedido - salvar usuário com conversão de tipos
       const userData: User = {
         id: usuario.id,
         nome: usuario.nome,
         email: usuario.email,
-        tipo: usuario.tipo,
-        permissoes: usuario.permissoes,
+        tipo: usuario.tipo as 'ADMIN' | 'COMUM',
+        permissoes: usuario.permissoes as UserPermissions,
         ativo: usuario.ativo,
         created_at: usuario.created_at
       };
@@ -98,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('currentUser');
   };
 
-  const hasPermission = (permission: keyof User['permissoes']): boolean => {
+  const hasPermission = (permission: keyof UserPermissions): boolean => {
     if (!user) return false;
     if (user.tipo === 'ADMIN') return true;
     return user.permissoes[permission] || false;

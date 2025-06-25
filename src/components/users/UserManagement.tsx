@@ -49,7 +49,7 @@ export function UserManagement() {
         .order('nome');
 
       if (filtroTipo !== 'todos') {
-        query = query.eq('tipo', filtroTipo);
+        query = query.eq('tipo', filtroTipo as 'ADMIN' | 'COMUM');
       }
       if (filtroStatus !== 'todos') {
         query = query.eq('ativo', filtroStatus === 'ativo');
@@ -57,7 +57,17 @@ export function UserManagement() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as User[];
+      
+      // Converter tipos Supabase para tipos TypeScript
+      return data?.map(usuario => ({
+        id: usuario.id,
+        nome: usuario.nome,
+        email: usuario.email,
+        tipo: usuario.tipo as 'ADMIN' | 'COMUM',
+        permissoes: usuario.permissoes as UserPermissions,
+        ativo: usuario.ativo,
+        created_at: usuario.created_at
+      })) as User[] || [];
     }
   });
 
