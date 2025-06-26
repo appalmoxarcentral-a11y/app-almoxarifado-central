@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,11 +21,17 @@ interface CarrinhoItem {
   lote: string;
 }
 
+interface LoteInfo {
+  lote: string;
+  vencimento: string;
+  created_at: string;
+}
+
 export function DispensationForm() {
   const [selectedPatient, setSelectedPatient] = useState('');
   const [selectedProduct, setSelectedProduct] = useState('');
   const [quantidade, setQuantidade] = useState('');
-  const [lote, setLote] = useState('');
+  const [selectedLote, setSelectedLote] = useState('');
   const [dataDispensa, setDataDispensa] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [carrinho, setCarrinho] = useState<CarrinhoItem[]>([]);
 
@@ -57,6 +64,34 @@ export function DispensationForm() {
       
       if (error) throw error;
       return data as Product[];
+    }
+  });
+
+  // Buscar lotes do produto selecionado
+  const { data: lotes } = useQuery({
+    queryKey: ['lotes-produto', selectedProduct],
+    enabled: !!selectedProduct,
+    queryFn: async () => {
+      if (!selectedProduct) return [];
+      
+      const { data, error } = await supabase
+        .from('entradas_produtos')
+        .select('lote, vencimento, created_at')
+        .eq('produto_id', selectedProduct)
+        .order('created_at', { ascending: true });
+      
+      if (error) throw error;
+      
+      // Remover lotes duplicados mantendo o mais antigo
+      const lotesUnicos = data.reduce((acc: LoteInfo[], current) => {
+        const existingLote = acc.find(item => item.lote === current.lote);
+        if (!existingLote) {
+          acc.push(current);
+        }
+        return acc;
+      }, []);
+      
+      return lotesUnicos as LoteInfo[];
     }
   });
 
@@ -125,7 +160,7 @@ export function DispensationForm() {
       setSelectedPatient('');
       setSelectedProduct('');
       setQuantidade('');
-      setLote('');
+      setSelectedLote('');
       setDataDispensa(format(new Date(), 'yyyy-MM-dd'));
     },
     onError: (error: any) => {
@@ -147,7 +182,7 @@ export function DispensationForm() {
   });
 
   const adicionarAoCarrinho = () => {
-    if (!selectedProduct || !quantidade || !lote) {
+    if (!selectedProduct || !quantidade || !selectedLote) {
       toast({
         title: "Campos obrigatórios",
         description: "Selecione produto, quantidade e lote.",
@@ -171,7 +206,7 @@ export function DispensationForm() {
 
     // Verificar se produto já está no carrinho
     const produtoJaNoCarrinho = carrinho.find(item => 
-      item.produto.id === selectedProduct && item.lote === lote
+      item.produto.id === selectedProduct && item.lote === selectedLote
     );
 
     if (produtoJaNoCarrinho) {
@@ -186,7 +221,7 @@ export function DispensationForm() {
     const novoItem: CarrinhoItem = {
       produto,
       quantidade: qtd,
-      lote
+      lote: selectedLote
     };
 
     setCarrinho(prev => [...prev, novoItem]);
@@ -194,7 +229,7 @@ export function DispensationForm() {
     // Limpar campos do produto
     setSelectedProduct('');
     setQuantidade('');
-    setLote('');
+    setSelectedLote('');
 
     toast({
       title: "Produto adicionado!",
@@ -226,6 +261,12 @@ export function DispensationForm() {
     }
 
     createDispensationMutation.mutate(carrinho);
+  };
+
+  // Limpar lote quando produto muda
+  const handleProductChange = (productId: string) => {
+    setSelectedProduct(productId);
+    setSelectedLote(''); // Limpar lote selecionado quando produto muda
   };
 
   const totalItensCarrinho = carrinho.reduce((total, item) => total + item.quantidade, 0);
@@ -353,7 +394,7 @@ export function DispensationForm() {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="produto">Produto *</Label>
-                <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+                <Select value={selectedProduct} onValueChange={handleProductChange}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione um produto" />
                   </SelectTrigger>
@@ -379,7 +420,42 @@ export function DispensationForm() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="lote">Lote *</Label>
+                  <Select 
+                    value={selectedLote} 
+                    onValueChange={setSelectedLote}
+                    disabled={!selectedProduct}
+                  >
+                    <SelectTrigger>
+                      <SelectValue 
+                        placeholder={
+                          !selectedProduct 
+                            ? "Selecione um produto primeiro" 
+                            : "Selecione um lote"
+                        } 
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {lotes?.map((loteInfo) => (
+                        <SelectItem key={loteInfo.lote} value={loteInfo.lote}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{loteInfo.lote}</span>
+                            <span className="text-xs text-gray-500">
+                              Vence: {format(new Date(loteInfo.vencimento), 'dd/MM/yyyy', { locale: ptBR })}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedProduct && lotes?.length === 0 && (
+                    <p className="text-sm text-yellow-600 mt-1">
+                      Nenhum lote encontrado para este produto
+                    </p>
+                  )}
+                </div>
                 <div>
                   <Label htmlFor="quantidade">Quantidade *</Label>
                   <Input
@@ -392,22 +468,13 @@ export function DispensationForm() {
                     placeholder="0"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="lote">Lote *</Label>
-                  <Input
-                    id="lote"
-                    value={lote}
-                    onChange={(e) => setLote(e.target.value)}
-                    placeholder="Ex: LOT001"
-                  />
-                </div>
               </div>
 
               <Button
                 type="button"
                 className="w-full"
                 onClick={adicionarAoCarrinho}
-                disabled={!selectedProduct || !quantidade || !lote}
+                disabled={!selectedProduct || !quantidade || !selectedLote}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Adicionar ao Carrinho
