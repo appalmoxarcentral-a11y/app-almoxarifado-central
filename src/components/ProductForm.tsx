@@ -6,9 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Save, Plus, Trash2 } from "lucide-react";
+import { Package, Save, Plus, Trash2, Edit, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { UnidadeMedida, Product } from "@/types";
+import { useAuth } from "@/contexts/AuthContext";
+import { PermissionCheck } from "@/components/auth/PermissionCheck";
 
 const unidadesMedida: { value: UnidadeMedida; label: string }[] = [
   { value: 'AM', label: 'Ampola (AM)' },
@@ -25,8 +27,10 @@ const unidadesMedida: { value: UnidadeMedida; label: string }[] = [
 
 export function ProductForm() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
     descricao: '',
     codigo: '',
@@ -56,6 +60,33 @@ export function ProductForm() {
     loadProducts();
   }, []);
 
+  const handleEdit = (product: Product) => {
+    if (user?.tipo !== 'ADMIN') {
+      toast({
+        title: "Acesso negado",
+        description: "Apenas administradores podem editar produtos. Entre em contato com o administrador do sistema.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setEditingProduct(product);
+    setFormData({
+      descricao: product.descricao,
+      codigo: product.codigo,
+      unidade_medida: product.unidade_medida,
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingProduct(null);
+    setFormData({
+      descricao: '',
+      codigo: '',
+      unidade_medida: '' as UnidadeMedida,
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -65,21 +96,43 @@ export function ProductForm() {
         throw new Error('Todos os campos são obrigatórios');
       }
 
-      const { error } = await supabase
-        .from('produtos')
-        .insert([{
-          descricao: formData.descricao,
-          codigo: formData.codigo.toUpperCase(),
-          unidade_medida: formData.unidade_medida,
-          estoque_atual: 0
-        }]);
+      if (editingProduct) {
+        // Atualizar produto existente
+        const { error } = await supabase
+          .from('produtos')
+          .update({
+            descricao: formData.descricao,
+            codigo: formData.codigo.toUpperCase(),
+            unidade_medida: formData.unidade_medida,
+          })
+          .eq('id', editingProduct.id);
 
-      if (error) throw error;
-      
-      toast({
-        title: "Produto cadastrado com sucesso!",
-        description: `${formData.descricao} foi adicionado ao sistema.`,
-      });
+        if (error) throw error;
+        
+        toast({
+          title: "Produto atualizado com sucesso!",
+          description: `${formData.descricao} foi atualizado no sistema.`,
+        });
+        
+        setEditingProduct(null);
+      } else {
+        // Criar novo produto
+        const { error } = await supabase
+          .from('produtos')
+          .insert([{
+            descricao: formData.descricao,
+            codigo: formData.codigo.toUpperCase(),
+            unidade_medida: formData.unidade_medida,
+            estoque_atual: 0
+          }]);
+
+        if (error) throw error;
+        
+        toast({
+          title: "Produto cadastrado com sucesso!",
+          description: `${formData.descricao} foi adicionado ao sistema.`,
+        });
+      }
       
       // Reset form
       setFormData({
@@ -93,7 +146,7 @@ export function ProductForm() {
       
     } catch (error) {
       toast({
-        title: "Erro ao cadastrar produto",
+        title: editingProduct ? "Erro ao atualizar produto" : "Erro ao cadastrar produto",
         description: error instanceof Error ? error.message : "Erro desconhecido",
         variant: "destructive",
       });
@@ -103,6 +156,15 @@ export function ProductForm() {
   };
 
   const handleDelete = async (id: string, descricao: string) => {
+    if (user?.tipo !== 'ADMIN') {
+      toast({
+        title: "Acesso negado",
+        description: "Apenas administradores podem excluir produtos. Entre em contato com o administrador do sistema.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!confirm(`Tem certeza que deseja excluir o produto ${descricao}?`)) return;
 
     try {
@@ -141,11 +203,14 @@ export function ProductForm() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5" />
-            Novo Produto
+            {editingProduct ? <Edit className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+            {editingProduct ? 'Editar Produto' : 'Novo Produto'}
           </CardTitle>
           <CardDescription>
-            Cadastre um novo produto no sistema farmacêutico
+            {editingProduct 
+              ? 'Atualize os dados do produto selecionado'
+              : 'Cadastre um novo produto no sistema farmacêutico'
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -196,6 +261,12 @@ export function ProductForm() {
             </div>
 
             <div className="flex justify-end gap-4">
+              {editingProduct && (
+                <Button type="button" variant="outline" onClick={handleCancelEdit}>
+                  <X className="h-4 w-4 mr-2" />
+                  Cancelar
+                </Button>
+              )}
               <Button 
                 type="button" 
                 variant="outline" 
@@ -205,7 +276,10 @@ export function ProductForm() {
               </Button>
               <Button type="submit" disabled={loading} className="flex items-center gap-2">
                 <Save className="h-4 w-4" />
-                {loading ? 'Salvando...' : 'Salvar Produto'}
+                {loading 
+                  ? (editingProduct ? 'Atualizando...' : 'Salvando...') 
+                  : (editingProduct ? 'Atualizar Produto' : 'Salvar Produto')
+                }
               </Button>
             </div>
           </form>
@@ -236,15 +310,57 @@ export function ProductForm() {
                       <p className="font-medium">Estoque: {product.estoque_atual}</p>
                       <p className="text-sm text-gray-500">unidades</p>
                     </div>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDelete(product.id, product.descricao)}
-                      className="flex items-center gap-2"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Excluir
-                    </Button>
+                    <div className="flex gap-2">
+                      <PermissionCheck 
+                        permission="cadastro_produtos"
+                        fallback={
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(product)}
+                            className="flex items-center gap-2"
+                          >
+                            <Edit className="h-4 w-4" />
+                            Editar
+                          </Button>
+                        }
+                      >
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(product)}
+                          className="flex items-center gap-2"
+                        >
+                          <Edit className="h-4 w-4" />
+                          Editar
+                        </Button>
+                      </PermissionCheck>
+                      
+                      <PermissionCheck 
+                        permission="cadastro_produtos"
+                        fallback={
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDelete(product.id, product.descricao)}
+                            className="flex items-center gap-2"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Excluir
+                          </Button>
+                        }
+                      >
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDelete(product.id, product.descricao)}
+                          className="flex items-center gap-2"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Excluir
+                        </Button>
+                      </PermissionCheck>
+                    </div>
                   </div>
                 </div>
               ))

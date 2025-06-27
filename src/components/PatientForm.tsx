@@ -7,9 +7,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Users, Save, UserPlus, Trash2, Edit, X, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Patient } from "@/types";
+import { useAuth } from "@/contexts/AuthContext";
+import { PermissionCheck } from "@/components/auth/PermissionCheck";
 
 export function PatientForm() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [filteredPatients, setFilteredPatients] = useState<Patient[]>([]);
@@ -110,6 +113,15 @@ export function PatientForm() {
   }, []);
 
   const handleEdit = (patient: Patient) => {
+    if (user?.tipo !== 'ADMIN') {
+      toast({
+        title: "Acesso negado",
+        description: "Apenas administradores podem editar pacientes. Entre em contato com o administrador do sistema.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setEditingPatient(patient);
     setFormData({
       nome: patient.nome,
@@ -226,6 +238,15 @@ export function PatientForm() {
   };
 
   const handleDelete = async (id: string, nome: string) => {
+    if (user?.tipo !== 'ADMIN') {
+      toast({
+        title: "Acesso negado",
+        description: "Apenas administradores podem excluir pacientes. Entre em contato com o administrador do sistema.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!confirm(`Tem certeza que deseja excluir o paciente ${nome}?`)) return;
 
     try {
@@ -436,24 +457,55 @@ export function PatientForm() {
                     <p className="text-xs md:text-sm text-gray-500">Tel: {patient.telefone}</p>
                   </div>
                   <div className="flex gap-2 md:flex-col lg:flex-row">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEdit(patient)}
-                      className="flex items-center gap-2 flex-1 md:flex-none h-10"
+                    <PermissionCheck 
+                      permission="cadastro_pacientes"
+                      fallback={
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(patient)}
+                          className="flex items-center gap-2 flex-1 md:flex-none h-10"
+                        >
+                          <Edit className="h-4 w-4" />
+                          <span className="md:hidden lg:inline">Editar</span>
+                        </Button>
+                      }
                     >
-                      <Edit className="h-4 w-4" />
-                      <span className="md:hidden lg:inline">Editar</span>
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDelete(patient.id, patient.nome)}
-                      className="flex items-center gap-2 flex-1 md:flex-none h-10"
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(patient)}
+                        className="flex items-center gap-2 flex-1 md:flex-none h-10"
+                      >
+                        <Edit className="h-4 w-4" />
+                        <span className="md:hidden lg:inline">Editar</span>
+                      </Button>
+                    </PermissionCheck>
+                    
+                    <PermissionCheck 
+                      permission="cadastro_pacientes"
+                      fallback={
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDelete(patient.id, patient.nome)}
+                          className="flex items-center gap-2 flex-1 md:flex-none h-10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span className="md:hidden lg:inline">Excluir</span>
+                        </Button>
+                      }
                     >
-                      <Trash2 className="h-4 w-4" />
-                      <span className="md:hidden lg:inline">Excluir</span>
-                    </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDelete(patient.id, patient.nome)}
+                        className="flex items-center gap-2 flex-1 md:flex-none h-10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="md:hidden lg:inline">Excluir</span>
+                      </Button>
+                    </PermissionCheck>
                   </div>
                 </div>
               ))
