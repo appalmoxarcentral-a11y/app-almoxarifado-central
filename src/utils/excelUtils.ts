@@ -1,6 +1,7 @@
 
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
+import { Product, ProductEntry } from '@/types';
 
 export interface ExcelProductRow {
   codigo: string;
@@ -19,46 +20,126 @@ export interface ProcessResult {
   totalCount: number;
 }
 
-export const downloadExcelTemplate = () => {
-  const template = [
-    {
-      'Código': 'DIP500',
-      'Descrição': 'Dipirona 500mg',
-      'Unidade de Medida': 'CP',
-      'Quantidade': '100',
-      'Lote': 'L001',
-      'Vencimento': '2025-12-31',
-      'Data Entrada': '2024-07-01'
-    },
-    {
-      'Código': 'PAR750',
-      'Descrição': 'Paracetamol 750mg',
-      'Unidade de Medida': 'CP',
+export const downloadProductsTemplate = (existingProducts: Product[] = []) => {
+  let template;
+  
+  if (existingProducts.length > 0) {
+    // Preencher com produtos existentes para facilitar adição de novos
+    template = existingProducts.map(product => ({
+      'Código': product.codigo,
+      'Descrição': product.descricao,
+      'Unidade de Medida': product.unidade_medida,
       'Quantidade': '',
       'Lote': '',
       'Vencimento': '',
       'Data Entrada': ''
+    }));
+    
+    // Adicionar algumas linhas vazias para novos produtos
+    for (let i = 0; i < 5; i++) {
+      template.push({
+        'Código': '',
+        'Descrição': '',
+        'Unidade de Medida': '',
+        'Quantidade': '',
+        'Lote': '',
+        'Vencimento': '',
+        'Data Entrada': ''
+      });
     }
-  ];
+  } else {
+    // Template padrão quando não há produtos
+    template = [
+      {
+        'Código': 'DIP500',
+        'Descrição': 'Dipirona 500mg',
+        'Unidade de Medida': 'CP',
+        'Quantidade': '',
+        'Lote': '',
+        'Vencimento': '',
+        'Data Entrada': ''
+      },
+      {
+        'Código': '',
+        'Descrição': '',
+        'Unidade de Medida': '',
+        'Quantidade': '',
+        'Lote': '',
+        'Vencimento': '',
+        'Data Entrada': ''
+      }
+    ];
+  }
 
   const worksheet = XLSX.utils.json_to_sheet(template);
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Modelo');
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Produtos');
 
-  // Configurar largura das colunas
   worksheet['!cols'] = [
-    { width: 15 }, // Código
-    { width: 30 }, // Descrição
-    { width: 20 }, // Unidade de Medida
-    { width: 15 }, // Quantidade
-    { width: 15 }, // Lote
-    { width: 15 }, // Vencimento
-    { width: 15 }  // Data Entrada
+    { width: 15 }, { width: 30 }, { width: 20 }, { width: 15 }, 
+    { width: 15 }, { width: 15 }, { width: 15 }
   ];
 
   const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
   const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  saveAs(data, 'modelo_produtos.xlsx');
+  saveAs(data, 'produtos_cadastrados.xlsx');
+};
+
+export const downloadEntriesTemplate = (existingProducts: Product[] = []) => {
+  let template;
+  
+  if (existingProducts.length > 0) {
+    // Preencher com produtos existentes para facilitar entradas
+    template = existingProducts.map(product => ({
+      'Código': product.codigo,
+      'Descrição': product.descricao,
+      'Unidade de Medida': product.unidade_medida,
+      'Quantidade': '',
+      'Lote': '',
+      'Vencimento': '',
+      'Data Entrada': ''
+    }));
+  } else {
+    // Template padrão quando não há produtos
+    template = [
+      {
+        'Código': 'DIP500',
+        'Descrição': 'Dipirona 500mg',
+        'Unidade de Medida': 'CP',
+        'Quantidade': '100',
+        'Lote': 'L001',
+        'Vencimento': '2025-12-31',
+        'Data Entrada': '2024-07-01'
+      },
+      {
+        'Código': '',
+        'Descrição': '',
+        'Unidade de Medida': '',
+        'Quantidade': '',
+        'Lote': '',
+        'Vencimento': '',
+        'Data Entrada': ''
+      }
+    ];
+  }
+
+  const worksheet = XLSX.utils.json_to_sheet(template);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Entradas');
+
+  worksheet['!cols'] = [
+    { width: 15 }, { width: 30 }, { width: 20 }, { width: 15 }, 
+    { width: 15 }, { width: 15 }, { width: 15 }
+  ];
+
+  const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+  const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  saveAs(data, 'modelo_entradas.xlsx');
+};
+
+// Manter função original para compatibilidade
+export const downloadExcelTemplate = () => {
+  downloadProductsTemplate();
 };
 
 export const readExcelFile = (file: File): Promise<ExcelProductRow[]> => {
@@ -96,7 +177,7 @@ export const validateExcelData = (data: ExcelProductRow[], availableUnits: strin
   const errors: string[] = [];
   
   data.forEach((row, index) => {
-    const lineNumber = index + 2; // +2 porque Excel começa em 1 e tem header
+    const lineNumber = index + 2;
     
     if (!row.codigo) {
       errors.push(`Linha ${lineNumber}: Código é obrigatório`);

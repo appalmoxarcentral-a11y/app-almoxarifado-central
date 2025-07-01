@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Download, Upload, FileSpreadsheet } from 'lucide-react';
-import { downloadExcelTemplate, readExcelFile, validateExcelData, ExcelProductRow } from '@/utils/excelUtils';
+import { downloadProductsTemplate, downloadEntriesTemplate, readExcelFile, validateExcelData, ExcelProductRow } from '@/utils/excelUtils';
 import { useExcelProcessor } from '@/hooks/useExcelProcessor';
 import { ExcelPreview } from './ExcelPreview';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { Product } from '@/types';
 
 interface ExcelImportExportProps {
   mode: 'products' | 'entries';
@@ -21,6 +22,7 @@ export function ExcelImportExport({ mode, onSuccess }: ExcelImportExportProps) {
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [availableUnits, setAvailableUnits] = useState<string[]>([]);
+  const [isLoadingTemplate, setIsLoadingTemplate] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { toast } = useToast();
@@ -46,12 +48,48 @@ export function ExcelImportExport({ mode, onSuccess }: ExcelImportExportProps) {
     }
   };
 
-  const handleDownloadTemplate = () => {
-    downloadExcelTemplate();
-    toast({
-      title: "Modelo baixado com sucesso!",
-      description: "O arquivo modelo_produtos.xlsx foi baixado para seu computador.",
-    });
+  const loadExistingProducts = async (): Promise<Product[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('produtos')
+        .select('*')
+        .order('descricao');
+      
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Erro ao carregar produtos:', error);
+      return [];
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    setIsLoadingTemplate(true);
+    try {
+      const existingProducts = await loadExistingProducts();
+      
+      if (mode === 'products') {
+        downloadProductsTemplate(existingProducts);
+        toast({
+          title: "Modelo baixado com sucesso!",
+          description: `O arquivo produtos_cadastrados.xlsx foi baixado com ${existingProducts.length} produtos existentes.`,
+        });
+      } else {
+        downloadEntriesTemplate(existingProducts);
+        toast({
+          title: "Modelo baixado com sucesso!",
+          description: `O arquivo modelo_entradas.xlsx foi baixado com ${existingProducts.length} produtos disponíveis.`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erro ao baixar modelo",
+        description: "Não foi possível carregar os dados existentes.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingTemplate(false);
+    }
   };
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -153,8 +191,8 @@ export function ExcelImportExport({ mode, onSuccess }: ExcelImportExportProps) {
         <div className="space-y-4">
           <div className="text-sm text-gray-600">
             {mode === 'products' 
-              ? 'Use o modelo Excel para cadastrar novos produtos ou atualizar produtos existentes.'
-              : 'Use o modelo Excel para registrar entradas de produtos em estoque.'
+              ? 'Use o modelo Excel para cadastrar novos produtos. O modelo virá preenchido com produtos já cadastrados.'
+              : 'Use o modelo Excel para registrar entradas de produtos. O modelo virá preenchido com todos os produtos disponíveis.'
             }
           </div>
 
@@ -166,9 +204,10 @@ export function ExcelImportExport({ mode, onSuccess }: ExcelImportExportProps) {
                 onClick={handleDownloadTemplate}
                 variant="outline" 
                 className="w-full flex items-center gap-2"
+                disabled={isLoadingTemplate}
               >
                 <Download className="h-4 w-4" />
-                Baixar Modelo Excel
+                {isLoadingTemplate ? 'Preparando...' : 'Baixar Modelo Excel'}
               </Button>
             </div>
 
@@ -195,7 +234,8 @@ export function ExcelImportExport({ mode, onSuccess }: ExcelImportExportProps) {
           <div className="bg-blue-50 p-4 rounded-lg">
             <h4 className="font-medium text-blue-900 mb-2">Instruções:</h4>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Baixe o modelo Excel e preencha os dados</li>
+              <li>• O modelo virá preenchido com dados existentes</li>
+              <li>• {mode === 'products' ? 'Adicione novos produtos nas linhas vazias' : 'Preencha quantidade, lote e vencimento para registrar entradas'}</li>
               <li>• Campos obrigatórios: Código, Descrição, Unidade de Medida</li>
               <li>• Para registrar entradas: preencha Quantidade, Lote e Vencimento</li>
               <li>• Mantenha o formato do modelo para evitar erros</li>
