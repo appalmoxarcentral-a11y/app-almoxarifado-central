@@ -20,6 +20,39 @@ export interface ProcessResult {
   totalCount: number;
 }
 
+// Função para converter números seriais do Excel para datas
+const convertExcelDate = (value: any): string | undefined => {
+  if (!value) return undefined;
+  
+  // Se já é uma string de data válida no formato YYYY-MM-DD, retornar
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+  
+  // Se é número (serial do Excel)
+  if (typeof value === 'number' || (!isNaN(Number(value)) && Number(value) > 1)) {
+    const serial = Number(value);
+    // Excel epoch: 1 = 1900-01-01, mas Excel trata 1900 como ano bissexto erroneamente
+    const excelEpoch = new Date(1899, 11, 30); // 30 de dezembro de 1899
+    const date = new Date(excelEpoch.getTime() + serial * 24 * 60 * 60 * 1000);
+    
+    // Verificar se a data é válida
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0];
+    }
+  }
+  
+  // Tentar parsing direto como string
+  if (typeof value === 'string') {
+    const date = new Date(value);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0];
+    }
+  }
+  
+  return undefined;
+};
+
 export const downloadProductsTemplate = (existingProducts: Product[] = []) => {
   let template;
   
@@ -159,8 +192,8 @@ export const readExcelFile = (file: File): Promise<ExcelProductRow[]> => {
           unidade_medida: String(row['Unidade de Medida'] || '').trim().toUpperCase(),
           quantidade: row['Quantidade'] ? Number(row['Quantidade']) : undefined,
           lote: row['Lote'] ? String(row['Lote']).trim() : undefined,
-          vencimento: row['Vencimento'] ? String(row['Vencimento']).trim() : undefined,
-          data_entrada: row['Data Entrada'] ? String(row['Data Entrada']).trim() : undefined,
+          vencimento: convertExcelDate(row['Vencimento']),
+          data_entrada: convertExcelDate(row['Data Entrada']),
         }));
 
         resolve(products.filter(p => p.codigo && p.descricao));

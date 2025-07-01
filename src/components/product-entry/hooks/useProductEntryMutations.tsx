@@ -69,11 +69,22 @@ export function useProductEntryMutations() {
 
       // Ajustar estoque se houve mudança na quantidade
       if (quantidadeDiferenca !== 0) {
+        // Buscar estoque atual
+        const { data: product, error: productFetchError } = await supabase
+          .from('produtos')
+          .select('estoque_atual')
+          .eq('id', currentEntry.produto_id)
+          .single();
+
+        if (productFetchError) throw productFetchError;
+
+        // Calcular novo estoque
+        const novoEstoque = product.estoque_atual + quantidadeDiferenca;
+
+        // Atualizar estoque
         const { error: stockError } = await supabase
           .from('produtos')
-          .update({
-            estoque_atual: supabase.raw(`estoque_atual + ${quantidadeDiferenca}`)
-          })
+          .update({ estoque_atual: novoEstoque })
           .eq('id', currentEntry.produto_id);
 
         if (stockError) throw stockError;
@@ -129,12 +140,13 @@ export function useProductEntryMutations() {
 
       if (deleteError) throw deleteError;
 
+      // Calcular novo estoque (subtrair a quantidade da entrada)
+      const novoEstoque = product.estoque_atual - entry.quantidade;
+
       // Reverter estoque
       const { error: stockError } = await supabase
         .from('produtos')
-        .update({
-          estoque_atual: supabase.raw(`estoque_atual - ${entry.quantidade}`)
-        })
+        .update({ estoque_atual: novoEstoque })
         .eq('id', entry.produto_id);
 
       if (stockError) throw stockError;
