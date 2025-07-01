@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,24 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Save, Plus, Trash2, Edit, X } from "lucide-react";
+import { Package, Save, Plus, Trash2, Edit, X, FileSpreadsheet, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { UnidadeMedida, Product } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { PermissionCheck } from "@/components/auth/PermissionCheck";
-
-const unidadesMedida: { value: UnidadeMedida; label: string }[] = [
-  { value: 'AM', label: 'Ampola (AM)' },
-  { value: 'CP', label: 'Comprimido (CP)' },
-  { value: 'BG', label: 'Bisnaga (BG)' },
-  { value: 'FR', label: 'Frasco (FR)' },
-  { value: 'CPS', label: 'Cápsula (CPS)' },
-  { value: 'ML', label: 'Mililitro (ML)' },
-  { value: 'MG', label: 'Miligrama (MG)' },
-  { value: 'G', label: 'Grama (G)' },
-  { value: 'KG', label: 'Quilograma (KG)' },
-  { value: 'UN', label: 'Unidade (UN)' },
-];
+import { ExcelImportExport } from "@/components/excel/ExcelImportExport";
+import { UnidadeMedidaManager } from "@/components/excel/UnidadeMedidaManager";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function ProductForm() {
   const { toast } = useToast();
@@ -31,11 +20,46 @@ export function ProductForm() {
   const [loading, setLoading] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [unidadesMedida, setUnidadesMedida] = useState<{ value: string; label: string }[]>([]);
   const [formData, setFormData] = useState({
     descricao: '',
     codigo: '',
     unidade_medida: '' as UnidadeMedida,
   });
+
+  const loadUnidadesMedida = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('unidades_medida')
+        .select('codigo, descricao')
+        .eq('ativo', true)
+        .order('codigo');
+
+      if (error) throw error;
+      
+      const unidades = data.map(unidade => ({
+        value: unidade.codigo,
+        label: `${unidade.descricao}`
+      }));
+      
+      setUnidadesMedida(unidades);
+    } catch (error) {
+      console.error('Erro ao carregar unidades de medida:', error);
+      // Fallback para unidades padrão em caso de erro
+      setUnidadesMedida([
+        { value: 'AM', label: 'Ampola (AM)' },
+        { value: 'CP', label: 'Comprimido (CP)' },
+        { value: 'BG', label: 'Bisnaga (BG)' },
+        { value: 'FR', label: 'Frasco (FR)' },
+        { value: 'CPS', label: 'Cápsula (CPS)' },
+        { value: 'ML', label: 'Mililitro (ML)' },
+        { value: 'MG', label: 'Miligrama (MG)' },
+        { value: 'G', label: 'Grama (G)' },
+        { value: 'KG', label: 'Quilograma (KG)' },
+        { value: 'UN', label: 'Unidade (UN)' },
+      ]);
+    }
+  };
 
   const loadProducts = async () => {
     try {
@@ -58,6 +82,7 @@ export function ProductForm() {
 
   useEffect(() => {
     loadProducts();
+    loadUnidadesMedida();
   }, []);
 
   const handleEdit = (product: Product) => {
@@ -190,6 +215,11 @@ export function ProductForm() {
     }
   };
 
+  const handleExcelSuccess = () => {
+    loadProducts();
+    loadUnidadesMedida(); // Recarregar unidades caso novas tenham sido adicionadas
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
@@ -200,91 +230,115 @@ export function ProductForm() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            {editingProduct ? <Edit className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
-            {editingProduct ? 'Editar Produto' : 'Novo Produto'}
-          </CardTitle>
-          <CardDescription>
-            {editingProduct 
-              ? 'Atualize os dados do produto selecionado'
-              : 'Cadastre um novo produto no sistema farmacêutico'
-            }
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="descricao">Descrição do Produto *</Label>
-                <Input
-                  id="descricao"
-                  value={formData.descricao}
-                  onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
-                  placeholder="Ex: Dipirona 500mg"
-                  required
-                />
-              </div>
+      <Tabs defaultValue="manual" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="manual">Cadastro Manual</TabsTrigger>
+          <TabsTrigger value="excel">
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            Importar Excel
+          </TabsTrigger>
+          <TabsTrigger value="units">
+            <Settings className="h-4 w-4 mr-2" />
+            Unidades de Medida
+          </TabsTrigger>
+        </TabsList>
 
-              <div className="space-y-2">
-                <Label htmlFor="codigo">Código do Produto *</Label>
-                <Input
-                  id="codigo"
-                  value={formData.codigo}
-                  onChange={(e) => setFormData(prev => ({ ...prev, codigo: e.target.value.toUpperCase() }))}
-                  placeholder="Ex: DIP500"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="unidade_medida">Unidade de Medida *</Label>
-                <Select 
-                  value={formData.unidade_medida} 
-                  onValueChange={(value: UnidadeMedida) => 
-                    setFormData(prev => ({ ...prev, unidade_medida: value }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a unidade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {unidadesMedida.map((unidade) => (
-                      <SelectItem key={unidade.value} value={unidade.value}>
-                        {unidade.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-4">
-              {editingProduct && (
-                <Button type="button" variant="outline" onClick={handleCancelEdit}>
-                  <X className="h-4 w-4 mr-2" />
-                  Cancelar
-                </Button>
-              )}
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setFormData({ descricao: '', codigo: '', unidade_medida: '' as UnidadeMedida })}
-              >
-                Limpar
-              </Button>
-              <Button type="submit" disabled={loading} className="flex items-center gap-2">
-                <Save className="h-4 w-4" />
-                {loading 
-                  ? (editingProduct ? 'Atualizando...' : 'Salvando...') 
-                  : (editingProduct ? 'Atualizar Produto' : 'Salvar Produto')
+        <TabsContent value="manual" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                {editingProduct ? <Edit className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+                {editingProduct ? 'Editar Produto' : 'Novo Produto'}
+              </CardTitle>
+              <CardDescription>
+                {editingProduct 
+                  ? 'Atualize os dados do produto selecionado'
+                  : 'Cadastre um novo produto no sistema farmacêutico'
                 }
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="descricao">Descrição do Produto *</Label>
+                    <Input
+                      id="descricao"
+                      value={formData.descricao}
+                      onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
+                      placeholder="Ex: Dipirona 500mg"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="codigo">Código do Produto *</Label>
+                    <Input
+                      id="codigo"
+                      value={formData.codigo}
+                      onChange={(e) => setFormData(prev => ({ ...prev, codigo: e.target.value.toUpperCase() }))}
+                      placeholder="Ex: DIP500"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="unidade_medida">Unidade de Medida *</Label>
+                    <Select 
+                      value={formData.unidade_medida} 
+                      onValueChange={(value: UnidadeMedida) => 
+                        setFormData(prev => ({ ...prev, unidade_medida: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a unidade" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {unidadesMedida.map((unidade) => (
+                          <SelectItem key={unidade.value} value={unidade.value}>
+                            {unidade.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-4">
+                  {editingProduct && (
+                    <Button type="button" variant="outline" onClick={handleCancelEdit}>
+                      <X className="h-4 w-4 mr-2" />
+                      Cancelar
+                    </Button>
+                  )}
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setFormData({ descricao: '', codigo: '', unidade_medida: '' as UnidadeMedida })}
+                  >
+                    Limpar
+                  </Button>
+                  <Button type="submit" disabled={loading} className="flex items-center gap-2">
+                    <Save className="h-4 w-4" />
+                    {loading 
+                      ? (editingProduct ? 'Atualizando...' : 'Salvando...') 
+                      : (editingProduct ? 'Atualizar Produto' : 'Salvar Produto')
+                    }
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="excel">
+          <ExcelImportExport mode="products" onSuccess={handleExcelSuccess} />
+        </TabsContent>
+
+        <TabsContent value="units">
+          <UnidadeMedidaManager />
+        </TabsContent>
+      </Tabs>
 
       {/* Lista de produtos */}
       <Card>

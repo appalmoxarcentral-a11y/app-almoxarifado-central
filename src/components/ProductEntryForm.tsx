@@ -2,10 +2,12 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PackagePlus, Package } from 'lucide-react';
+import { PackagePlus, Package, FileSpreadsheet } from 'lucide-react';
 import { format } from 'date-fns';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProductEntryFormFields } from './product-entry/ProductEntryFormFields';
 import { RecentEntriesList } from './product-entry/RecentEntriesList';
+import { ExcelImportExport } from './excel/ExcelImportExport';
 import { useProductEntryQueries } from './product-entry/hooks/useProductEntryQueries';
 import { useProductEntryMutations } from './product-entry/hooks/useProductEntryMutations';
 
@@ -17,7 +19,7 @@ export function ProductEntryForm() {
   const [dataEntrada, setDataEntrada] = useState(format(new Date(), 'yyyy-MM-dd'));
 
   const { user } = useAuth();
-  const { produtos, entradas, isLoadingEntradas } = useProductEntryQueries();
+  const { produtos, entradas, isLoadingEntradas, refetchEntradas } = useProductEntryQueries();
   const { createEntryMutation, handleSubmit } = useProductEntryMutations();
 
   // Verificar se o usuário está autenticado
@@ -50,6 +52,10 @@ export function ProductEntryForm() {
     }, resetForm);
   };
 
+  const handleExcelSuccess = () => {
+    refetchEntradas();
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
@@ -61,27 +67,40 @@ export function ProductEntryForm() {
         {/* Formulário de Entrada */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Registrar Nova Entrada
-            </CardTitle>
+            <CardTitle>Registrar Entrada</CardTitle>
           </CardHeader>
           <CardContent>
-            <ProductEntryFormFields
-              selectedProduct={selectedProduct}
-              setSelectedProduct={setSelectedProduct}
-              quantidade={quantidade}
-              setQuantidade={setQuantidade}
-              lote={lote}
-              setLote={setLote}
-              vencimento={vencimento}
-              setVencimento={setVencimento}
-              dataEntrada={dataEntrada}
-              setDataEntrada={setDataEntrada}
-              produtos={produtos}
-              onSubmit={onSubmit}
-              isLoading={createEntryMutation.isPending}
-            />
+            <Tabs defaultValue="manual" className="space-y-4">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="manual">Entrada Manual</TabsTrigger>
+                <TabsTrigger value="excel">
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Importar Excel
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="manual">
+                <ProductEntryFormFields
+                  selectedProduct={selectedProduct}
+                  setSelectedProduct={setSelectedProduct}
+                  quantidade={quantidade}
+                  setQuantidade={setQuantidade}
+                  lote={lote}
+                  setLote={setLote}
+                  vencimento={vencimento}
+                  setVencimento={setVencimento}
+                  dataEntrada={dataEntrada}
+                  setDataEntrada={setDataEntrada}
+                  produtos={produtos}
+                  onSubmit={onSubmit}
+                  isLoading={createEntryMutation.isPending}
+                />
+              </TabsContent>
+
+              <TabsContent value="excel">
+                <ExcelImportExport mode="entries" onSuccess={handleExcelSuccess} />
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
 

@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   nome: string;
@@ -72,4 +71,30 @@ export interface DashboardStats {
   produtos_estoque_baixo: number;
   dispensacoes_mes: number;
   entradas_mes: number;
+}
+
+export interface UnidadeMedidaDB {
+  id: string;
+  codigo: string;
+  descricao: string;
+  ativo: boolean;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface ExcelProductRow {
+  codigo: string;
+  descricao: string;
+  unidade_medida: string;
+  quantidade?: number;
+  lote?: string;
+  vencimento?: string;
+  data_entrada?: string;
+}
+
+export interface ProcessResult {
+  success: boolean;
+  errors: string[];
+  processedCount: number;
+  totalCount: number;
 }
