@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,7 +15,12 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import type { ProductEntry, Dispensation } from '@/types';
-import { StockOnlyTable } from './history/StockOnlyTable';
+import { 
+  StockOnlyTable, 
+  PatientDispensationView, 
+  ProductDispensationView, 
+  EntriesOnlyView 
+} from './history';
 
 export function HistoryView() {
   const [filtroDataInicial, setFiltroDataInicial] = useState('');
@@ -22,7 +28,7 @@ export function HistoryView() {
   const [filtroProduto, setFiltroProduto] = useState('all');
   const [filtroPaciente, setFiltroPaciente] = useState('all');
   const [filtroTipo, setFiltroTipo] = useState('todos');
-  const [filtroNomePaciente, setFiltroNomePaciente] = useState('');
+  const [buscaDinamica, setBuscaDinamica] = useState('');
 
   // Buscar entradas
   const { data: entradas, isLoading: isLoadingEntradas } = useQuery({
@@ -58,7 +64,7 @@ export function HistoryView() {
 
   // Buscar dispensações
   const { data: dispensacoes, isLoading: isLoadingDispensacoes } = useQuery({
-    queryKey: ['historico-dispensacoes', filtroDataInicial, filtroDataFinal, filtroProduto, filtroPaciente, filtroNomePaciente],
+    queryKey: ['historico-dispensacoes', filtroDataInicial, filtroDataFinal, filtroProduto, filtroPaciente],
     queryFn: async () => {
       let query = supabase
         .from('dispensacoes')
@@ -92,15 +98,7 @@ export function HistoryView() {
       const { data, error } = await query;
       if (error) throw error;
       
-      // Filtrar por nome do paciente se especificado
-      let filteredData = data as Dispensation[];
-      if (filtroNomePaciente) {
-        filteredData = filteredData.filter(dispensacao => 
-          dispensacao.paciente?.nome.toLowerCase().includes(filtroNomePaciente.toLowerCase())
-        );
-      }
-      
-      return filteredData;
+      return data as Dispensation[];
     }
   });
 
@@ -151,7 +149,7 @@ export function HistoryView() {
   const totalEntradas = entradas?.reduce((sum, entrada) => sum + entrada.quantidade, 0) || 0;
   const totalDispensacoes = dispensacoes?.reduce((sum, dispensacao) => sum + dispensacao.quantidade, 0) || 0;
 
-  // Movimentações combinadas
+  // Movimentações combinadas (apenas para visualização "Todas")
   const movimentacoes = [
     ...(entradas?.map(entrada => ({
       ...entrada,
@@ -169,12 +167,6 @@ export function HistoryView() {
     })) || [])
   ].sort((a, b) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime());
 
-  const movimentacoesFiltradas = movimentacoes.filter(mov => {
-    if (filtroTipo === 'entradas') return mov.tipo === 'entrada';
-    if (filtroTipo === 'dispensacoes') return mov.tipo === 'dispensacao';
-    return true;
-  });
-
   // Função para calcular movimentações de hoje
   const getMovimentacoesHoje = () => {
     const hoje = format(new Date(), 'yyyy-MM-dd');
@@ -189,13 +181,108 @@ export function HistoryView() {
     setFiltroDataFinal('');
     setFiltroProduto('all');
     setFiltroPaciente('all');
-    setFiltroNomePaciente('');
+    setBuscaDinamica('');
     setFiltroTipo('todos');
   };
 
   // Verificar se há filtros ativos
   const hasActiveFilters = filtroDataInicial || filtroDataFinal || filtroProduto !== 'all' || 
-                          filtroPaciente !== 'all' || filtroNomePaciente || filtroTipo !== 'todos';
+                          filtroPaciente !== 'all' || buscaDinamica || filtroTipo !== 'todos';
+
+  // Função para obter placeholder da busca dinâmica
+  const getSearchPlaceholder = () => {
+    switch (filtroTipo) {
+      case 'entradas':
+        return 'Buscar por produto ou lote...';
+      case 'dispensacoes-pacientes':
+        return 'Buscar paciente por nome, SUS ou CPF...';
+      case 'dispensacoes-produtos':
+        return 'Buscar por produto ou lote...';
+      default:
+        return '';
+    }
+  };
+
+  // Função para renderizar conteúdo baseado no tipo
+  const renderContent = () => {
+    switch (filtroTipo) {
+      case 'apenas-estoque':
+        return <StockOnlyTable />;
+      
+      case 'entradas':
+        return (
+          <EntriesOnlyView
+            searchTerm={buscaDinamica}
+            filtroDataInicial={filtroDataInicial}
+            filtroDataFinal={filtroDataFinal}
+            filtroProduto={filtroProduto}
+          />
+        );
+      
+      case 'dispensacoes-pacientes':
+        return <PatientDispensationView searchTerm={buscaDinamica} />;
+      
+      case 'dispensacoes-produtos':
+        return (
+          <ProductDispensationView
+            searchTerm={buscaDinamica}
+            filtroDataInicial={filtroDataInicial}
+            filtroDataFinal={filtroDataFinal}
+            filtroProduto={filtroProduto}
+          />
+        );
+      
+      default:
+        // Mostrar todas as movimentações
+        return (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="min-w-[100px]">Data</TableHead>
+                <TableHead className="min-w-[120px]">Tipo</TableHead>
+                <TableHead className="min-w-[150px]">Produto</TableHead>
+                <TableHead className="min-w-[80px]">Qtd</TableHead>
+                <TableHead className="min-w-[100px]">Lote</TableHead>
+                <TableHead className="min-w-[120px]">Paciente</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {movimentacoes.map((mov, index) => (
+                <TableRow key={`${mov.tipo}-${mov.id}-${index}`}>
+                  <TableCell className="text-xs md:text-sm">
+                    {format(new Date(mov.data), 'dd/MM/yy', { locale: ptBR })}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={mov.tipo === 'entrada' ? 'default' : 'secondary'} className="text-xs">
+                      {mov.tipo === 'entrada' ? (
+                        <><TrendingUp className="h-3 w-3 mr-1" /> Entrada</>
+                      ) : (
+                        <><TrendingDown className="h-3 w-3 mr-1" /> Dispensação</>
+                      )}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-xs md:text-sm max-w-[150px] truncate">
+                    {mov.descricao_produto}
+                  </TableCell>
+                  <TableCell className="text-xs md:text-sm">{mov.quantidade}</TableCell>
+                  <TableCell className="text-xs md:text-sm">{mov.lote}</TableCell>
+                  <TableCell className="text-xs md:text-sm max-w-[120px] truncate">
+                    {mov.paciente || '-'}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {movimentacoes.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                    Nenhuma movimentação encontrada
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        );
+    }
+  };
 
   // Componente de filtros para mobile
   const MobileFilters = () => (
@@ -254,16 +341,6 @@ export function HistoryView() {
           </Select>
         </div>
         <div>
-          <Label htmlFor="filtroNomePaciente">Buscar por Nome</Label>
-          <Input
-            id="filtroNomePaciente"
-            value={filtroNomePaciente}
-            onChange={(e) => setFiltroNomePaciente(e.target.value)}
-            placeholder="Digite o nome do paciente"
-            className="h-12"
-          />
-        </div>
-        <div>
           <Label htmlFor="filtroTipo">Tipo de Movimentação</Label>
           <Select value={filtroTipo} onValueChange={setFiltroTipo}>
             <SelectTrigger className="h-12">
@@ -272,11 +349,25 @@ export function HistoryView() {
             <SelectContent>
               <SelectItem value="todos">Todas</SelectItem>
               <SelectItem value="entradas">Apenas Entradas</SelectItem>
-              <SelectItem value="dispensacoes">Apenas Dispensações</SelectItem>
+              <SelectItem value="dispensacoes-pacientes">Dispensações Pacientes</SelectItem>
+              <SelectItem value="dispensacoes-produtos">Dispensações Produtos</SelectItem>
               <SelectItem value="apenas-estoque">Apenas em estoque</SelectItem>
             </SelectContent>
           </Select>
         </div>
+        {/* Busca dinâmica - apenas se não for "todos" */}
+        {filtroTipo !== 'todos' && filtroTipo !== 'apenas-estoque' && (
+          <div>
+            <Label htmlFor="buscaDinamica">Buscar</Label>
+            <Input
+              id="buscaDinamica"
+              value={buscaDinamica}
+              onChange={(e) => setBuscaDinamica(e.target.value)}
+              placeholder={getSearchPlaceholder()}
+              className="h-12"
+            />
+          </div>
+        )}
       </div>
       {hasActiveFilters && (
         <Button onClick={limparFiltros} variant="outline" className="w-full h-12">
@@ -444,15 +535,6 @@ export function HistoryView() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="filtroNomePaciente">Buscar por Nome</Label>
-                <Input
-                  id="filtroNomePaciente"
-                  value={filtroNomePaciente}
-                  onChange={(e) => setFiltroNomePaciente(e.target.value)}
-                  placeholder="Digite o nome do paciente"
-                />
-              </div>
-              <div>
                 <Label htmlFor="filtroTipo">Tipo de Movimentação</Label>
                 <Select value={filtroTipo} onValueChange={setFiltroTipo}>
                   <SelectTrigger>
@@ -461,11 +543,24 @@ export function HistoryView() {
                   <SelectContent>
                     <SelectItem value="todos">Todas</SelectItem>
                     <SelectItem value="entradas">Apenas Entradas</SelectItem>
-                    <SelectItem value="dispensacoes">Apenas Dispensações</SelectItem>
+                    <SelectItem value="dispensacoes-pacientes">Dispensações Pacientes</SelectItem>
+                    <SelectItem value="dispensacoes-produtos">Dispensações Produtos</SelectItem>
                     <SelectItem value="apenas-estoque">Apenas em estoque</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              {/* Busca dinâmica - apenas se não for "todos" */}
+              {filtroTipo !== 'todos' && filtroTipo !== 'apenas-estoque' && (
+                <div>
+                  <Label htmlFor="buscaDinamica">Buscar</Label>
+                  <Input
+                    id="buscaDinamica"
+                    value={buscaDinamica}
+                    onChange={(e) => setBuscaDinamica(e.target.value)}
+                    placeholder={getSearchPlaceholder()}
+                  />
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -482,63 +577,17 @@ export function HistoryView() {
           <Card>
             <CardHeader>
               <CardTitle className="text-lg md:text-xl">
-                {filtroTipo === 'apenas-estoque' ? 'Produtos em Estoque' : 'Histórico de Movimentações'}
+                {filtroTipo === 'apenas-estoque' ? 'Produtos em Estoque' : 
+                 filtroTipo === 'dispensacoes-pacientes' ? 'Dispensações por Paciente' :
+                 filtroTipo === 'dispensacoes-produtos' ? 'Dispensações por Produto' :
+                 filtroTipo === 'entradas' ? 'Entradas de Produtos' :
+                 'Histórico de Movimentações'}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0 md:p-6">
-              {filtroTipo === 'apenas-estoque' ? (
-                <div className="p-4 md:p-0">
-                  <StockOnlyTable />
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="min-w-[100px]">Data</TableHead>
-                        <TableHead className="min-w-[120px]">Tipo</TableHead>
-                        <TableHead className="min-w-[150px]">Produto</TableHead>
-                        <TableHead className="min-w-[80px]">Qtd</TableHead>
-                        <TableHead className="min-w-[100px]">Lote</TableHead>
-                        <TableHead className="min-w-[120px]">Paciente</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {movimentacoesFiltradas.map((mov, index) => (
-                        <TableRow key={`${mov.tipo}-${mov.id}-${index}`}>
-                          <TableCell className="text-xs md:text-sm">
-                            {format(new Date(mov.data), 'dd/MM/yy', { locale: ptBR })}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={mov.tipo === 'entrada' ? 'default' : 'secondary'} className="text-xs">
-                              {mov.tipo === 'entrada' ? (
-                                <><TrendingUp className="h-3 w-3 mr-1" /> Entrada</>
-                              ) : (
-                                <><TrendingDown className="h-3 w-3 mr-1" /> Dispensação</>
-                              )}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-xs md:text-sm max-w-[150px] truncate">
-                            {mov.descricao_produto}
-                          </TableCell>
-                          <TableCell className="text-xs md:text-sm">{mov.quantidade}</TableCell>
-                          <TableCell className="text-xs md:text-sm">{mov.lote}</TableCell>
-                          <TableCell className="text-xs md:text-sm max-w-[120px] truncate">
-                            {mov.paciente || '-'}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {movimentacoesFiltradas.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                            Nenhuma movimentação encontrada
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
+              <div className="p-4 md:p-0">
+                {renderContent()}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
