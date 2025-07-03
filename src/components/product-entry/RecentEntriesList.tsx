@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -10,19 +10,36 @@ import type { ProductEntry } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { EditEntryDialog } from './EditEntryDialog';
 import { useProductEntryMutations } from './hooks/useProductEntryMutations';
+import { ProductEntrySearch } from './ProductEntrySearch';
+import { ProductEntryPagination } from './ProductEntryPagination';
+import { useProductEntryQueries } from './hooks/useProductEntryQueries';
 
-interface RecentEntriesListProps {
-  entradas: ProductEntry[] | undefined;
-  isLoading: boolean;
-}
-
-export function RecentEntriesList({ entradas, isLoading }: RecentEntriesListProps) {
+export function RecentEntriesList() {
   const { user } = useAuth();
   const { updateEntryMutation, deleteEntryMutation } = useProductEntryMutations();
   const [editingEntry, setEditingEntry] = useState<ProductEntry | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
 
   const isAdmin = user?.tipo === 'ADMIN';
+
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(1); // Reset to first page when searching
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const { entradas, isLoadingEntradas, totalCount, totalPages } = useProductEntryQueries({
+    page: currentPage,
+    limit: 50,
+    searchTerm: debouncedSearchTerm
+  });
 
   const handleEdit = (entry: ProductEntry) => {
     setEditingEntry(entry);
@@ -42,13 +59,26 @@ export function RecentEntriesList({ entradas, isLoading }: RecentEntriesListProp
     deleteEntryMutation.mutate(id);
   };
 
-  if (isLoading) {
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  if (isLoadingEntradas) {
     return <div className="text-center py-4">Carregando entradas...</div>;
   }
 
   return (
-    <>
-      <div className="space-y-3 max-h-96 overflow-y-auto">
+    <div className="space-y-4">
+      <ProductEntrySearch 
+        searchTerm={searchTerm}
+        onSearchChange={handleSearchChange}
+      />
+
+      <div className="space-y-3 max-h-[600px] overflow-y-auto">
         {entradas?.map((entrada) => (
           <div key={entrada.id} className="border rounded-lg p-3">
             <div className="flex justify-between items-start">
@@ -120,10 +150,19 @@ export function RecentEntriesList({ entradas, isLoading }: RecentEntriesListProp
         ))}
         {(!entradas || entradas.length === 0) && (
           <p className="text-center text-gray-500 py-4">
-            Nenhuma entrada registrada ainda
+            {searchTerm ? 'Nenhuma entrada encontrada' : 'Nenhuma entrada registrada ainda'}
           </p>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <ProductEntryPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          onPageChange={handlePageChange}
+        />
+      )}
 
       <EditEntryDialog
         entry={editingEntry}
@@ -135,6 +174,6 @@ export function RecentEntriesList({ entradas, isLoading }: RecentEntriesListProp
         onSave={handleSaveEdit}
         isLoading={updateEntryMutation.isPending}
       />
-    </>
+    </div>
   );
 }

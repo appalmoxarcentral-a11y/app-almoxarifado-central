@@ -14,6 +14,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import type { ProductEntry, Dispensation } from '@/types';
+import { StockOnlyTable } from './history/StockOnlyTable';
 
 export function HistoryView() {
   const [filtroDataInicial, setFiltroDataInicial] = useState('');
@@ -272,6 +273,7 @@ export function HistoryView() {
               <SelectItem value="todos">Todas</SelectItem>
               <SelectItem value="entradas">Apenas Entradas</SelectItem>
               <SelectItem value="dispensacoes">Apenas Dispensações</SelectItem>
+              <SelectItem value="apenas-estoque">Apenas em estoque</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -460,6 +462,7 @@ export function HistoryView() {
                     <SelectItem value="todos">Todas</SelectItem>
                     <SelectItem value="entradas">Apenas Entradas</SelectItem>
                     <SelectItem value="dispensacoes">Apenas Dispensações</SelectItem>
+                    <SelectItem value="apenas-estoque">Apenas em estoque</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -478,56 +481,64 @@ export function HistoryView() {
         <TabsContent value="movimentacoes">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg md:text-xl">Histórico de Movimentações</CardTitle>
+              <CardTitle className="text-lg md:text-xl">
+                {filtroTipo === 'apenas-estoque' ? 'Produtos em Estoque' : 'Histórico de Movimentações'}
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-0 md:p-6">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="min-w-[100px]">Data</TableHead>
-                      <TableHead className="min-w-[120px]">Tipo</TableHead>
-                      <TableHead className="min-w-[150px]">Produto</TableHead>
-                      <TableHead className="min-w-[80px]">Qtd</TableHead>
-                      <TableHead className="min-w-[100px]">Lote</TableHead>
-                      <TableHead className="min-w-[120px]">Paciente</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {movimentacoesFiltradas.map((mov, index) => (
-                      <TableRow key={`${mov.tipo}-${mov.id}-${index}`}>
-                        <TableCell className="text-xs md:text-sm">
-                          {format(new Date(mov.data), 'dd/MM/yy', { locale: ptBR })}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={mov.tipo === 'entrada' ? 'default' : 'secondary'} className="text-xs">
-                            {mov.tipo === 'entrada' ? (
-                              <><TrendingUp className="h-3 w-3 mr-1" /> Entrada</>
-                            ) : (
-                              <><TrendingDown className="h-3 w-3 mr-1" /> Dispensação</>
-                            )}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-xs md:text-sm max-w-[150px] truncate">
-                          {mov.descricao_produto}
-                        </TableCell>
-                        <TableCell className="text-xs md:text-sm">{mov.quantidade}</TableCell>
-                        <TableCell className="text-xs md:text-sm">{mov.lote}</TableCell>
-                        <TableCell className="text-xs md:text-sm max-w-[120px] truncate">
-                          {mov.paciente || '-'}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {movimentacoesFiltradas.length === 0 && (
+              {filtroTipo === 'apenas-estoque' ? (
+                <div className="p-4 md:p-0">
+                  <StockOnlyTable />
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                          Nenhuma movimentação encontrada
-                        </TableCell>
+                        <TableHead className="min-w-[100px]">Data</TableHead>
+                        <TableHead className="min-w-[120px]">Tipo</TableHead>
+                        <TableHead className="min-w-[150px]">Produto</TableHead>
+                        <TableHead className="min-w-[80px]">Qtd</TableHead>
+                        <TableHead className="min-w-[100px]">Lote</TableHead>
+                        <TableHead className="min-w-[120px]">Paciente</TableHead>
                       </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+                    </TableHeader>
+                    <TableBody>
+                      {movimentacoesFiltradas.map((mov, index) => (
+                        <TableRow key={`${mov.tipo}-${mov.id}-${index}`}>
+                          <TableCell className="text-xs md:text-sm">
+                            {format(new Date(mov.data), 'dd/MM/yy', { locale: ptBR })}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={mov.tipo === 'entrada' ? 'default' : 'secondary'} className="text-xs">
+                              {mov.tipo === 'entrada' ? (
+                                <><TrendingUp className="h-3 w-3 mr-1" /> Entrada</>
+                              ) : (
+                                <><TrendingDown className="h-3 w-3 mr-1" /> Dispensação</>
+                              )}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs md:text-sm max-w-[150px] truncate">
+                            {mov.descricao_produto}
+                          </TableCell>
+                          <TableCell className="text-xs md:text-sm">{mov.quantidade}</TableCell>
+                          <TableCell className="text-xs md:text-sm">{mov.lote}</TableCell>
+                          <TableCell className="text-xs md:text-sm max-w-[120px] truncate">
+                            {mov.paciente || '-'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {movimentacoesFiltradas.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                            Nenhuma movimentação encontrada
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

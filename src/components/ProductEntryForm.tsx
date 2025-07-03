@@ -19,7 +19,7 @@ export function ProductEntryForm() {
   const [dataEntrada, setDataEntrada] = useState(format(new Date(), 'yyyy-MM-dd'));
 
   const { user } = useAuth();
-  const { produtos, entradas, isLoadingEntradas, refetchEntradas } = useProductEntryQueries();
+  const { produtos } = useProductEntryQueries();
   const { createEntryMutation, handleSubmit } = useProductEntryMutations();
 
   // Verificar se o usuário está autenticado
@@ -53,7 +53,7 @@ export function ProductEntryForm() {
   };
 
   const handleExcelSuccess = () => {
-    refetchEntradas();
+    // The RecentEntriesList will automatically refresh due to query invalidation
   };
 
   return (
@@ -110,10 +110,7 @@ export function ProductEntryForm() {
             <CardTitle>Entradas Recentes</CardTitle>
           </CardHeader>
           <CardContent>
-            <RecentEntriesList
-              entradas={entradas}
-              isLoading={isLoadingEntradas}
-            />
+            <RecentEntriesList />
           </CardContent>
         </Card>
       </div>
