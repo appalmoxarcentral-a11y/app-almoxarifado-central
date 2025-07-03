@@ -8,13 +8,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { User, Package, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { Dispensation, Patient } from '@/types';
+import type { Dispensation } from '@/types';
 
 interface PatientDispensationViewProps {
   searchTerm: string;
 }
 
-interface PatientWithDispensations extends Patient {
+interface PatientWithDispensations {
+  id: string;
+  nome: string;
+  sus_cpf: string;
+  endereco: string;
+  bairro: string;
+  telefone: string;
+  nascimento: string;
+  idade: number;
   dispensacoes: Dispensation[];
   total_produtos_diferentes: number;
   total_quantidade_dispensada: number;
@@ -69,7 +77,14 @@ export function PatientDispensationView({ searchTerm }: PatientDispensationViewP
         
         if (!pacientesMap.has(pacienteId)) {
           pacientesMap.set(pacienteId, {
-            ...paciente,
+            id: paciente.id,
+            nome: paciente.nome,
+            sus_cpf: paciente.sus_cpf,
+            endereco: paciente.endereco,
+            bairro: paciente.bairro,
+            telefone: paciente.telefone,
+            nascimento: paciente.nascimento,
+            idade: paciente.idade,
             dispensacoes: [],
             total_produtos_diferentes: 0,
             total_quantidade_dispensada: 0
