@@ -9,9 +9,10 @@ export function useHistoryFilters() {
   const [filtroTipo, setFiltroTipo] = useState('todos');
   const [buscaDinamica, setBuscaDinamica] = useState('');
 
-  // Verificar se há filtros ativos
-  const hasActiveFilters = filtroDataInicial || filtroDataFinal || filtroProduto !== 'all' || 
-                          filtroPaciente !== 'all' || buscaDinamica || filtroTipo !== 'todos';
+  // Verificar se há filtros ativos - garantir retorno boolean
+  const hasActiveFilters = Boolean(filtroDataInicial) || Boolean(filtroDataFinal) || 
+                          filtroProduto !== 'all' || filtroPaciente !== 'all' || 
+                          Boolean(buscaDinamica) || filtroTipo !== 'todos';
 
   // Função para limpar filtros
   const limparFiltros = () => {
