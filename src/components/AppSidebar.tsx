@@ -1,97 +1,208 @@
 
-import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter } from "@/components/ui/sidebar";
-import { LayoutDashboard, Users, Package, PackagePlus, ShoppingCart, History, Settings, LogOut, Activity } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/AuthContext";
-
-const menuItems = [{
-  title: "Dashboard",
-  url: "/",
-  icon: LayoutDashboard
-}, {
-  title: "Pacientes",
-  url: "/pacientes",
-  icon: Users
-}, {
-  title: "Produtos",
-  url: "/produtos",
-  icon: Package
-}, {
-  title: "Entrada de Produtos",
-  url: "/entradas",
-  icon: PackagePlus
-}, {
-  title: "Dispensação",
-  url: "/dispensacao",
-  icon: ShoppingCart
-}, {
-  title: "Históricos",
-  url: "/historicos",
-  icon: History
-}, {
-  title: "Usuários",
-  url: "/usuarios",
-  icon: Settings
-}];
+import React from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+} from '@/components/ui/sidebar';
+import { 
+  Home, 
+  Users, 
+  Package, 
+  PackagePlus, 
+  Pill, 
+  History, 
+  UserCog, 
+  LogOut,
+  ShoppingCart,
+  ChevronRight
+} from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 export function AppSidebar() {
-  const navigate = useNavigate();
-  const location = useLocation();
   const { user, logout } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const isActive = (path: string) => location.pathname === path;
+
+  const menuItems = [
+    { 
+      title: 'Dashboard', 
+      url: '/', 
+      icon: Home,
+      permission: null
+    },
+    { 
+      title: 'Cadastro de Pacientes', 
+      url: '/pacientes', 
+      icon: Users,
+      permission: 'cadastro_pacientes'
+    },
+    { 
+      title: 'Cadastro de Produtos', 
+      url: '/produtos', 
+      icon: Package,
+      permission: 'cadastro_produtos'
+    },
+    { 
+      title: 'Entrada de Produtos', 
+      url: '/entradas', 
+      icon: PackagePlus,
+      permission: 'entrada_produtos'
+    },
+    { 
+      title: 'Dispensação', 
+      url: '/dispensacao', 
+      icon: Pill,
+      permission: 'dispensacao'
+    },
+    { 
+      title: 'Históricos', 
+      url: '/historicos', 
+      icon: History,
+      permission: 'historicos'
+    }
+  ];
+
+  // Itens específicos para administradores
+  const adminItems = [
+    {
+      title: 'Relatório de Compras',
+      url: '/relatorio-compras',
+      icon: ShoppingCart,
+      permission: null // Verificação manual por tipo de usuário
+    },
+    {
+      title: 'Gestão de Usuários',
+      url: '/usuarios',
+      icon: UserCog,
+      permission: 'gestao_usuarios'
+    }
+  ];
+
+  const hasPermission = (permission: string | null) => {
+    if (!permission) return true;
+    if (!user) return false;
+    if (user.tipo === 'ADMIN') return true;
+    return user.permissoes?.[permission] === true;
+  };
+
+  const canAccessReports = user?.tipo === 'ADMIN';
+  const canAccessUsers = hasPermission('gestao_usuarios');
 
   return (
-    <Sidebar className="border-r border-sidebar-border">
-      <SidebarHeader className="p-4">
+    <Sidebar>
+      <SidebarHeader className="border-b p-4">
         <div className="flex items-center gap-2">
-          <Activity className="h-6 w-6 lg:h-8 lg:w-8 text-sidebar-primary" />
-          <div className="min-w-0">
-            <h2 className="text-sidebar-foreground font-bold text-lg lg:text-2xl xl:text-3xl leading-tight">
-              FARMÁCIA CENTRAL
-            </h2>
-            <p className="text-xs lg:text-sm text-sidebar-foreground/70">Sistema de Controle</p>
+          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+            <Pill className="w-4 h-4 text-primary-foreground" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold">UBSF</h2>
+            <p className="text-xs text-muted-foreground">Sistema Farmácia</p>
           </div>
         </div>
       </SidebarHeader>
-      
+
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-foreground/70">Menu Principal</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map(item => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    asChild 
-                    isActive={location.pathname === item.url} 
-                    className="hover:bg-sidebar-accent py-3"
-                  >
-                    <button onClick={() => navigate(item.url)} className="flex items-center gap-3 w-full">
-                      <item.icon className="h-4 w-4 lg:h-5 lg:w-5" />
-                      <span className="text-sm lg:text-base">{item.title}</span>
-                    </button>
+        <SidebarMenu>
+          {menuItems
+            .filter(item => hasPermission(item.permission))
+            .map((item) => (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton 
+                  asChild 
+                  isActive={isActive(item.url)}
+                  className="cursor-pointer"
+                >
+                  <div onClick={() => navigate(item.url)} className="flex items-center gap-2">
+                    <item.icon className="w-4 h-4" />
+                    <span>{item.title}</span>
+                  </div>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+
+          {/* Seção Administrativa */}
+          {(canAccessReports || canAccessUsers) && (
+            <Collapsible className="group/collapsible">
+              <SidebarMenuItem>
+                <CollapsibleTrigger asChild>
+                  <SidebarMenuButton className="cursor-pointer">
+                    <UserCog className="w-4 h-4" />
+                    <span>Administração</span>
+                    <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
                   </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <SidebarMenuSub>
+                    {canAccessReports && (
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton 
+                          asChild 
+                          isActive={isActive('/relatorio-compras')}
+                          className="cursor-pointer"
+                        >
+                          <div onClick={() => navigate('/relatorio-compras')} className="flex items-center gap-2">
+                            <ShoppingCart className="w-4 h-4" />
+                            <span>Relatório de Compras</span>
+                          </div>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    )}
+                    {canAccessUsers && (
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton 
+                          asChild 
+                          isActive={isActive('/usuarios')}
+                          className="cursor-pointer"
+                        >
+                          <div onClick={() => navigate('/usuarios')} className="flex items-center gap-2">
+                            <UserCog className="w-4 h-4" />
+                            <span>Gestão de Usuários</span>
+                          </div>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    )}
+                  </SidebarMenuSub>
+                </CollapsibleContent>
+              </SidebarMenuItem>
+            </Collapsible>
+          )}
+        </SidebarMenu>
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
+      <SidebarFooter className="border-t p-4">
         <div className="space-y-2">
-          <div className="text-xs text-sidebar-foreground/70">
-            Usuário: {user?.nome || 'N/A'}
+          <div className="text-sm">
+            <p className="font-medium">{user?.nome}</p>
+            <p className="text-xs text-muted-foreground">{user?.email}</p>
+            <p className="text-xs text-muted-foreground">
+              {user?.tipo === 'ADMIN' ? 'Administrador' : 'Usuário Comum'}
+            </p>
           </div>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent"
-            onClick={logout}
+          <SidebarMenuButton 
+            className="w-full cursor-pointer hover:bg-destructive hover:text-destructive-foreground"
+            onClick={handleLogout}
           >
-            <LogOut className="h-4 w-4 mr-2" />
+            <LogOut className="w-4 h-4 mr-2" />
             Sair
-          </Button>
+          </SidebarMenuButton>
         </div>
       </SidebarFooter>
     </Sidebar>

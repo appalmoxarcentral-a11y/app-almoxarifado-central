@@ -183,7 +183,16 @@ export function PatientForm() {
           })
           .eq('id', editingPatient.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Erro ao atualizar paciente:', error);
+          
+          // Verificar se é erro de duplicata de SUS/CPF
+          if (error.code === '23505' && error.message.includes('pacientes_sus_cpf_unique')) {
+            throw new Error('SUS já cadastrado');
+          }
+          
+          throw error;
+        }
         
         toast({
           title: "Paciente atualizado com sucesso!",
@@ -205,7 +214,16 @@ export function PatientForm() {
             idade: idade
           }]);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Erro ao cadastrar paciente:', error);
+          
+          // Verificar se é erro de duplicata de SUS/CPF
+          if (error.code === '23505' && error.message.includes('pacientes_sus_cpf_unique')) {
+            throw new Error('SUS já cadastrado');
+          }
+          
+          throw error;
+        }
         
         toast({
           title: "Paciente cadastrado com sucesso!",
@@ -227,9 +245,23 @@ export function PatientForm() {
       await loadPatients();
       
     } catch (error) {
+      console.error('Erro no handleSubmit:', error);
+      
+      let errorTitle = editingPatient ? "Erro ao atualizar paciente" : "Erro ao cadastrar paciente";
+      let errorDescription = "Erro desconhecido";
+      
+      if (error instanceof Error) {
+        if (error.message === 'SUS já cadastrado') {
+          errorTitle = "SUS já cadastrado";
+          errorDescription = "Um paciente com este SUS/CPF já existe no sistema.";
+        } else {
+          errorDescription = error.message;
+        }
+      }
+      
       toast({
-        title: editingPatient ? "Erro ao atualizar paciente" : "Erro ao cadastrar paciente",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
+        title: errorTitle,
+        description: errorDescription,
         variant: "destructive",
       });
     } finally {
