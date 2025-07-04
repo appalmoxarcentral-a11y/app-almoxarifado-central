@@ -7,7 +7,7 @@ import { Layout } from '@/components/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { LoginForm } from '@/components/auth/LoginForm';
 import Index from '@/pages/Index';
-import { NotFound } from '@/pages/NotFound';
+import NotFound from '@/pages/NotFound';
 import { PatientForm } from '@/components/PatientForm';
 import { ProductForm } from '@/components/ProductForm';
 import { ProductEntryForm } from '@/components/ProductEntryForm';
