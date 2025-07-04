@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -35,11 +36,15 @@ export function ProductSelection({
   setSelectedLote,
   quantidade,
   setQuantidade,
-  produtos,
+  produtos = [],
   lotes,
   onAddToCart
 }: ProductSelectionProps) {
-  const produtoSelecionado = produtos?.find(p => p.id === selectedProduct);
+  const produtoSelecionado = produtos.find(p => p.id === selectedProduct);
+
+  const handleProductSelect = (product: Product) => {
+    onProductChange(product.id);
+  };
 
   return (
     <Card className="lg:col-span-2">
@@ -53,18 +58,17 @@ export function ProductSelection({
         <div className="space-y-4">
           <div>
             <Label htmlFor="produto">Produto *</Label>
-            <Select value={selectedProduct} onValueChange={onProductChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um produto" />
-              </SelectTrigger>
-              <SelectContent>
-                {produtos?.map((produto) => (
-                  <SelectItem key={produto.id} value={produto.id}>
-                    {produto.descricao} (Estoque: {produto.estoque_atual} {produto.unidade_medida})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              items={produtos}
+              value={selectedProduct}
+              onSelect={handleProductSelect}
+              getItemValue={(product) => product.id}
+              getItemLabel={(product) => `${product.descricao} (Estoque: ${product.estoque_atual} ${product.unidade_medida})`}
+              getItemSearchText={(product) => `${product.descricao} ${product.codigo}`}
+              placeholder="Selecione um produto"
+              searchPlaceholder="Digite nome ou código do produto..."
+              emptyMessage="Nenhum produto encontrado"
+            />
           </div>
 
           {produtoSelecionado && (

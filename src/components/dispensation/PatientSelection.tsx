@@ -4,7 +4,7 @@ import { User } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import type { Patient } from '@/types';
 
 interface PatientSelectionProps {
@@ -20,9 +20,13 @@ export function PatientSelection({
   setSelectedPatient,
   dataDispensa,
   setDataDispensa,
-  pacientes
+  pacientes = []
 }: PatientSelectionProps) {
-  const pacienteSelecionado = pacientes?.find(p => p.id === selectedPatient);
+  const pacienteSelecionado = pacientes.find(p => p.id === selectedPatient);
+
+  const handlePatientSelect = (patient: Patient) => {
+    setSelectedPatient(patient.id);
+  };
 
   return (
     <Card className="lg:col-span-2">
@@ -35,18 +39,17 @@ export function PatientSelection({
       <CardContent>
         <div>
           <Label htmlFor="paciente">Paciente *</Label>
-          <Select value={selectedPatient} onValueChange={setSelectedPatient}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione um paciente" />
-            </SelectTrigger>
-            <SelectContent>
-              {pacientes?.map((paciente) => (
-                <SelectItem key={paciente.id} value={paciente.id}>
-                  {paciente.nome} - {paciente.sus_cpf}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            items={pacientes}
+            value={selectedPatient}
+            onSelect={handlePatientSelect}
+            getItemValue={(patient) => patient.id}
+            getItemLabel={(patient) => `${patient.nome} - ${patient.sus_cpf}`}
+            getItemSearchText={(patient) => `${patient.nome} ${patient.sus_cpf}`}
+            placeholder="Selecione um paciente"
+            searchPlaceholder="Digite nome ou SUS/CPF do paciente..."
+            emptyMessage="Nenhum paciente encontrado"
+          />
         </div>
 
         {pacienteSelecionado && (

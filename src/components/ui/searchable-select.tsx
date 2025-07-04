@@ -1,0 +1,126 @@
+
+import * as React from "react"
+import { Check, ChevronsUpDown, Search } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+
+interface SearchableSelectProps<T> {
+  items: T[]
+  value?: string
+  onSelect: (item: T) => void
+  getItemValue: (item: T) => string
+  getItemLabel: (item: T) => string
+  getItemSearchText: (item: T) => string
+  placeholder?: string
+  searchPlaceholder?: string
+  emptyMessage?: string
+  disabled?: boolean
+  className?: string
+}
+
+export function SearchableSelect<T>({
+  items,
+  value,
+  onSelect,
+  getItemValue,
+  getItemLabel,
+  getItemSearchText,
+  placeholder = "Selecione um item...",
+  searchPlaceholder = "Buscar...",
+  emptyMessage = "Nenhum item encontrado",
+  disabled = false,
+  className,
+}: SearchableSelectProps<T>) {
+  const [open, setOpen] = React.useState(false)
+  const [searchValue, setSearchValue] = React.useState("")
+
+  const filteredItems = React.useMemo(() => {
+    if (!searchValue) return items
+    const searchLower = searchValue.toLowerCase()
+    return items.filter(item => 
+      getItemSearchText(item).toLowerCase().includes(searchLower)
+    )
+  }, [items, searchValue, getItemSearchText])
+
+  const selectedItem = items.find(item => getItemValue(item) === value)
+
+  const handleSelect = (item: T) => {
+    onSelect(item)
+    setOpen(false)
+    setSearchValue("")
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className={cn(
+            "w-full justify-between min-h-[40px] h-auto text-left font-normal",
+            !selectedItem && "text-muted-foreground",
+            className
+          )}
+          disabled={disabled}
+        >
+          <span className="truncate">
+            {selectedItem ? getItemLabel(selectedItem) : placeholder}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-full p-0" align="start">
+        <Command shouldFilter={false}>
+          <div className="flex items-center border-b px-3">
+            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+            <CommandInput
+              placeholder={searchPlaceholder}
+              value={searchValue}
+              onValueChange={setSearchValue}
+              className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </div>
+          <CommandList>
+            <CommandEmpty>{emptyMessage}</CommandEmpty>
+            <CommandGroup>
+              {filteredItems.map((item, index) => {
+                const itemValue = getItemValue(item)
+                const itemLabel = getItemLabel(item)
+                return (
+                  <CommandItem
+                    key={`${itemValue}-${index}`}
+                    value={itemValue}
+                    onSelect={() => handleSelect(item)}
+                    className="cursor-pointer"
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        value === itemValue ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    <span className="flex-1 truncate">{itemLabel}</span>
+                  </CommandItem>
+                )
+              })}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
+}
