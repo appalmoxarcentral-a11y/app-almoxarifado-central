@@ -90,7 +90,7 @@ export function PurchasePDFGenerator({ items, disabled }: PurchasePDFGeneratorPr
       </head>
       <body>
         <div class="header">
-          <h1>UNIDADE BÁSICA DE SAÚDE DA FAMÍLIA</h1>
+          <h1>UNIDADE BÁSICA DE SAÚDE FLUVIAL</h1>
           <p>Relatório de Produtos para Compra</p>
         </div>
         
