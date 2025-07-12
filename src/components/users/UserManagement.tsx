@@ -35,6 +35,7 @@ export function UserManagement() {
     entrada_produtos: false,
     dispensacao: false,
     historicos: false,
+    relatorio_compras: false,
     gestao_usuarios: false,
   });
 
@@ -172,6 +173,7 @@ export function UserManagement() {
       entrada_produtos: false,
       dispensacao: false,
       historicos: false,
+      relatorio_compras: false,
       gestao_usuarios: false,
     });
     setEditingUser(null);

@@ -14,6 +14,7 @@ export interface UserPermissions {
   entrada_produtos: boolean;
   dispensacao: boolean;
   historicos: boolean;
+  relatorio_compras: boolean;
   gestao_usuarios?: boolean;
 }
 

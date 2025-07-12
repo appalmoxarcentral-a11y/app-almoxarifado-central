@@ -11,7 +11,7 @@ import { usePurchaseState } from './hooks/usePurchaseState';
 import { useAuth } from '@/contexts/AuthContext';
 
 export function PurchaseReport() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const { produtos, isLoading, error } = usePurchaseData();
   const {
     filteredItems,
@@ -22,15 +22,15 @@ export function PurchaseReport() {
     initializePurchaseItems
   } = usePurchaseState();
 
-  // Verificar se o usuário é administrador
-  if (user?.tipo !== 'ADMIN') {
+  // Verificar se o usuário tem permissão para relatório de compras
+  if (!hasPermission('relatorio_compras')) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <ShoppingCart className="h-16 w-16 text-gray-400 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Acesso Restrito</h2>
           <p className="text-gray-600">
-            Apenas administradores podem acessar o relatório de compras.
+            Você não tem permissão para acessar o relatório de compras.
           </p>
         </div>
       </div>

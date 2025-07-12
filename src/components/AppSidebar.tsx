@@ -76,17 +76,17 @@ export function AppSidebar() {
       url: '/historicos', 
       icon: History,
       permission: 'historicos'
+    },
+    { 
+      title: 'Relatório de Compras', 
+      url: '/relatorio-compras', 
+      icon: ShoppingCart,
+      permission: 'relatorio_compras'
     }
   ];
 
   // Itens específicos para administradores
   const adminItems = [
-    {
-      title: 'Relatório de Compras',
-      url: '/relatorio-compras',
-      icon: ShoppingCart,
-      permission: null // Verificação manual por tipo de usuário
-    },
     {
       title: 'Gestão de Usuários',
       url: '/usuarios',
@@ -102,7 +102,6 @@ export function AppSidebar() {
     return user.permissoes?.[permission] === true;
   };
 
-  const canAccessReports = user?.tipo === 'ADMIN';
   const canAccessUsers = hasPermission('gestao_usuarios');
 
   return (
@@ -139,7 +138,7 @@ export function AppSidebar() {
             ))}
 
           {/* Seção Administrativa */}
-          {(canAccessReports || canAccessUsers) && (
+          {canAccessUsers && (
             <Collapsible className="group/collapsible">
               <SidebarMenuItem>
                 <CollapsibleTrigger asChild>
@@ -151,34 +150,18 @@ export function AppSidebar() {
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <SidebarMenuSub>
-                    {canAccessReports && (
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton 
-                          asChild 
-                          isActive={isActive('/relatorio-compras')}
-                          className="cursor-pointer"
-                        >
-                          <div onClick={() => navigate('/relatorio-compras')} className="flex items-center gap-2">
-                            <ShoppingCart className="w-4 h-4" />
-                            <span>Relatório de Compras</span>
-                          </div>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                    )}
-                    {canAccessUsers && (
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton 
-                          asChild 
-                          isActive={isActive('/usuarios')}
-                          className="cursor-pointer"
-                        >
-                          <div onClick={() => navigate('/usuarios')} className="flex items-center gap-2">
-                            <UserCog className="w-4 h-4" />
-                            <span>Gestão de Usuários</span>
-                          </div>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                    )}
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton 
+                        asChild 
+                        isActive={isActive('/usuarios')}
+                        className="cursor-pointer"
+                      >
+                        <div onClick={() => navigate('/usuarios')} className="flex items-center gap-2">
+                          <UserCog className="w-4 h-4" />
+                          <span>Gestão de Usuários</span>
+                        </div>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
                   </SidebarMenuSub>
                 </CollapsibleContent>
               </SidebarMenuItem>
