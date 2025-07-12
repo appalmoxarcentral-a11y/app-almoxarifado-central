@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Package, Save, Plus, Edit, X, FileSpreadsheet, Settings } from "lucide-react";
@@ -15,6 +15,7 @@ import { useProductMutations } from "@/components/product/hooks/useProductMutati
 
 export function ProductForm() {
   const { user } = useAuth();
+  const formRef = useRef<HTMLDivElement>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
     descricao: '',
@@ -44,6 +45,14 @@ export function ProductForm() {
       codigo: product.codigo,
       unidade_medida: product.unidade_medida,
     });
+
+    // Scroll automático para o formulário de edição
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }, 100);
   };
 
   const handleCancelEdit = () => {
@@ -96,7 +105,7 @@ export function ProductForm() {
         </TabsList>
 
         <TabsContent value="manual" className="space-y-6">
-          <Card>
+          <Card ref={formRef}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 {editingProduct ? <Edit className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
