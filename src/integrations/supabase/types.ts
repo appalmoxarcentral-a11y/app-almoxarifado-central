@@ -303,20 +303,6 @@ export type Database = {
     }
     Enums: {
       tipo_usuario: "ADMIN" | "COMUM"
-      unidade_medida:
-        | "AM"
-        | "CP"
-        | "BG"
-        | "FR"
-        | "CPS"
-        | "ML"
-        | "MG"
-        | "G"
-        | "KG"
-        | "UN"
-        | "PCT"
-        | "CX"
-        | "TST"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -445,21 +431,6 @@ export const Constants = {
   public: {
     Enums: {
       tipo_usuario: ["ADMIN", "COMUM"],
-      unidade_medida: [
-        "AM",
-        "CP",
-        "BG",
-        "FR",
-        "CPS",
-        "ML",
-        "MG",
-        "G",
-        "KG",
-        "UN",
-        "PCT",
-        "CX",
-        "TST",
-      ],
     },
   },
 } as const

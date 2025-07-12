@@ -21,25 +21,17 @@ export const useProductQueries = () => {
       
       const unidades = data.map(unidade => ({
         value: unidade.codigo,
-        label: `${unidade.descricao}`
+        label: `${unidade.codigo} - ${unidade.descricao}`
       }));
       
       setUnidadesMedida(unidades);
     } catch (error) {
       console.error('Erro ao carregar unidades de medida:', error);
-      // Fallback para unidades padrão em caso de erro
-      setUnidadesMedida([
-        { value: 'AM', label: 'Ampola (AM)' },
-        { value: 'CP', label: 'Comprimido (CP)' },
-        { value: 'BG', label: 'Bisnaga (BG)' },
-        { value: 'FR', label: 'Frasco (FR)' },
-        { value: 'CPS', label: 'Cápsula (CPS)' },
-        { value: 'ML', label: 'Mililitro (ML)' },
-        { value: 'MG', label: 'Miligrama (MG)' },
-        { value: 'G', label: 'Grama (G)' },
-        { value: 'KG', label: 'Quilograma (KG)' },
-        { value: 'UN', label: 'Unidade (UN)' },
-      ]);
+      toast({
+        title: "Erro ao carregar unidades de medida",
+        description: "Usando unidades padrão como fallback.",
+        variant: "destructive",
+      });
     }
   };
 
