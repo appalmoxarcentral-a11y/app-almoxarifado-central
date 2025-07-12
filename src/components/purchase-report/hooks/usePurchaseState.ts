@@ -1,5 +1,5 @@
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import type { PurchaseItem, PurchaseFilters } from '@/types/purchase';
 
 export function usePurchaseState() {
@@ -10,7 +10,7 @@ export function usePurchaseState() {
     comReposicao: false
   });
 
-  const updatePurchaseQuantity = (productId: string, quantidade: number | undefined) => {
+  const updatePurchaseQuantity = useCallback((productId: string, quantidade: number | undefined) => {
     setPurchaseItems(items => 
       items.map(item => 
         item.id === productId 
@@ -18,14 +18,14 @@ export function usePurchaseState() {
           : item
       )
     );
-  };
+  }, []);
 
-  const initializePurchaseItems = (produtos: PurchaseItem[]) => {
+  const initializePurchaseItems = useCallback((produtos: PurchaseItem[]) => {
     setPurchaseItems(produtos.map(produto => ({
       ...produto,
       quantidade_reposicao: undefined
     })));
-  };
+  }, []);
 
   const filteredItems = useMemo(() => {
     return purchaseItems.filter(item => {
