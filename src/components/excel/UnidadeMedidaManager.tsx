@@ -8,9 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { Plus, Edit, Eye, EyeOff, Trash2, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface UnidadeMedida {
   id: string;
@@ -28,12 +29,21 @@ export function UnidadeMedidaManager() {
   const [formData, setFormData] = useState({ codigo: '', descricao: '' });
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [unidadeToDelete, setUnidadeToDelete] = useState<UnidadeMedida | null>(null);
+  const [enumValues, setEnumValues] = useState<string[]>([]);
+  const [showEnumWarning, setShowEnumWarning] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
   useEffect(() => {
     loadUnidades();
+    loadEnumValues();
   }, []);
+
+  const loadEnumValues = async () => {
+    // Por enquanto, usar valores conhecidos já que não temos função personalizada
+    // Em produção, estes valores deveriam vir de uma consulta ao enum real
+    setEnumValues(['AM', 'CP', 'BG', 'FR', 'CPS', 'ML', 'MG', 'G', 'KG', 'UN', 'PCT', 'CX', 'TST']);
+  };
 
   const loadUnidades = async () => {
     try {
@@ -66,6 +76,18 @@ export function UnidadeMedidaManager() {
         variant: "destructive",
       });
       return;
+    }
+
+    // Verificar se o código existe no enum para novos registros
+    const codigoUpper = formData.codigo.toUpperCase();
+    if (!editingUnidade && !enumValues.includes(codigoUpper)) {
+      setShowEnumWarning(true);
+      toast({
+        title: "Atenção: Código não existe no sistema",
+        description: `O código "${codigoUpper}" não está disponível no enum do banco. A unidade será criada, mas você precisará adicionar o valor ao enum via SQL para usar em produtos.`,
+        variant: "destructive",
+      });
+      // Permitir continuar, mas mostrar aviso
     }
 
     try {
@@ -121,11 +143,23 @@ export function UnidadeMedidaManager() {
           title: "Unidade criada com sucesso!",
           description: `${formData.codigo} - ${formData.descricao}`,
         });
+
+        // Mostrar aviso se o código não está no enum
+        if (!enumValues.includes(codigoUpper)) {
+          setTimeout(() => {
+            toast({
+              title: "Sincronização necessária",
+              description: `Para usar "${codigoUpper}" em produtos, adicione-o ao enum via SQL: ALTER TYPE unidade_medida ADD VALUE '${codigoUpper}';`,
+              variant: "default",
+            });
+          }, 2000);
+        }
       }
 
       setFormData({ codigo: '', descricao: '' });
       setEditingUnidade(null);
       setDialogOpen(false);
+      setShowEnumWarning(false);
       await loadUnidades();
     } catch (error) {
       toast({
@@ -149,6 +183,7 @@ export function UnidadeMedidaManager() {
     setEditingUnidade(null);
     setFormData({ codigo: '', descricao: '' });
     setDialogOpen(false);
+    setShowEnumWarning(false);
   };
 
   const checkProductDependencies = async (unidadeId: string) => {
@@ -281,15 +316,42 @@ export function UnidadeMedidaManager() {
                 </DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
+                {showEnumWarning && !editingUnidade && formData.codigo && !enumValues.includes(formData.codigo.toUpperCase()) && (
+                  <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>Atenção:</strong> O código "{formData.codigo.toUpperCase()}" não existe no enum do sistema. 
+                      A unidade será criada, mas para usar em produtos você precisará executar:
+                      <br />
+                      <code className="bg-gray-100 px-2 py-1 rounded text-sm">
+                        ALTER TYPE unidade_medida ADD VALUE '{formData.codigo.toUpperCase()}';
+                      </code>
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
                 <div className="space-y-2">
                   <Label htmlFor="codigo">Código *</Label>
                   <Input
                     id="codigo"
                     value={formData.codigo}
-                    onChange={(e) => setFormData(prev => ({ ...prev, codigo: e.target.value.toUpperCase() }))}
+                    onChange={(e) => {
+                      const newValue = e.target.value.toUpperCase();
+                      setFormData(prev => ({ ...prev, codigo: newValue }));
+                      if (!editingUnidade && newValue && !enumValues.includes(newValue)) {
+                        setShowEnumWarning(true);
+                      } else {
+                        setShowEnumWarning(false);
+                      }
+                    }}
                     placeholder="Ex: ML, CP, FR..."
                     maxLength={10}
                   />
+                  {enumValues.length > 0 && (
+                    <div className="text-sm text-gray-500">
+                      Valores disponíveis no enum: {enumValues.join(', ')}
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="descricao">Descrição *</Label>
