@@ -2,13 +2,13 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UnidadeMedida } from "@/types";
+// Removido import UnidadeMedida - agora é string
 
 interface ProductFormFieldsProps {
   formData: {
     descricao: string;
     codigo: string;
-    unidade_medida: UnidadeMedida;
+    unidade_medida: string; // Agora é string
   };
   onFormDataChange: (data: any) => void;
   unidadesMedida: { value: string; label: string }[];
@@ -43,7 +43,7 @@ export function ProductFormFields({ formData, onFormDataChange, unidadesMedida }
         <Label htmlFor="unidade_medida">Unidade de Medida *</Label>
         <Select 
           value={formData.unidade_medida} 
-          onValueChange={(value: UnidadeMedida) => 
+          onValueChange={(value: string) => 
             onFormDataChange(prev => ({ ...prev, unidade_medida: value }))
           }
         >

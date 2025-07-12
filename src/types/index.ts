@@ -33,12 +33,12 @@ export interface Product {
   id: string;
   descricao: string;
   codigo: string;
-  unidade_medida: UnidadeMedida;
+  unidade_medida: string; // Agora é string que referencia unidades_medida.codigo
   estoque_atual: number;
   created_at: string;
 }
 
-export type UnidadeMedida = 'AM' | 'CP' | 'BG' | 'FR' | 'CPS' | 'ML' | 'MG' | 'G' | 'KG' | 'UN' | 'PCT' | 'CX' | 'TST';
+// Tipo removido - agora usamos apenas a tabela unidades_medida
 
 export interface ProductEntry {
   id: string;

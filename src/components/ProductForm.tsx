@@ -3,7 +3,7 @@ import { useState, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Package, Save, Plus, Edit, X, FileSpreadsheet, Settings } from "lucide-react";
-import { UnidadeMedida, Product } from "@/types";
+import { Product } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { ExcelImportExport } from "@/components/excel/ExcelImportExport";
 import { UnidadeMedidaManager } from "@/components/excel/UnidadeMedidaManager";
@@ -20,7 +20,7 @@ export function ProductForm() {
   const [formData, setFormData] = useState({
     descricao: '',
     codigo: '',
-    unidade_medida: '' as UnidadeMedida,
+    unidade_medida: '',
   });
 
   const { products, unidadesMedida, loadProducts, loadUnidadesMedida } = useProductQueries();
@@ -30,7 +30,7 @@ export function ProductForm() {
     setFormData({
       descricao: '',
       codigo: '',
-      unidade_medida: '' as UnidadeMedida,
+      unidade_medida: '',
     });
   });
 
@@ -60,7 +60,7 @@ export function ProductForm() {
     setFormData({
       descricao: '',
       codigo: '',
-      unidade_medida: '' as UnidadeMedida,
+      unidade_medida: '',
     });
   };
 
@@ -71,7 +71,7 @@ export function ProductForm() {
       setFormData({
         descricao: '',
         codigo: '',
-        unidade_medida: '' as UnidadeMedida,
+        unidade_medida: '',
       });
     }
   };
@@ -136,7 +136,7 @@ export function ProductForm() {
                   <Button 
                     type="button" 
                     variant="outline" 
-                    onClick={() => setFormData({ descricao: '', codigo: '', unidade_medida: '' as UnidadeMedida })}
+                    onClick={() => setFormData({ descricao: '', codigo: '', unidade_medida: '' })}
                   >
                     Limpar
                   </Button>

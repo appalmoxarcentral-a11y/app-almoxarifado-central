@@ -1,11 +1,9 @@
 
-import type { UnidadeMedida } from './index';
-
 export interface PurchaseItem {
   id: string;
   codigo: string;
   descricao: string;
-  unidade_medida: UnidadeMedida;
+  unidade_medida: string; // Agora é string que referencia unidades_medida.codigo
   estoque_atual: number;
   quantidade_reposicao?: number;
 }

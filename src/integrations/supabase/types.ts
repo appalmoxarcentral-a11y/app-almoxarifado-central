@@ -195,7 +195,7 @@ export type Database = {
           descricao: string
           estoque_atual: number
           id: string
-          unidade_medida: Database["public"]["Enums"]["unidade_medida"]
+          unidade_medida: string
         }
         Insert: {
           codigo: string
@@ -203,7 +203,7 @@ export type Database = {
           descricao: string
           estoque_atual?: number
           id?: string
-          unidade_medida: Database["public"]["Enums"]["unidade_medida"]
+          unidade_medida: string
         }
         Update: {
           codigo?: string
@@ -211,9 +211,17 @@ export type Database = {
           descricao?: string
           estoque_atual?: number
           id?: string
-          unidade_medida?: Database["public"]["Enums"]["unidade_medida"]
+          unidade_medida?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_produtos_unidade_medida"
+            columns: ["unidade_medida"]
+            isOneToOne: false
+            referencedRelation: "unidades_medida"
+            referencedColumns: ["codigo"]
+          },
+        ]
       }
       unidades_medida: {
         Row: {
