@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Eye, EyeOff } from 'lucide-react';
+import { Plus, Edit, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -23,7 +24,10 @@ export function UnidadeMedidaManager() {
   const [unidades, setUnidades] = useState<UnidadeMedida[]>([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingUnidade, setEditingUnidade] = useState<UnidadeMedida | null>(null);
   const [formData, setFormData] = useState({ codigo: '', descricao: '' });
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [unidadeToDelete, setUnidadeToDelete] = useState<UnidadeMedida | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -65,38 +69,148 @@ export function UnidadeMedidaManager() {
     }
 
     try {
-      const { error } = await supabase
-        .from('unidades_medida')
-        .insert({
-          codigo: formData.codigo.toUpperCase(),
-          descricao: formData.descricao,
-          created_by: user?.id
-        });
+      if (editingUnidade) {
+        // Atualizar unidade existente
+        const { error } = await supabase
+          .from('unidades_medida')
+          .update({
+            codigo: formData.codigo.toUpperCase(),
+            descricao: formData.descricao,
+          })
+          .eq('id', editingUnidade.id);
 
-      if (error) {
-        if (error.code === '23505') { // Unique constraint violation
-          toast({
-            title: "Código já existe",
-            description: "Já existe uma unidade de medida com este código.",
-            variant: "destructive",
-          });
-          return;
+        if (error) {
+          if (error.code === '23505') {
+            toast({
+              title: "Código já existe",
+              description: "Já existe uma unidade de medida com este código.",
+              variant: "destructive",
+            });
+            return;
+          }
+          throw error;
         }
-        throw error;
+
+        toast({
+          title: "Unidade atualizada com sucesso!",
+          description: `${formData.codigo} - ${formData.descricao}`,
+        });
+      } else {
+        // Criar nova unidade
+        const { error } = await supabase
+          .from('unidades_medida')
+          .insert({
+            codigo: formData.codigo.toUpperCase(),
+            descricao: formData.descricao,
+            created_by: user?.id
+          });
+
+        if (error) {
+          if (error.code === '23505') {
+            toast({
+              title: "Código já existe",
+              description: "Já existe uma unidade de medida com este código.",
+              variant: "destructive",
+            });
+            return;
+          }
+          throw error;
+        }
+
+        toast({
+          title: "Unidade criada com sucesso!",
+          description: `${formData.codigo} - ${formData.descricao}`,
+        });
       }
 
-      toast({
-        title: "Unidade criada com sucesso!",
-        description: `${formData.codigo} - ${formData.descricao}`,
-      });
-
       setFormData({ codigo: '', descricao: '' });
+      setEditingUnidade(null);
       setDialogOpen(false);
       await loadUnidades();
     } catch (error) {
       toast({
-        title: "Erro ao criar unidade",
-        description: "Não foi possível criar a unidade de medida.",
+        title: editingUnidade ? "Erro ao atualizar unidade" : "Erro ao criar unidade",
+        description: `Não foi possível ${editingUnidade ? 'atualizar' : 'criar'} a unidade de medida.`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEdit = (unidade: UnidadeMedida) => {
+    setEditingUnidade(unidade);
+    setFormData({
+      codigo: unidade.codigo,
+      descricao: unidade.descricao
+    });
+    setDialogOpen(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingUnidade(null);
+    setFormData({ codigo: '', descricao: '' });
+    setDialogOpen(false);
+  };
+
+  const checkProductDependencies = async (unidadeId: string) => {
+    const unidadeCodigo = unidades.find(u => u.id === unidadeId)?.codigo;
+    if (!unidadeCodigo) return 0;
+    
+    const { data, error } = await supabase
+      .from('produtos')
+      .select('id')
+      .eq('unidade_medida', unidadeCodigo as any);
+    
+    if (error) throw error;
+    return data?.length || 0;
+  };
+
+  const handleDeleteConfirm = async (unidade: UnidadeMedida) => {
+    try {
+      const dependencyCount = await checkProductDependencies(unidade.id);
+      
+      if (dependencyCount > 0) {
+        toast({
+          title: "Não é possível excluir",
+          description: `Esta unidade está sendo usada por ${dependencyCount} produto(s). Desative-a em vez de excluir.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setUnidadeToDelete(unidade);
+      setDeleteConfirmOpen(true);
+    } catch (error) {
+      toast({
+        title: "Erro ao verificar dependências",
+        description: "Não foi possível verificar se a unidade está em uso.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!unidadeToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from('unidades_medida')
+        .delete()
+        .eq('id', unidadeToDelete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Unidade excluída com sucesso!",
+        description: `${unidadeToDelete.codigo} - ${unidadeToDelete.descricao}`,
+      });
+
+      setDeleteConfirmOpen(false);
+      setUnidadeToDelete(null);
+      await loadUnidades();
+    } catch (error) {
+      toast({
+        title: "Erro ao excluir unidade",
+        description: "Não foi possível excluir a unidade de medida.",
         variant: "destructive",
       });
     }
@@ -150,7 +264,9 @@ export function UnidadeMedidaManager() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Adicionar Nova Unidade de Medida</DialogTitle>
+                <DialogTitle>
+                  {editingUnidade ? 'Editar Unidade de Medida' : 'Adicionar Nova Unidade de Medida'}
+                </DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
@@ -173,11 +289,11 @@ export function UnidadeMedidaManager() {
                   />
                 </div>
                 <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                  <Button type="button" variant="outline" onClick={handleCancelEdit}>
                     Cancelar
                   </Button>
                   <Button type="submit">
-                    Salvar
+                    {editingUnidade ? 'Atualizar' : 'Salvar'}
                   </Button>
                 </div>
               </form>
@@ -208,24 +324,68 @@ export function UnidadeMedidaManager() {
                       {unidade.descricao}
                     </span>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => toggleUnidadeAtiva(unidade.id, unidade.ativo)}
-                    className="flex items-center gap-2"
-                  >
-                    {unidade.ativo ? (
-                      <>
-                        <EyeOff className="h-4 w-4" />
-                        Desativar
-                      </>
-                    ) : (
-                      <>
-                        <Eye className="h-4 w-4" />
-                        Ativar
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(unidade)}
+                      className="flex items-center gap-2"
+                    >
+                      <Edit className="h-4 w-4" />
+                      Editar
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleUnidadeAtiva(unidade.id, unidade.ativo)}
+                      className="flex items-center gap-2"
+                    >
+                      {unidade.ativo ? (
+                        <>
+                          <EyeOff className="h-4 w-4" />
+                          Desativar
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="h-4 w-4" />
+                          Ativar
+                        </>
+                      )}
+                    </Button>
+
+                    <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteConfirm(unidade)}
+                          className="flex items-center gap-2 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Excluir
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Tem certeza que deseja excluir a unidade "{unidadeToDelete?.codigo} - {unidadeToDelete?.descricao}"?
+                            <br /><br />
+                            <strong>Esta ação não pode ser desfeita.</strong>
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel onClick={() => setUnidadeToDelete(null)}>
+                            Cancelar
+                          </AlertDialogCancel>
+                          <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Excluir
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
               ))
             )}
