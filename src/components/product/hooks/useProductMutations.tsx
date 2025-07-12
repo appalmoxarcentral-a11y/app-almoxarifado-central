@@ -36,8 +36,8 @@ export function useProductMutations(onSuccess?: () => void) {
         console.error('Erro ao criar produto:', error);
         
         // Verificar se é erro de duplicata de código
-        if (error.code === '23505' && error.message.includes('produtos_codigo_unique')) {
-          throw new Error('Produto já cadastrado');
+        if (error.code === '23505' && (error.message.includes('produtos_codigo_key') || error.message.includes('produtos_codigo_unique'))) {
+          throw new Error(`Código já cadastrado: ${data.codigo}`);
         }
         
         throw error;
@@ -57,15 +57,16 @@ export function useProductMutations(onSuccess?: () => void) {
       console.error('Erro na mutação:', error);
       
       let errorMessage = "Erro ao cadastrar produto";
-      if (error.message === 'Produto já cadastrado') {
-        errorMessage = "Produto já cadastrado";
+      let description = "Verifique os dados e tente novamente.";
+      
+      if (error.message.includes('Código já cadastrado')) {
+        errorMessage = "Código já existe";
+        description = error.message + " Utilize um código diferente ou verifique se o produto já foi cadastrado.";
       }
       
       toast({
         title: errorMessage,
-        description: error.message === 'Produto já cadastrado' 
-          ? "Um produto com este código já existe no sistema."
-          : "Verifique os dados e tente novamente.",
+        description: description,
         variant: "destructive",
       });
     }
@@ -90,8 +91,8 @@ export function useProductMutations(onSuccess?: () => void) {
         console.error('Erro ao atualizar produto:', error);
         
         // Verificar se é erro de duplicata de código
-        if (error.code === '23505' && error.message.includes('produtos_codigo_unique')) {
-          throw new Error('Produto já cadastrado');
+        if (error.code === '23505' && (error.message.includes('produtos_codigo_key') || error.message.includes('produtos_codigo_unique'))) {
+          throw new Error(`Código já cadastrado: ${data.codigo}`);
         }
         
         throw error;
@@ -111,15 +112,16 @@ export function useProductMutations(onSuccess?: () => void) {
       console.error('Erro na mutação:', error);
       
       let errorMessage = "Erro ao atualizar produto";
-      if (error.message === 'Produto já cadastrado') {
-        errorMessage = "Produto já cadastrado";
+      let description = "Verifique os dados e tente novamente.";
+      
+      if (error.message.includes('Código já cadastrado')) {
+        errorMessage = "Código já existe";
+        description = error.message + " Utilize um código diferente ou verifique se o produto já foi cadastrado.";
       }
       
       toast({
         title: errorMessage,
-        description: error.message === 'Produto já cadastrado' 
-          ? "Um produto com este código já existe no sistema."
-          : "Verifique os dados e tente novamente.",
+        description: description,
         variant: "destructive",
       });
     }
@@ -156,6 +158,16 @@ export function useProductMutations(onSuccess?: () => void) {
   const submitForm = async (formData: ProductFormData, editingProduct: Product | null) => {
     setLoading(true);
     try {
+      // Validação adicional antes do envio
+      if (!formData.descricao.trim() || !formData.codigo.trim() || !formData.unidade_medida) {
+        toast({
+          title: "Campos obrigatórios",
+          description: "Preencha todos os campos obrigatórios.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
       if (editingProduct) {
         await updateProductMutation.mutateAsync({ id: editingProduct.id, data: formData });
       } else {

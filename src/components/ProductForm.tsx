@@ -124,6 +124,7 @@ export function ProductForm() {
                   formData={formData}
                   onFormDataChange={setFormData}
                   unidadesMedida={unidadesMedida}
+                  editingProductId={editingProduct?.id}
                 />
 
                 <div className="flex justify-end gap-4">
