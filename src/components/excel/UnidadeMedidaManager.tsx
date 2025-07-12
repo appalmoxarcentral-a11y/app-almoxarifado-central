@@ -152,16 +152,28 @@ export function UnidadeMedidaManager() {
   };
 
   const checkProductDependencies = async (unidadeId: string) => {
-    const unidadeCodigo = unidades.find(u => u.id === unidadeId)?.codigo;
-    if (!unidadeCodigo) return 0;
-    
-    const { data, error } = await supabase
-      .from('produtos')
-      .select('id')
-      .eq('unidade_medida', unidadeCodigo as any);
-    
-    if (error) throw error;
-    return data?.length || 0;
+    try {
+      const unidade = unidades.find(u => u.id === unidadeId);
+      if (!unidade) {
+        console.error('Unidade não encontrada:', unidadeId);
+        return 0;
+      }
+
+      const { data, error } = await supabase
+        .from('produtos')
+        .select('id')
+        .eq('unidade_medida', unidade.codigo as any);
+      
+      if (error) {
+        console.error('Erro na consulta de produtos:', error);
+        throw new Error(`Erro ao verificar dependências: ${error.message}`);
+      }
+      
+      return data?.length || 0;
+    } catch (error) {
+      console.error('Erro ao verificar dependências de produtos:', error);
+      throw error;
+    }
   };
 
   const handleDeleteConfirm = async (unidade: UnidadeMedida) => {
