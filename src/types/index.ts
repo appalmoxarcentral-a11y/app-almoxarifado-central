@@ -38,7 +38,7 @@ export interface Product {
   created_at: string;
 }
 
-export type UnidadeMedida = 'AM' | 'CP' | 'BG' | 'FR' | 'CPS' | 'ML' | 'MG' | 'G' | 'KG' | 'UN' | 'PCT';
+export type UnidadeMedida = 'AM' | 'CP' | 'BG' | 'FR' | 'CPS' | 'ML' | 'MG' | 'G' | 'KG' | 'UN' | 'PCT' | 'CX';
 
 export interface ProductEntry {
   id: string;
