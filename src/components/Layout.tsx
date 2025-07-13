@@ -33,7 +33,7 @@ export function Layout({ children }: LayoutProps) {
                   {user?.tipo}
                 </Badge>
               </div>
-              <Button variant="outline" size="sm" onClick={() => logout()}>
+              <Button variant="outline" size="sm" onClick={logout}>
                 <LogOut className="h-4 w-4 mr-2" />
                 <span className="hidden sm:inline">Sair</span>
               </Button>
