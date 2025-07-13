@@ -223,6 +223,39 @@ export type Database = {
           },
         ]
       }
+      relatorios_compras_rascunho: {
+        Row: {
+          created_at: string | null
+          data_atualizacao: string
+          data_criacao: string
+          finalizado: boolean
+          id: string
+          items: Json
+          nome_rascunho: string
+          usuario_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          data_atualizacao?: string
+          data_criacao?: string
+          finalizado?: boolean
+          id?: string
+          items?: Json
+          nome_rascunho: string
+          usuario_id: string
+        }
+        Update: {
+          created_at?: string | null
+          data_atualizacao?: string
+          data_criacao?: string
+          finalizado?: boolean
+          id?: string
+          items?: Json
+          nome_rascunho?: string
+          usuario_id?: string
+        }
+        Relationships: []
+      }
       unidades_medida: {
         Row: {
           ativo: boolean | null

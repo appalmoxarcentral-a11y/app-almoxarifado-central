@@ -6,6 +6,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PurchaseFilters } from './PurchaseFilters';
 import { PurchaseTable } from './PurchaseTable';
 import { PurchasePDFGenerator } from './PurchasePDFGenerator';
+import { DraftManager } from './DraftManager';
+import { AutoSaveIndicator } from './AutoSaveIndicator';
 import { usePurchaseData } from './hooks/usePurchaseData';
 import { usePurchaseState } from './hooks/usePurchaseState';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,7 +21,20 @@ export function PurchaseReport() {
     filters,
     setFilters,
     updatePurchaseQuantity,
-    initializePurchaseItems
+    initializePurchaseItems,
+    // Draft management
+    drafts,
+    currentDraftId,
+    isLoading: isDraftsLoading,
+    isSaving,
+    saveDraft,
+    loadDraft,
+    deleteDraft,
+    createNewDraft,
+    getCurrentDraft,
+    draftItems,
+    hasChanges,
+    isAutoSaving
   } = usePurchaseState();
 
   // Verificar se o usuário tem permissão para relatório de compras
@@ -72,11 +87,32 @@ export function PurchaseReport() {
           <ShoppingCart className="h-8 w-8 text-primary" />
           <div>
             <h1 className="text-3xl font-bold">Relatório de Compras</h1>
-            <p className="text-gray-600">Gerencie as necessidades de reposição de produtos</p>
+            <div className="flex items-center gap-2">
+              <p className="text-gray-600">Gerencie as necessidades de reposição de produtos</p>
+              <AutoSaveIndicator 
+                isAutoSaving={isAutoSaving}
+                currentDraftId={currentDraftId}
+                hasChanges={hasChanges}
+              />
+            </div>
           </div>
         </div>
         
-        <PurchasePDFGenerator items={itemsForPDF} />
+        <div className="flex items-center gap-4">
+          <DraftManager
+            drafts={drafts}
+            currentDraftId={currentDraftId}
+            isLoading={isDraftsLoading}
+            isSaving={isSaving}
+            onSaveDraft={saveDraft}
+            onLoadDraft={loadDraft}
+            onDeleteDraft={deleteDraft}
+            onCreateNew={createNewDraft}
+            getCurrentDraft={getCurrentDraft}
+            items={draftItems}
+          />
+          <PurchasePDFGenerator items={itemsForPDF} />
+        </div>
       </div>
 
       <PurchaseFilters 
