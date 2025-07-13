@@ -14,9 +14,14 @@ export function usePurchaseDraftPersistence() {
   // Garantir que o contexto do usuário esteja definido na sessão
   useEffect(() => {
     if (user?.id) {
+      console.log('🔧 Definindo contexto do usuário:', user.id);
       supabase.rpc('set_current_user_id', { user_id_param: user.id })
         .then(({ error }) => {
-          if (error) console.error('Erro ao definir contexto do usuário:', error);
+          if (error) {
+            console.error('❌ Erro ao definir contexto do usuário:', error);
+          } else {
+            console.log('✅ Contexto do usuário definido com sucesso');
+          }
         });
     }
   }, [user?.id]);
@@ -25,7 +30,12 @@ export function usePurchaseDraftPersistence() {
   const { data: drafts = [], isLoading } = useQuery({
     queryKey: ['purchase-drafts', user?.id],
     queryFn: async () => {
-      if (!user?.id) return [];
+      if (!user?.id) {
+        console.log('⚠️ Usuário não autenticado para buscar rascunhos');
+        return [];
+      }
+      
+      console.log('🔍 Buscando rascunhos para usuário:', user.id);
       
       const { data, error } = await supabase
         .from('relatorios_compras_rascunho')
@@ -34,11 +44,20 @@ export function usePurchaseDraftPersistence() {
         .eq('finalizado', false)
         .order('data_atualizacao', { ascending: false });
 
-      if (error) throw error;
-      return (data || []).map(item => ({
+      console.log('📊 Resultado da consulta:', { data, error });
+
+      if (error) {
+        console.error('❌ Erro ao buscar rascunhos:', error);
+        throw error;
+      }
+
+      const drafts = (data || []).map(item => ({
         ...item,
         items: item.items as unknown as PurchaseDraftItem[]
       })) as PurchaseReportDraft[];
+      
+      console.log('📋 Rascunhos encontrados:', drafts.length, drafts);
+      return drafts;
     },
     enabled: !!user?.id
   });
