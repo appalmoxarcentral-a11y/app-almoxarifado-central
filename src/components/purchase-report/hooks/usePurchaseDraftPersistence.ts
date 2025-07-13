@@ -11,18 +11,13 @@ export function usePurchaseDraftPersistence() {
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
 
-  // Garantir que o contexto do usuário esteja definido
+  // Garantir que o contexto do usuário esteja definido na sessão
   useEffect(() => {
     if (user?.id) {
-      const setContext = async () => {
-        try {
-          const { error } = await supabase.rpc('set_current_user_id', { user_id_param: user.id });
+      supabase.rpc('set_current_user_id', { user_id_param: user.id })
+        .then(({ error }) => {
           if (error) console.error('Erro ao definir contexto do usuário:', error);
-        } catch (error) {
-          console.error('Erro ao definir contexto do usuário:', error);
-        }
-      };
-      setContext();
+        });
     }
   }, [user?.id]);
 
@@ -31,9 +26,6 @@ export function usePurchaseDraftPersistence() {
     queryKey: ['purchase-drafts', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      
-      // Definir contexto de usuário para RLS
-      await supabase.rpc('set_current_user_id', { user_id_param: user.id });
       
       const { data, error } = await supabase
         .from('relatorios_compras_rascunho')
@@ -55,9 +47,6 @@ export function usePurchaseDraftPersistence() {
   const createDraftMutation = useMutation({
     mutationFn: async (data: CreateDraftRequest) => {
       if (!user?.id) throw new Error('Usuário não autenticado');
-
-      // Definir contexto de usuário para RLS
-      await supabase.rpc('set_current_user_id', { user_id_param: user.id });
 
       const { data: result, error } = await supabase
         .from('relatorios_compras_rascunho')
@@ -98,9 +87,6 @@ export function usePurchaseDraftPersistence() {
     mutationFn: async (data: UpdateDraftRequest) => {
       if (!user?.id) throw new Error('Usuário não autenticado');
 
-      // Definir contexto de usuário para RLS
-      await supabase.rpc('set_current_user_id', { user_id_param: user.id });
-
       const { data: result, error } = await supabase
         .from('relatorios_compras_rascunho')
         .update({
@@ -138,9 +124,6 @@ export function usePurchaseDraftPersistence() {
   const deleteDraftMutation = useMutation({
     mutationFn: async (draftId: string) => {
       if (!user?.id) throw new Error('Usuário não autenticado');
-
-      // Definir contexto de usuário para RLS
-      await supabase.rpc('set_current_user_id', { user_id_param: user.id });
 
       const { error } = await supabase
         .from('relatorios_compras_rascunho')
