@@ -16,6 +16,7 @@ export interface UserPermissions {
   historicos: boolean;
   relatorio_compras: boolean;
   gestao_usuarios?: boolean;
+  gerenciar_rascunhos_compras: boolean;
 }
 
 export interface Patient {

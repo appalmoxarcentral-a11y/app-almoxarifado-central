@@ -1,13 +1,14 @@
-import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { toast } from '@/hooks/use-toast';
-import type { PurchaseReportDraft, CreateDraftRequest, UpdateDraftRequest, PurchaseDraftItem } from '@/types/purchase-draft';
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { RascunhoCompra, PurchaseDraftItem, CreateDraftRequest, UpdateDraftRequest } from "@/types/purchase-draft";
+import { useToast } from "@/hooks/use-toast";
+import { useEffect, useState } from "react";
 
 export function usePurchaseDraftPersistence() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
 
@@ -20,200 +21,266 @@ export function usePurchaseDraftPersistence() {
     }
   }, [user?.id]);
 
-  // Buscar rascunhos do usuário
+  // Buscar rascunhos de compras
   const { data: drafts = [], isLoading } = useQuery({
-    queryKey: ['purchase-drafts', user?.id],
+    queryKey: ['rascunhos-compras', user?.id],
     queryFn: async () => {
       if (!user?.id) {
-        console.log('⚠️ Usuário não autenticado para buscar rascunhos');
+        console.log('⚠️ Usuário não logado, não buscando rascunhos');
         return [];
       }
-      
+
       console.log('🔍 Buscando rascunhos para usuário:', user.id);
       
-      const { data, error } = await supabase
-        .from('relatorios_compras_rascunho')
-        .select('*')
-        .eq('usuario_id', user.id)
-        .eq('finalizado', false)
-        .order('data_atualizacao', { ascending: false });
+      // Definir contexto do usuário antes da consulta
+      const { error: contextError } = await supabase.rpc('set_current_user_id', { 
+        user_id_param: user.id 
+      });
+      
+      if (contextError) {
+        console.error('❌ Erro ao definir contexto:', contextError);
+        throw contextError;
+      }
 
-      console.log('📊 Resultado da consulta:', { data, error });
+      const { data, error } = await supabase
+        .from('rascunhos_compras')
+        .select('*')
+        .eq('ativo', true)
+        .order('data_atualizacao', { ascending: false });
 
       if (error) {
         console.error('❌ Erro ao buscar rascunhos:', error);
         throw error;
       }
 
-      const drafts = (data || []).map(item => ({
-        ...item,
-        items: item.items as unknown as PurchaseDraftItem[]
-      })) as PurchaseReportDraft[];
+      console.log('✅ Rascunhos encontrados:', data?.length || 0);
       
-      console.log('📋 Rascunhos encontrados:', drafts.length, drafts);
-      return drafts;
+      return (data || []).map(item => ({
+        ...item,
+        dados_produtos: Array.isArray(item.dados_produtos) ? (item.dados_produtos as unknown as PurchaseDraftItem[]) : []
+      })) as RascunhoCompra[];
     },
-    enabled: !!user?.id
+    enabled: !!user?.id,
   });
 
   // Criar novo rascunho
   const createDraftMutation = useMutation({
-    mutationFn: async (data: CreateDraftRequest) => {
-      if (!user?.id) throw new Error('Usuário não autenticado');
+    mutationFn: async ({ nome_rascunho, dados_produtos }: CreateDraftRequest) => {
+      if (!user?.id) {
+        throw new Error('Usuário não logado');
+      }
 
-      const { data: result, error } = await supabase
-        .from('relatorios_compras_rascunho')
+      console.log('📝 Criando novo rascunho:', nome_rascunho);
+
+      // Definir contexto antes da inserção
+      const { error: contextError } = await supabase.rpc('set_current_user_id', { 
+        user_id_param: user.id 
+      });
+      
+      if (contextError) {
+        console.error('❌ Erro ao definir contexto:', contextError);
+        throw contextError;
+      }
+
+      const { data, error } = await supabase
+        .from('rascunhos_compras')
         .insert({
           usuario_id: user.id,
-          nome_rascunho: data.nome_rascunho,
-          items: data.items as any
+          nome_rascunho,
+          dados_produtos: dados_produtos as any,
+          ativo: true
         })
         .select()
         .single();
 
-      if (error) throw error;
-      return {
-        ...result,
-        items: result.items as unknown as PurchaseDraftItem[]
-      } as PurchaseReportDraft;
+      if (error) {
+        console.error('❌ Erro ao criar rascunho:', error);
+        throw error;
+      }
+
+      console.log('✅ Rascunho criado:', data.id);
+      return data;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-drafts'] });
+      queryClient.invalidateQueries({ queryKey: ['rascunhos-compras'] });
       setCurrentDraftId(data.id);
       toast({
         title: "Rascunho salvo",
-        description: `Rascunho "${data.nome_rascunho}" criado com sucesso.`
+        description: "Seu rascunho foi salvo com sucesso.",
       });
     },
     onError: (error) => {
+      console.error('❌ Erro ao salvar rascunho:', error);
       toast({
         title: "Erro ao salvar",
-        description: "Não foi possível criar o rascunho.",
-        variant: "destructive"
+        description: "Não foi possível salvar o rascunho. Tente novamente.",
+        variant: "destructive",
       });
-      console.error('Error creating draft:', error);
-    }
+    },
   });
 
   // Atualizar rascunho existente
   const updateDraftMutation = useMutation({
-    mutationFn: async (data: UpdateDraftRequest) => {
-      if (!user?.id) throw new Error('Usuário não autenticado');
+    mutationFn: async ({ id, nome_rascunho, dados_produtos }: UpdateDraftRequest) => {
+      if (!user?.id) {
+        throw new Error('Usuário não logado');
+      }
 
-      const { data: result, error } = await supabase
-        .from('relatorios_compras_rascunho')
-        .update({
-          nome_rascunho: data.nome_rascunho,
-          items: data.items as any
-        })
-        .eq('id', data.id)
+      console.log('✏️ Atualizando rascunho:', id);
+
+      // Definir contexto antes da atualização
+      const { error: contextError } = await supabase.rpc('set_current_user_id', { 
+        user_id_param: user.id 
+      });
+      
+      if (contextError) {
+        console.error('❌ Erro ao definir contexto:', contextError);
+        throw contextError;
+      }
+
+      const updateData: any = { dados_produtos: dados_produtos as any };
+      if (nome_rascunho) {
+        updateData.nome_rascunho = nome_rascunho;
+      }
+
+      const { data, error } = await supabase
+        .from('rascunhos_compras')
+        .update(updateData)
+        .eq('id', id)
         .select()
         .single();
 
-      if (error) throw error;
-      return {
-        ...result,
-        items: result.items as unknown as PurchaseDraftItem[]
-      } as PurchaseReportDraft;
+      if (error) {
+        console.error('❌ Erro ao atualizar rascunho:', error);
+        throw error;
+      }
+
+      console.log('✅ Rascunho atualizado:', data.id);
+      return data;
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-drafts'] });
-      toast({
-        title: "Rascunho atualizado",
-        description: `Rascunho "${data.nome_rascunho}" salvo com sucesso.`
-      });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rascunhos-compras'] });
     },
     onError: (error) => {
+      console.error('❌ Erro ao atualizar rascunho:', error);
       toast({
         title: "Erro ao atualizar",
-        description: "Não foi possível salvar o rascunho.",
-        variant: "destructive"
+        description: "Não foi possível atualizar o rascunho.",
+        variant: "destructive",
       });
-      console.error('Error updating draft:', error);
-    }
+    },
   });
 
   // Excluir rascunho
   const deleteDraftMutation = useMutation({
     mutationFn: async (draftId: string) => {
-      if (!user?.id) throw new Error('Usuário não autenticado');
+      if (!user?.id) {
+        throw new Error('Usuário não logado');
+      }
+
+      console.log('🗑️ Excluindo rascunho:', draftId);
+
+      // Definir contexto antes da exclusão
+      const { error: contextError } = await supabase.rpc('set_current_user_id', { 
+        user_id_param: user.id 
+      });
+      
+      if (contextError) {
+        console.error('❌ Erro ao definir contexto:', contextError);
+        throw contextError;
+      }
 
       const { error } = await supabase
-        .from('relatorios_compras_rascunho')
-        .delete()
+        .from('rascunhos_compras')
+        .update({ ativo: false })
         .eq('id', draftId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erro ao excluir rascunho:', error);
+        throw error;
+      }
+
+      console.log('✅ Rascunho excluído:', draftId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-drafts'] });
+      queryClient.invalidateQueries({ queryKey: ['rascunhos-compras'] });
       setCurrentDraftId(null);
       toast({
         title: "Rascunho excluído",
-        description: "Rascunho removido com sucesso."
+        description: "O rascunho foi excluído com sucesso.",
       });
     },
     onError: (error) => {
+      console.error('❌ Erro ao excluir rascunho:', error);
       toast({
         title: "Erro ao excluir",
-        description: "Não foi possível remover o rascunho.",
-        variant: "destructive"
+        description: "Não foi possível excluir o rascunho.",
+        variant: "destructive",
       });
-      console.error('Error deleting draft:', error);
-    }
+    },
   });
 
-  // Auto-save
-  const autoSave = useCallback(async (items: PurchaseDraftItem[]) => {
-    if (!currentDraftId || isAutoSaving) return;
+  const autoSave = async (items: PurchaseDraftItem[]) => {
+    if (!user?.id || isAutoSaving) return;
 
-    setIsAutoSaving(true);
     try {
-      const currentDraft = drafts.find(d => d.id === currentDraftId);
-      if (currentDraft) {
+      setIsAutoSaving(true);
+      console.log('💾 Auto-salvando rascunho...');
+
+      if (currentDraftId) {
+        // Atualizar rascunho existente
         await updateDraftMutation.mutateAsync({
           id: currentDraftId,
-          items: items
+          dados_produtos: items
         });
+      } else {
+        // Criar novo rascunho automático
+        const newDraft = await createDraftMutation.mutateAsync({
+          nome_rascunho: `Auto-save ${new Date().toLocaleString()}`,
+          dados_produtos: items
+        });
+        setCurrentDraftId(newDraft.id);
       }
+      
+      console.log('✅ Auto-save concluído');
     } catch (error) {
-      console.error('Auto-save error:', error);
+      console.error('❌ Erro no auto-save:', error);
     } finally {
       setIsAutoSaving(false);
     }
-  }, [currentDraftId, isAutoSaving, drafts, updateDraftMutation]);
+  };
 
-  const saveDraft = useCallback((nome: string, items: PurchaseDraftItem[]) => {
+  const saveDraft = (nome: string, items: PurchaseDraftItem[]) => {
     if (currentDraftId) {
       updateDraftMutation.mutate({
         id: currentDraftId,
         nome_rascunho: nome,
-        items: items
+        dados_produtos: items
       });
     } else {
       createDraftMutation.mutate({
         nome_rascunho: nome,
-        items: items
+        dados_produtos: items
       });
     }
-  }, [currentDraftId, createDraftMutation, updateDraftMutation]);
+  };
 
-  const loadDraft = useCallback((draft: PurchaseReportDraft) => {
+  const loadDraft = (draft: RascunhoCompra): PurchaseDraftItem[] => {
     setCurrentDraftId(draft.id);
-    return draft.items;
-  }, []);
+    return Array.isArray(draft.dados_produtos) ? draft.dados_produtos : [];
+  };
 
-  const createNewDraft = useCallback(() => {
+  const createNewDraft = () => {
     setCurrentDraftId(null);
-  }, []);
+  };
 
-  const deleteDraft = useCallback((draftId: string) => {
+  const deleteDraft = (draftId: string) => {
     deleteDraftMutation.mutate(draftId);
-  }, [deleteDraftMutation]);
+  };
 
-  const getCurrentDraft = useCallback(() => {
-    return drafts.find(d => d.id === currentDraftId);
-  }, [drafts, currentDraftId]);
+  const getCurrentDraft = (): RascunhoCompra | undefined => {
+    return drafts.find(draft => draft.id === currentDraftId);
+  };
 
   return {
     drafts,
@@ -226,6 +293,6 @@ export function usePurchaseDraftPersistence() {
     autoSave,
     createNewDraft,
     getCurrentDraft,
-    isSaving: createDraftMutation.isPending || updateDraftMutation.isPending
+    isSaving: createDraftMutation.isPending || updateDraftMutation.isPending || deleteDraftMutation.isPending
   };
 }

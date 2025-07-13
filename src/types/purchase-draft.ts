@@ -1,3 +1,13 @@
+export interface RascunhoCompra {
+  id: string;
+  usuario_id: string;
+  nome_rascunho: string;
+  dados_produtos: PurchaseDraftItem[];
+  data_criacao: string;
+  data_atualizacao: string;
+  ativo: boolean;
+}
+
 export interface PurchaseReportDraft {
   id: string;
   usuario_id: string;
@@ -19,11 +29,11 @@ export interface PurchaseDraftItem {
 
 export interface CreateDraftRequest {
   nome_rascunho: string;
-  items: PurchaseDraftItem[];
+  dados_produtos: PurchaseDraftItem[];
 }
 
 export interface UpdateDraftRequest {
   id: string;
   nome_rascunho?: string;
-  items: PurchaseDraftItem[];
+  dados_produtos: PurchaseDraftItem[];
 }

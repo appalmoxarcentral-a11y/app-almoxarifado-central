@@ -37,6 +37,7 @@ export function UserManagement() {
     historicos: false,
     relatorio_compras: false,
     gestao_usuarios: false,
+    gerenciar_rascunhos_compras: false,
   });
 
   // Buscar usuários
@@ -175,6 +176,7 @@ export function UserManagement() {
       historicos: false,
       relatorio_compras: false,
       gestao_usuarios: false,
+      gerenciar_rascunhos_compras: false,
     });
     setEditingUser(null);
   };

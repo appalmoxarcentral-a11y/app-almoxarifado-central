@@ -223,6 +223,36 @@ export type Database = {
           },
         ]
       }
+      rascunhos_compras: {
+        Row: {
+          ativo: boolean
+          dados_produtos: Json
+          data_atualizacao: string
+          data_criacao: string
+          id: string
+          nome_rascunho: string
+          usuario_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          dados_produtos?: Json
+          data_atualizacao?: string
+          data_criacao?: string
+          id?: string
+          nome_rascunho: string
+          usuario_id: string
+        }
+        Update: {
+          ativo?: boolean
+          dados_produtos?: Json
+          data_atualizacao?: string
+          data_criacao?: string
+          id?: string
+          nome_rascunho?: string
+          usuario_id?: string
+        }
+        Relationships: []
+      }
       relatorios_compras_rascunho: {
         Row: {
           created_at: string | null

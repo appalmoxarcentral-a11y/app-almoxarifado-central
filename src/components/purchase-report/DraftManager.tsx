@@ -26,18 +26,18 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { PurchaseReportDraft, PurchaseDraftItem } from '@/types/purchase-draft';
+import type { RascunhoCompra, PurchaseDraftItem } from '@/types/purchase-draft';
 
 interface DraftManagerProps {
-  drafts: PurchaseReportDraft[];
+  drafts: RascunhoCompra[];
   currentDraftId: string | null;
   isLoading: boolean;
   isSaving: boolean;
   onSaveDraft: (nome: string, items: PurchaseDraftItem[]) => void;
-  onLoadDraft: (draft: PurchaseReportDraft) => PurchaseDraftItem[];
+  onLoadDraft: (draft: RascunhoCompra) => PurchaseDraftItem[];
   onDeleteDraft: (draftId: string) => void;
   onCreateNew: () => void;
-  getCurrentDraft: () => PurchaseReportDraft | undefined;
+  getCurrentDraft: () => RascunhoCompra | undefined;
   items: PurchaseDraftItem[];
 }
 
@@ -77,7 +77,7 @@ export function DraftManager({
     }
   };
 
-  const handleLoadDraft = (draft: PurchaseReportDraft) => {
+  const handleLoadDraft = (draft: RascunhoCompra) => {
     onLoadDraft(draft);
     setLoadDialogOpen(false);
   };
@@ -154,7 +154,7 @@ export function DraftManager({
                         )}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {getItemsWithQuantity(draft.items)} produtos com quantidade • {' '}
+                        {getItemsWithQuantity(draft.dados_produtos)} produtos com quantidade • {' '}
                         {formatDistanceToNow(new Date(draft.data_atualizacao), { 
                           addSuffix: true, 
                           locale: ptBR 
