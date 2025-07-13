@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,6 +10,16 @@ export function usePurchaseDraftPersistence() {
   const queryClient = useQueryClient();
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
+
+  // Garantir que o contexto do usuário esteja definido
+  useEffect(() => {
+    if (user?.id) {
+      supabase.rpc('set_current_user_id', { user_id_param: user.id })
+        .then(({ error }) => {
+          if (error) console.error('Erro ao definir contexto do usuário:', error);
+        });
+    }
+  }, [user?.id]);
 
   // Buscar rascunhos do usuário
   const { data: drafts = [], isLoading } = useQuery({
