@@ -3,48 +3,33 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { RascunhoCompra, PurchaseDraftItem, CreateDraftRequest, UpdateDraftRequest } from "@/types/purchase-draft";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export function usePurchaseDraftPersistence() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
 
-  // Debug: verificar se usuário está autenticado
-  useEffect(() => {
-    if (user?.id) {
-      console.log('✅ Usuário autenticado:', user.id);
-    } else {
-      console.log('⚠️ Usuário não autenticado');
-    }
-  }, [user?.id]);
+  // Check permissions
+  const canManageDrafts = hasPermission('gerenciar_rascunhos_compras');
 
   // Buscar rascunhos de compras
   const { data: drafts = [], isLoading } = useQuery({
     queryKey: ['rascunhos-compras', user?.id],
     queryFn: async () => {
-      if (!user?.id) {
-        console.log('⚠️ Usuário não logado, não buscando rascunhos');
+      if (!user?.id || !canManageDrafts) {
+        console.log('⚠️ Usuário não autorizado para rascunhos');
         return [];
       }
 
       console.log('🔍 Buscando rascunhos para usuário:', user.id);
       
-      // Definir contexto do usuário antes da consulta
-      const { error: contextError } = await supabase.rpc('set_current_user_id', { 
-        user_id_param: user.id 
-      });
-      
-      if (contextError) {
-        console.error('❌ Erro ao definir contexto:', contextError);
-        throw contextError;
-      }
-
       const { data, error } = await supabase
         .from('rascunhos_compras')
         .select('*')
+        .eq('usuario_id', user.id)
         .eq('ativo', true)
         .order('data_atualizacao', { ascending: false });
 
@@ -60,7 +45,7 @@ export function usePurchaseDraftPersistence() {
         dados_produtos: Array.isArray(item.dados_produtos) ? (item.dados_produtos as unknown as PurchaseDraftItem[]) : []
       })) as RascunhoCompra[];
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && canManageDrafts,
   });
 
   // Criar novo rascunho
@@ -69,18 +54,11 @@ export function usePurchaseDraftPersistence() {
       if (!user?.id) {
         throw new Error('Usuário não logado');
       }
+      if (!canManageDrafts) {
+        throw new Error('Usuário sem permissão para gerenciar rascunhos');
+      }
 
       console.log('📝 Criando novo rascunho:', nome_rascunho);
-
-      // Definir contexto antes da inserção
-      const { error: contextError } = await supabase.rpc('set_current_user_id', { 
-        user_id_param: user.id 
-      });
-      
-      if (contextError) {
-        console.error('❌ Erro ao definir contexto:', contextError);
-        throw contextError;
-      }
 
       const { data, error } = await supabase
         .from('rascunhos_compras')
@@ -125,18 +103,11 @@ export function usePurchaseDraftPersistence() {
       if (!user?.id) {
         throw new Error('Usuário não logado');
       }
+      if (!canManageDrafts) {
+        throw new Error('Usuário sem permissão para gerenciar rascunhos');
+      }
 
       console.log('✏️ Atualizando rascunho:', id);
-
-      // Definir contexto antes da atualização
-      const { error: contextError } = await supabase.rpc('set_current_user_id', { 
-        user_id_param: user.id 
-      });
-      
-      if (contextError) {
-        console.error('❌ Erro ao definir contexto:', contextError);
-        throw contextError;
-      }
 
       const updateData: any = { dados_produtos: dados_produtos as any };
       if (nome_rascunho) {
@@ -147,6 +118,7 @@ export function usePurchaseDraftPersistence() {
         .from('rascunhos_compras')
         .update(updateData)
         .eq('id', id)
+        .eq('usuario_id', user.id)
         .select()
         .single();
 
@@ -177,23 +149,17 @@ export function usePurchaseDraftPersistence() {
       if (!user?.id) {
         throw new Error('Usuário não logado');
       }
+      if (!canManageDrafts) {
+        throw new Error('Usuário sem permissão para gerenciar rascunhos');
+      }
 
       console.log('🗑️ Excluindo rascunho:', draftId);
-
-      // Definir contexto antes da exclusão
-      const { error: contextError } = await supabase.rpc('set_current_user_id', { 
-        user_id_param: user.id 
-      });
-      
-      if (contextError) {
-        console.error('❌ Erro ao definir contexto:', contextError);
-        throw contextError;
-      }
 
       const { error } = await supabase
         .from('rascunhos_compras')
         .update({ ativo: false })
-        .eq('id', draftId);
+        .eq('id', draftId)
+        .eq('usuario_id', user.id);
 
       if (error) {
         console.error('❌ Erro ao excluir rascunho:', error);
@@ -221,7 +187,7 @@ export function usePurchaseDraftPersistence() {
   });
 
   const autoSave = async (items: PurchaseDraftItem[]) => {
-    if (!user?.id || isAutoSaving) return;
+    if (!user?.id || isAutoSaving || !canManageDrafts) return;
 
     try {
       setIsAutoSaving(true);
@@ -251,6 +217,11 @@ export function usePurchaseDraftPersistence() {
   };
 
   const saveDraft = (nome: string, items: PurchaseDraftItem[]) => {
+    if (!canManageDrafts) {
+      console.error('Usuário sem permissão para gerenciar rascunhos');
+      return;
+    }
+    
     if (currentDraftId) {
       updateDraftMutation.mutate({
         id: currentDraftId,
@@ -275,6 +246,10 @@ export function usePurchaseDraftPersistence() {
   };
 
   const deleteDraft = (draftId: string) => {
+    if (!canManageDrafts) {
+      console.error('Usuário sem permissão para gerenciar rascunhos');
+      return;
+    }
     deleteDraftMutation.mutate(draftId);
   };
 
@@ -287,6 +262,7 @@ export function usePurchaseDraftPersistence() {
     isLoading,
     currentDraftId,
     isAutoSaving,
+    canManageDrafts,
     saveDraft,
     loadDraft,
     deleteDraft,
