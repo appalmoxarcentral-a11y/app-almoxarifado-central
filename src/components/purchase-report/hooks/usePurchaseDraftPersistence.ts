@@ -14,10 +14,15 @@ export function usePurchaseDraftPersistence() {
   // Garantir que o contexto do usuário esteja definido
   useEffect(() => {
     if (user?.id) {
-      supabase.rpc('set_current_user_id', { user_id_param: user.id })
-        .then(({ error }) => {
+      const setContext = async () => {
+        try {
+          const { error } = await supabase.rpc('set_current_user_id', { user_id_param: user.id });
           if (error) console.error('Erro ao definir contexto do usuário:', error);
-        });
+        } catch (error) {
+          console.error('Erro ao definir contexto do usuário:', error);
+        }
+      };
+      setContext();
     }
   }, [user?.id]);
 
