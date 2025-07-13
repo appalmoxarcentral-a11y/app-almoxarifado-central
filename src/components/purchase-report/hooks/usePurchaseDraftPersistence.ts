@@ -11,18 +11,12 @@ export function usePurchaseDraftPersistence() {
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
 
-  // Garantir que o contexto do usuário esteja definido na sessão
+  // Debug: verificar se usuário está autenticado
   useEffect(() => {
     if (user?.id) {
-      console.log('🔧 Definindo contexto do usuário:', user.id);
-      supabase.rpc('set_current_user_id', { user_id_param: user.id })
-        .then(({ error }) => {
-          if (error) {
-            console.error('❌ Erro ao definir contexto do usuário:', error);
-          } else {
-            console.log('✅ Contexto do usuário definido com sucesso');
-          }
-        });
+      console.log('✅ Usuário autenticado:', user.id);
+    } else {
+      console.log('⚠️ Usuário não autenticado');
     }
   }, [user?.id]);
 
