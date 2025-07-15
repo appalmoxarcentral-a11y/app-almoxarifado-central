@@ -251,7 +251,15 @@ export type Database = {
           nome_rascunho?: string
           usuario_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_rascunhos_compras_usuario_id"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       relatorios_compras_rascunho: {
         Row: {
