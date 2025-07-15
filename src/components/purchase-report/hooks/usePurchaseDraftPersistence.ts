@@ -14,6 +14,7 @@ export function usePurchaseDraftPersistence() {
 
   // Check permissions
   const canManageDrafts = hasPermission('gerenciar_rascunhos_compras');
+  const canAccessReports = hasPermission('relatorio_compras');
 
   // Buscar todos os rascunhos de compras (compartilhados)
   const { data: drafts = [], isLoading } = useQuery({
@@ -122,7 +123,7 @@ export function usePurchaseDraftPersistence() {
 
       // Verificar se o usuário pode editar este rascunho
       const draft = drafts.find(d => d.id === id);
-      const canEdit = draft && (draft.usuario_id === user.id || user.tipo === 'ADMIN');
+      const canEdit = draft && (draft.usuario_id === user.id || user.tipo === 'ADMIN' || canAccessReports);
       
       if (!canEdit) {
         throw new Error('Você não tem permissão para editar este rascunho');
@@ -170,7 +171,7 @@ export function usePurchaseDraftPersistence() {
 
       // Verificar se o usuário pode excluir este rascunho
       const draft = drafts.find(d => d.id === draftId);
-      const canDelete = draft && (draft.usuario_id === user.id || user.tipo === 'ADMIN');
+      const canDelete = draft && (draft.usuario_id === user.id || user.tipo === 'ADMIN' || canAccessReports);
       
       if (!canDelete) {
         throw new Error('Você não tem permissão para excluir este rascunho');
@@ -273,12 +274,12 @@ export function usePurchaseDraftPersistence() {
     
     // Verificar permissão antes de executar
     const draft = drafts.find(d => d.id === draftId);
-    const canDelete = draft && (draft.usuario_id === user?.id || user?.tipo === 'ADMIN');
+    const canDelete = draft && (draft.usuario_id === user?.id || user?.tipo === 'ADMIN' || canAccessReports);
     
     if (!canDelete) {
       toast({
         title: "Sem permissão",
-        description: "Você só pode excluir seus próprios rascunhos.",
+        description: "Você não tem permissão para excluir este rascunho.",
         variant: "destructive",
       });
       return;
@@ -293,12 +294,12 @@ export function usePurchaseDraftPersistence() {
 
   // Função para verificar se pode editar um rascunho
   const canEditDraft = (draft: RascunhoCompra): boolean => {
-    return draft.usuario_id === user?.id || user?.tipo === 'ADMIN';
+    return draft.usuario_id === user?.id || user?.tipo === 'ADMIN' || canAccessReports;
   };
 
   // Função para verificar se pode excluir um rascunho
   const canDeleteDraft = (draft: RascunhoCompra): boolean => {
-    return draft.usuario_id === user?.id || user?.tipo === 'ADMIN';
+    return draft.usuario_id === user?.id || user?.tipo === 'ADMIN' || canAccessReports;
   };
 
   return {
