@@ -20,7 +20,7 @@ export function usePurchaseDraftPersistence() {
   const { data: drafts = [], isLoading } = useQuery({
     queryKey: ['rascunhos-compras-todos'],
     queryFn: async () => {
-      if (!user?.id || !canManageDrafts) {
+      if (!user?.id || (!canManageDrafts && !canAccessReports)) {
         console.log('⚠️ Usuário não autorizado para rascunhos');
         return [];
       }
@@ -52,7 +52,7 @@ export function usePurchaseDraftPersistence() {
         }
       })) as RascunhoCompra[];
     },
-    enabled: !!user?.id && canManageDrafts,
+    enabled: !!user?.id && (canManageDrafts || canAccessReports),
   });
 
   // Criar novo rascunho
