@@ -27,6 +27,8 @@ export function PurchaseReport() {
     currentDraftId,
     isLoading: isDraftsLoading,
     isSaving,
+    canEditDraft,
+    canDeleteDraft,
     saveDraft,
     loadDraft,
     deleteDraft,
@@ -104,6 +106,8 @@ export function PurchaseReport() {
             currentDraftId={currentDraftId}
             isLoading={isDraftsLoading}
             isSaving={isSaving}
+            canEditDraft={canEditDraft}
+            canDeleteDraft={canDeleteDraft}
             onSaveDraft={saveDraft}
             onLoadDraft={loadDraft}
             onDeleteDraft={deleteDraft}

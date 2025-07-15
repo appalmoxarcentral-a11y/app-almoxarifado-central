@@ -33,6 +33,8 @@ interface DraftManagerProps {
   currentDraftId: string | null;
   isLoading: boolean;
   isSaving: boolean;
+  canEditDraft: (draft: RascunhoCompra) => boolean;
+  canDeleteDraft: (draft: RascunhoCompra) => boolean;
   onSaveDraft: (nome: string, items: PurchaseDraftItem[]) => void;
   onLoadDraft: (draft: RascunhoCompra) => PurchaseDraftItem[];
   onDeleteDraft: (draftId: string) => void;
@@ -46,6 +48,8 @@ export function DraftManager({
   currentDraftId,
   isLoading,
   isSaving,
+  canEditDraft,
+  canDeleteDraft,
   onSaveDraft,
   onLoadDraft,
   onDeleteDraft,
@@ -154,6 +158,9 @@ export function DraftManager({
                         )}
                       </div>
                       <div className="text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span>Criado por: {draft.criado_por?.nome || 'Usuário desconhecido'}</span>
+                        </div>
                         {getItemsWithQuantity(draft.dados_produtos)} produtos com quantidade • {' '}
                         {formatDistanceToNow(new Date(draft.data_atualizacao), { 
                           addSuffix: true, 
@@ -172,7 +179,11 @@ export function DraftManager({
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button size="sm" variant="ghost">
+                          <Button 
+                            size="sm" 
+                            variant="ghost"
+                            disabled={!canDeleteDraft(draft)}
+                          >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </AlertDialogTrigger>

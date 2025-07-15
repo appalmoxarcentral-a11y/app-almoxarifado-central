@@ -6,6 +6,10 @@ export interface RascunhoCompra {
   data_criacao: string;
   data_atualizacao: string;
   ativo: boolean;
+  criado_por?: {
+    nome: string;
+    email: string;
+  };
 }
 
 export interface PurchaseReportDraft {

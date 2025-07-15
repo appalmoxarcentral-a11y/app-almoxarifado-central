@@ -15,21 +15,23 @@ export function usePurchaseDraftPersistence() {
   // Check permissions
   const canManageDrafts = hasPermission('gerenciar_rascunhos_compras');
 
-  // Buscar rascunhos de compras
+  // Buscar todos os rascunhos de compras (compartilhados)
   const { data: drafts = [], isLoading } = useQuery({
-    queryKey: ['rascunhos-compras', user?.id],
+    queryKey: ['rascunhos-compras-todos'],
     queryFn: async () => {
       if (!user?.id || !canManageDrafts) {
         console.log('⚠️ Usuário não autorizado para rascunhos');
         return [];
       }
 
-      console.log('🔍 Buscando rascunhos para usuário:', user.id);
+      console.log('🔍 Buscando todos os rascunhos compartilhados');
       
       const { data, error } = await supabase
         .from('rascunhos_compras')
-        .select('*')
-        .eq('usuario_id', user.id)
+        .select(`
+          *,
+          usuarios!inner(nome, email)
+        `)
         .eq('ativo', true)
         .order('data_atualizacao', { ascending: false });
 
@@ -42,7 +44,11 @@ export function usePurchaseDraftPersistence() {
       
       return (data || []).map(item => ({
         ...item,
-        dados_produtos: Array.isArray(item.dados_produtos) ? (item.dados_produtos as unknown as PurchaseDraftItem[]) : []
+        dados_produtos: Array.isArray(item.dados_produtos) ? (item.dados_produtos as unknown as PurchaseDraftItem[]) : [],
+        criado_por: {
+          nome: (item.usuarios as any)?.nome || 'Usuário desconhecido',
+          email: (item.usuarios as any)?.email || ''
+        }
       })) as RascunhoCompra[];
     },
     enabled: !!user?.id && canManageDrafts,
@@ -80,7 +86,7 @@ export function usePurchaseDraftPersistence() {
       return data;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['rascunhos-compras'] });
+      queryClient.invalidateQueries({ queryKey: ['rascunhos-compras-todos'] });
       setCurrentDraftId(data.id);
       toast({
         title: "Rascunho salvo",
@@ -114,11 +120,18 @@ export function usePurchaseDraftPersistence() {
         updateData.nome_rascunho = nome_rascunho;
       }
 
+      // Verificar se o usuário pode editar este rascunho
+      const draft = drafts.find(d => d.id === id);
+      const canEdit = draft && (draft.usuario_id === user.id || user.tipo === 'ADMIN');
+      
+      if (!canEdit) {
+        throw new Error('Você não tem permissão para editar este rascunho');
+      }
+
       const { data, error } = await supabase
         .from('rascunhos_compras')
         .update(updateData)
         .eq('id', id)
-        .eq('usuario_id', user.id)
         .select()
         .single();
 
@@ -131,7 +144,7 @@ export function usePurchaseDraftPersistence() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rascunhos-compras'] });
+      queryClient.invalidateQueries({ queryKey: ['rascunhos-compras-todos'] });
     },
     onError: (error) => {
       console.error('❌ Erro ao atualizar rascunho:', error);
@@ -155,11 +168,18 @@ export function usePurchaseDraftPersistence() {
 
       console.log('🗑️ Excluindo rascunho:', draftId);
 
+      // Verificar se o usuário pode excluir este rascunho
+      const draft = drafts.find(d => d.id === draftId);
+      const canDelete = draft && (draft.usuario_id === user.id || user.tipo === 'ADMIN');
+      
+      if (!canDelete) {
+        throw new Error('Você não tem permissão para excluir este rascunho');
+      }
+
       const { error } = await supabase
         .from('rascunhos_compras')
         .update({ ativo: false })
-        .eq('id', draftId)
-        .eq('usuario_id', user.id);
+        .eq('id', draftId);
 
       if (error) {
         console.error('❌ Erro ao excluir rascunho:', error);
@@ -169,7 +189,7 @@ export function usePurchaseDraftPersistence() {
       console.log('✅ Rascunho excluído:', draftId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rascunhos-compras'] });
+      queryClient.invalidateQueries({ queryKey: ['rascunhos-compras-todos'] });
       setCurrentDraftId(null);
       toast({
         title: "Rascunho excluído",
@@ -250,11 +270,35 @@ export function usePurchaseDraftPersistence() {
       console.error('Usuário sem permissão para gerenciar rascunhos');
       return;
     }
+    
+    // Verificar permissão antes de executar
+    const draft = drafts.find(d => d.id === draftId);
+    const canDelete = draft && (draft.usuario_id === user?.id || user?.tipo === 'ADMIN');
+    
+    if (!canDelete) {
+      toast({
+        title: "Sem permissão",
+        description: "Você só pode excluir seus próprios rascunhos.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     deleteDraftMutation.mutate(draftId);
   };
 
   const getCurrentDraft = (): RascunhoCompra | undefined => {
     return drafts.find(draft => draft.id === currentDraftId);
+  };
+
+  // Função para verificar se pode editar um rascunho
+  const canEditDraft = (draft: RascunhoCompra): boolean => {
+    return draft.usuario_id === user?.id || user?.tipo === 'ADMIN';
+  };
+
+  // Função para verificar se pode excluir um rascunho
+  const canDeleteDraft = (draft: RascunhoCompra): boolean => {
+    return draft.usuario_id === user?.id || user?.tipo === 'ADMIN';
   };
 
   return {
@@ -263,6 +307,8 @@ export function usePurchaseDraftPersistence() {
     currentDraftId,
     isAutoSaving,
     canManageDrafts,
+    canEditDraft,
+    canDeleteDraft,
     saveDraft,
     loadDraft,
     deleteDraft,
