@@ -68,7 +68,7 @@ export function AppSidebar() {
   };
   const canAccessUsers = hasPermission('gestao_usuarios');
   return <Sidebar>
-      <SidebarHeader className="border-b p-4">
+      <SidebarHeader className="border-b p-4 bg-fuchsia-950">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
             <Pill className="w-4 h-4 text-primary-foreground" />
@@ -118,7 +118,7 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarContent>
 
-      <SidebarFooter className="border-t p-4">
+      <SidebarFooter className="border-t p-4 bg-fuchsia-950">
         <div className="space-y-2">
           <div className="text-sm">
             <p className="font-medium">{user?.nome}</p>
