@@ -25,16 +25,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const userData = JSON.parse(savedUser);
         setUser(userData);
         
-        // Definir contexto de usuário para RLS quando carregado do localStorage
-        const setContext = async () => {
-          try {
-            const { error } = await supabase.rpc('set_current_user_id', { user_id_param: userData.id });
-            if (error) console.error('Erro ao definir contexto do usuário:', error);
-          } catch (error) {
-            console.error('Erro ao definir contexto do usuário:', error);
-          }
-        };
-        setContext();
+        // Usuário carregado do localStorage - RLS funciona automaticamente com auth.uid()
       } catch (error) {
         console.error('Erro ao carregar usuário do localStorage:', error);
         localStorage.removeItem('currentUser');
@@ -78,14 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         created_at: new Date().toISOString() // Para compatibilidade
       };
 
-      // Definir contexto de usuário para RLS
-      const { error: contextError } = await supabase.rpc('set_current_user_id', { 
-        user_id_param: usuario.id 
-      });
-      
-      if (contextError) {
-        console.error('Erro ao definir contexto do usuário:', contextError);
-      }
+      // RLS funciona automaticamente com a política usando auth.uid()
 
       // Salvar dados do usuário
       setUser(userObject);

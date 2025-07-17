@@ -27,12 +27,10 @@ export function usePurchaseDraftPersistence() {
 
       console.log('🔍 Buscando todos os rascunhos compartilhados');
       
+      // Buscar rascunhos sem JOIN para evitar problemas de RLS
       const { data, error } = await supabase
         .from('rascunhos_compras')
-        .select(`
-          *,
-          usuarios!inner(nome, email)
-        `)
+        .select('*')
         .eq('ativo', true)
         .order('data_atualizacao', { ascending: false });
 
@@ -43,12 +41,23 @@ export function usePurchaseDraftPersistence() {
 
       console.log('✅ Rascunhos encontrados:', data?.length || 0);
       
+      // Buscar dados dos usuários separadamente
+      const userIds = [...new Set(data?.map(item => item.usuario_id) || [])];
+      const usersData = userIds.length > 0 ? await supabase
+        .from('usuarios')
+        .select('id, nome, email')
+        .in('id', userIds) : { data: [] };
+
+      const usersMap = new Map(
+        (usersData.data || []).map(user => [user.id, { nome: user.nome, email: user.email }])
+      );
+      
       return (data || []).map(item => ({
         ...item,
         dados_produtos: Array.isArray(item.dados_produtos) ? (item.dados_produtos as unknown as PurchaseDraftItem[]) : [],
-        criado_por: {
-          nome: (item.usuarios as any)?.nome || 'Usuário desconhecido',
-          email: (item.usuarios as any)?.email || ''
+        criado_por: usersMap.get(item.usuario_id) || {
+          nome: 'Usuário desconhecido',
+          email: ''
         }
       })) as RascunhoCompra[];
     },
