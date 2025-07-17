@@ -367,29 +367,9 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_current_user_id: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      get_current_user_permissions: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      has_permission: {
-        Args: { perm_name: string }
-        Returns: boolean
-      }
       hash_senha: {
         Args: { senha_texto: string }
         Returns: string
-      }
-      is_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      set_current_user_id: {
-        Args: { user_id_param: string }
-        Returns: undefined
       }
       verificar_senha: {
         Args: { usuario_email: string; senha_input: string }
