@@ -371,13 +371,36 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_current_user_permissions: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      has_permission: {
+        Args: { perm_name: string }
+        Returns: boolean
+      }
       hash_senha: {
         Args: { senha_texto: string }
         Returns: string
       }
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       set_current_user_id: {
         Args: { user_id_param: string }
         Returns: undefined
+      }
+      verificar_senha: {
+        Args: { usuario_email: string; senha_input: string }
+        Returns: {
+          id: string
+          nome: string
+          email: string
+          tipo: Database["public"]["Enums"]["tipo_usuario"]
+          permissoes: Json
+          ativo: boolean
+        }[]
       }
     }
     Enums: {

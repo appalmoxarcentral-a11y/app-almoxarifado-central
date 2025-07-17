@@ -48,57 +48,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsLoading(true);
 
-      // Buscar usuário por email na tabela usuarios
-      const { data: users, error } = await supabase
-        .from('usuarios')
-        .select('*')
-        .eq('email', email)
-        .eq('ativo', true)
-        .limit(1);
+      // Usar a função verificar_senha para autenticação segura
+      const { data: userData, error } = await supabase
+        .rpc('verificar_senha', { 
+          usuario_email: email, 
+          senha_input: senha 
+        });
 
       if (error) {
-        console.error('Erro na consulta:', error);
+        console.error('Erro na autenticação:', error);
         return false;
       }
 
-      if (!users || users.length === 0) {
-        console.log('Usuário não encontrado ou inativo');
+      if (!userData || userData.length === 0) {
+        console.log('Credenciais inválidas ou usuário inativo');
         return false;
       }
 
-      const usuario = users[0];
-
-      // Verificar senha usando a função hash_senha do banco
-      const { data: hashResult, error: hashError } = await supabase
-        .rpc('hash_senha', { senha_texto: senha });
-
-      if (hashError) {
-        console.error('Erro ao verificar senha:', hashError);
-        return false;
-      }
-
-      if (hashResult !== usuario.senha) {
-        console.log('Senha incorreta');
-        return false;
-      }
+      const usuario = userData[0];
 
       // Criar objeto de usuário
-      const userData: User = {
+      const userObject: User = {
         id: usuario.id,
         nome: usuario.nome,
         email: usuario.email,
         tipo: usuario.tipo as 'ADMIN' | 'COMUM',
         permissoes: (usuario.permissoes as unknown) as UserPermissions,
         ativo: usuario.ativo,
-        created_at: usuario.created_at
+        created_at: new Date().toISOString() // Para compatibilidade
       };
 
       // Definir contexto de usuário para RLS
-      await supabase.rpc('set_current_user_id', { user_id_param: usuario.id });
+      const { error: contextError } = await supabase.rpc('set_current_user_id', { 
+        user_id_param: usuario.id 
+      });
+      
+      if (contextError) {
+        console.error('Erro ao definir contexto do usuário:', contextError);
+      }
 
       // Salvar dados do usuário
-      setUser(userData);
-      localStorage.setItem('currentUser', JSON.stringify(userData));
+      setUser(userObject);
+      localStorage.setItem('currentUser', JSON.stringify(userObject));
 
       return true;
     } catch (error) {
