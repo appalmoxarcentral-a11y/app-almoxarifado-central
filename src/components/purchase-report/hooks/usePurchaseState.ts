@@ -74,26 +74,6 @@ export function usePurchaseState() {
   
   const hasChanges = currentStateString !== lastSavedState && persistence.currentDraftId !== null;
 
-  // Auto-save a cada 30 segundos quando há mudanças
-  useEffect(() => {
-    if (!persistence.currentDraftId || itemsForPDF.length === 0) return;
-
-    const timer = setTimeout(() => {
-      const draftItems: PurchaseDraftItem[] = purchaseItems.map(item => ({
-        id: item.id,
-        codigo: item.codigo,
-        descricao: item.descricao,
-        unidade_medida: item.unidade_medida,
-        estoque_atual: item.estoque_atual,
-        quantidade_reposicao: item.quantidade_reposicao
-      }));
-      
-      persistence.autoSave(draftItems);
-    }, 30000); // 30 segundos
-
-    return () => clearTimeout(timer);
-  }, [purchaseItems, persistence.currentDraftId, persistence.autoSave, itemsForPDF.length]);
-
   const saveDraft = useCallback((nome: string) => {
     const draftItems: PurchaseDraftItem[] = purchaseItems.map(item => ({
       id: item.id,
@@ -131,6 +111,38 @@ export function usePurchaseState() {
     
     return loadedItems;
   }, [persistence.loadDraft]);
+
+  // Auto-save a cada 30 segundos quando há mudanças
+  useEffect(() => {
+    // Auto-save when there are changes, with or without currentDraftId
+    if (itemsForPDF.length === 0) return;
+
+    const timer = setTimeout(() => {
+      const draftItems: PurchaseDraftItem[] = purchaseItems.map(item => ({
+        id: item.id,
+        codigo: item.codigo,
+        descricao: item.descricao,
+        unidade_medida: item.unidade_medida,
+        estoque_atual: item.estoque_atual,
+        quantidade_reposicao: item.quantidade_reposicao
+      }));
+      
+      persistence.autoSave(draftItems);
+    }, 30000); // 30 segundos
+
+    return () => clearTimeout(timer);
+  }, [purchaseItems, persistence.autoSave, itemsForPDF.length]);
+
+  // Load latest draft on component mount
+  useEffect(() => {
+    if (persistence.drafts.length > 0 && !persistence.currentDraftId && purchaseItems.length > 0) {
+      const latestDraft = persistence.drafts[0]; // Already sorted by data_atualizacao desc
+      if (latestDraft.dados_produtos && latestDraft.dados_produtos.length > 0) {
+        console.log('🔄 Carregando rascunho mais recente automaticamente:', latestDraft.nome_rascunho);
+        loadDraft(latestDraft);
+      }
+    }
+  }, [persistence.drafts, persistence.currentDraftId, purchaseItems.length, loadDraft]);
 
   return {
     purchaseItems,

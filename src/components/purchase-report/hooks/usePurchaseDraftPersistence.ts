@@ -12,8 +12,8 @@ export function usePurchaseDraftPersistence() {
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
 
-  // Check permissions
-  const canManageDrafts = hasPermission('gerenciar_rascunhos_compras');
+  // Check permissions - allow both types of users to manage drafts
+  const canManageDrafts = hasPermission('gerenciar_rascunhos_compras') || hasPermission('relatorio_compras');
   const canAccessReports = hasPermission('relatorio_compras');
 
   // Buscar todos os rascunhos de compras (compartilhados)
@@ -119,7 +119,9 @@ export function usePurchaseDraftPersistence() {
       if (!user?.id) {
         throw new Error('Usuário não logado');
       }
-      if (!canManageDrafts) {
+      
+      // Allow updates for users with either permission
+      if (!canManageDrafts && !canAccessReports) {
         throw new Error('Usuário sem permissão para gerenciar rascunhos');
       }
 
@@ -132,7 +134,12 @@ export function usePurchaseDraftPersistence() {
 
       // Verificar se o usuário pode editar este rascunho
       const draft = drafts.find(d => d.id === id);
-      const canEdit = draft && (draft.usuario_id === user.id || user.tipo === 'ADMIN' || canAccessReports);
+      const canEdit = draft && (
+        draft.usuario_id === user.id || 
+        user.tipo === 'ADMIN' || 
+        canAccessReports || 
+        canManageDrafts
+      );
       
       if (!canEdit) {
         throw new Error('Você não tem permissão para editar este rascunho');
@@ -217,12 +224,16 @@ export function usePurchaseDraftPersistence() {
   });
 
   const autoSave = async (items: PurchaseDraftItem[]) => {
-    if (!user?.id || isAutoSaving || !canManageDrafts) return;
+    if (!user?.id || isAutoSaving) return;
+    
+    // Allow auto-save for all users with report access
+    if (!canManageDrafts && !canAccessReports) return;
 
     try {
       setIsAutoSaving(true);
       console.log('💾 Auto-salvando rascunho...');
 
+      // Find existing draft or create one
       if (currentDraftId) {
         // Atualizar rascunho existente
         await updateDraftMutation.mutateAsync({
@@ -230,12 +241,26 @@ export function usePurchaseDraftPersistence() {
           dados_produtos: items
         });
       } else {
-        // Criar novo rascunho automático
-        const newDraft = await createDraftMutation.mutateAsync({
-          nome_rascunho: `Auto-save ${new Date().toLocaleString()}`,
-          dados_produtos: items
-        });
-        setCurrentDraftId(newDraft.id);
+        // Try to find the latest draft from this user or shared drafts
+        const latestDraft = drafts.find(d => d.usuario_id === user.id) || drafts[0];
+        
+        if (latestDraft) {
+          // Update existing draft
+          setCurrentDraftId(latestDraft.id);
+          await updateDraftMutation.mutateAsync({
+            id: latestDraft.id,
+            dados_produtos: items
+          });
+        } else {
+          // Create new draft only if user can manage drafts
+          if (canManageDrafts) {
+            const newDraft = await createDraftMutation.mutateAsync({
+              nome_rascunho: `Rascunho ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`,
+              dados_produtos: items
+            });
+            setCurrentDraftId(newDraft.id);
+          }
+        }
       }
       
       console.log('✅ Auto-save concluído');
@@ -247,7 +272,8 @@ export function usePurchaseDraftPersistence() {
   };
 
   const saveDraft = (nome: string, items: PurchaseDraftItem[]) => {
-    if (!canManageDrafts) {
+    // Allow saving for both types of users
+    if (!canManageDrafts && !canAccessReports) {
       console.error('Usuário sem permissão para gerenciar rascunhos');
       return;
     }
@@ -259,10 +285,22 @@ export function usePurchaseDraftPersistence() {
         dados_produtos: items
       });
     } else {
-      createDraftMutation.mutate({
-        nome_rascunho: nome,
-        dados_produtos: items
-      });
+      // Find existing draft to update or create new one
+      const existingDraft = drafts.find(d => d.usuario_id === user?.id) || drafts[0];
+      
+      if (existingDraft && canEditDraft(existingDraft)) {
+        setCurrentDraftId(existingDraft.id);
+        updateDraftMutation.mutate({
+          id: existingDraft.id,
+          nome_rascunho: nome,
+          dados_produtos: items
+        });
+      } else if (canManageDrafts) {
+        createDraftMutation.mutate({
+          nome_rascunho: nome,
+          dados_produtos: items
+        });
+      }
     }
   };
 
