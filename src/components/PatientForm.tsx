@@ -472,7 +472,7 @@ export function PatientForm() {
         <CardContent>
           <div className="space-y-3">
             {filteredPatients.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">
+              <p className="text-muted-foreground text-center py-8">
                 {searchTerm ? "Nenhum paciente encontrado com o termo de busca." : "Nenhum paciente cadastrado."}
               </p>
             ) : (
