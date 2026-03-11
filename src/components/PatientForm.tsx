@@ -311,8 +311,8 @@ export function PatientForm() {
       <div className="flex items-center gap-2">
         <Users className="h-6 w-6 md:h-8 md:w-8 text-primary" />
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Cadastro de Pacientes</h1>
-          <p className="text-sm md:text-base text-gray-600">Gerencie os dados dos pacientes da UBSF</p>
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground">Cadastro de Pacientes</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Gerencie os dados dos pacientes da UBSF</p>
         </div>
       </div>
 
@@ -358,8 +358,8 @@ export function PatientForm() {
                 {formData.sus_cpf && (
                   <p className={`text-xs md:text-sm ${
                     formData.sus_cpf.length >= 11 && formData.sus_cpf.length <= 15 
-                      ? 'text-green-600' 
-                      : 'text-red-600'
+                      ? 'text-secondary' 
+                      : 'text-destructive'
                   }`}>
                     {formData.sus_cpf.length} dígitos inseridos
                     {formData.sus_cpf.length < 11 && ' (mínimo 11)'}
@@ -416,7 +416,7 @@ export function PatientForm() {
                   required
                 />
                 {idade > 0 && (
-                  <p className="text-xs md:text-sm text-gray-500">Idade: {idade} anos</p>
+                  <p className="text-xs md:text-sm text-muted-foreground">Idade: {idade} anos</p>
                 )}
               </div>
             </div>
@@ -459,7 +459,7 @@ export function PatientForm() {
               <CardDescription className="text-sm">Lista dos pacientes no sistema</CardDescription>
             </div>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar paciente..."
                 value={searchTerm}
@@ -472,7 +472,7 @@ export function PatientForm() {
         <CardContent>
           <div className="space-y-3">
             {filteredPatients.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">
+              <p className="text-muted-foreground text-center py-8">
                 {searchTerm ? "Nenhum paciente encontrado com o termo de busca." : "Nenhum paciente cadastrado."}
               </p>
             ) : (
@@ -480,13 +480,13 @@ export function PatientForm() {
                 <div key={patient.id} className="flex flex-col md:flex-row md:items-center md:justify-between p-4 border rounded-lg gap-4">
                   <div className="flex-1">
                     <p className="font-medium text-sm md:text-base">{patient.nome}</p>
-                    <p className="text-xs md:text-sm text-gray-500">
+                    <p className="text-xs md:text-sm text-muted-foreground">
                       SUS/CPF: {patient.sus_cpf} | Idade: {patient.idade} anos
                     </p>
-                    <p className="text-xs md:text-sm text-gray-500">
+                    <p className="text-xs md:text-sm text-muted-foreground">
                       {patient.endereco}, {patient.bairro}
                     </p>
-                    <p className="text-xs md:text-sm text-gray-500">Tel: {patient.telefone}</p>
+                    <p className="text-xs md:text-sm text-muted-foreground">Tel: {patient.telefone}</p>
                   </div>
                   <div className="flex gap-2 md:flex-col lg:flex-row">
                     <PermissionCheck 
