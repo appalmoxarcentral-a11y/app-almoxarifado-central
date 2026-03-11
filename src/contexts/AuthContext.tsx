@@ -48,39 +48,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.error('Erro na autenticação:', error);
+        setIsLoading(false);
         return false;
       }
 
-      if (!userData || userData.length === 0) {
+      if (!userData || !Array.isArray(userData) || userData.length === 0) {
         console.log('Credenciais inválidas ou usuário inativo');
+        setIsLoading(false);
         return false;
       }
 
       const usuario = userData[0];
 
+      if (!usuario || !usuario.id) {
+        console.error('Dados do usuário inválidos:', usuario);
+        setIsLoading(false);
+        return false;
+      }
+
+      // Garantir que permissoes nunca seja null/undefined
+      const defaultPermissions: UserPermissions = {
+        cadastro_pacientes: false,
+        cadastro_produtos: false,
+        entrada_produtos: false,
+        dispensacao: false,
+        historicos: false,
+        relatorio_compras: false,
+        gestao_usuarios: false,
+        gerenciar_rascunhos_compras: false,
+      };
+
+      const permissoes = usuario.permissoes 
+        ? { ...defaultPermissions, ...(usuario.permissoes as unknown as Partial<UserPermissions>) }
+        : defaultPermissions;
+
       // Criar objeto de usuário
       const userObject: User = {
         id: usuario.id,
-        nome: usuario.nome,
-        email: usuario.email,
-        tipo: usuario.tipo as 'ADMIN' | 'COMUM',
-        permissoes: (usuario.permissoes as unknown) as UserPermissions,
-        ativo: usuario.ativo,
-        created_at: new Date().toISOString() // Para compatibilidade
+        nome: usuario.nome || '',
+        email: usuario.email || email,
+        tipo: (usuario.tipo as 'ADMIN' | 'COMUM') || 'COMUM',
+        permissoes,
+        ativo: usuario.ativo ?? true,
+        created_at: new Date().toISOString()
       };
 
-      // RLS funciona automaticamente com a política usando auth.uid()
-
       // Salvar dados do usuário
-      setUser(userObject);
       localStorage.setItem('currentUser', JSON.stringify(userObject));
+      setUser(userObject);
+      setIsLoading(false);
 
       return true;
     } catch (error) {
       console.error('Erro no login:', error);
-      return false;
-    } finally {
       setIsLoading(false);
+      return false;
     }
   };
 
