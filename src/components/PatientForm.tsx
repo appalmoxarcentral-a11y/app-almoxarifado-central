@@ -480,13 +480,13 @@ export function PatientForm() {
                 <div key={patient.id} className="flex flex-col md:flex-row md:items-center md:justify-between p-4 border rounded-lg gap-4">
                   <div className="flex-1">
                     <p className="font-medium text-sm md:text-base">{patient.nome}</p>
-                    <p className="text-xs md:text-sm text-gray-500">
+                    <p className="text-xs md:text-sm text-muted-foreground">
                       SUS/CPF: {patient.sus_cpf} | Idade: {patient.idade} anos
                     </p>
-                    <p className="text-xs md:text-sm text-gray-500">
+                    <p className="text-xs md:text-sm text-muted-foreground">
                       {patient.endereco}, {patient.bairro}
                     </p>
-                    <p className="text-xs md:text-sm text-gray-500">Tel: {patient.telefone}</p>
+                    <p className="text-xs md:text-sm text-muted-foreground">Tel: {patient.telefone}</p>
                   </div>
                   <div className="flex gap-2 md:flex-col lg:flex-row">
                     <PermissionCheck 
