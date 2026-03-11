@@ -358,8 +358,8 @@ export function PatientForm() {
                 {formData.sus_cpf && (
                   <p className={`text-xs md:text-sm ${
                     formData.sus_cpf.length >= 11 && formData.sus_cpf.length <= 15 
-                      ? 'text-green-600' 
-                      : 'text-red-600'
+                      ? 'text-secondary' 
+                      : 'text-destructive'
                   }`}>
                     {formData.sus_cpf.length} dígitos inseridos
                     {formData.sus_cpf.length < 11 && ' (mínimo 11)'}
