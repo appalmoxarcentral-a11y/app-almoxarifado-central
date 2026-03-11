@@ -416,7 +416,7 @@ export function PatientForm() {
                   required
                 />
                 {idade > 0 && (
-                  <p className="text-xs md:text-sm text-gray-500">Idade: {idade} anos</p>
+                  <p className="text-xs md:text-sm text-muted-foreground">Idade: {idade} anos</p>
                 )}
               </div>
             </div>
