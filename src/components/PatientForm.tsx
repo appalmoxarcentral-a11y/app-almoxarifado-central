@@ -311,8 +311,8 @@ export function PatientForm() {
       <div className="flex items-center gap-2">
         <Users className="h-6 w-6 md:h-8 md:w-8 text-primary" />
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Cadastro de Pacientes</h1>
-          <p className="text-sm md:text-base text-gray-600">Gerencie os dados dos pacientes da UBSF</p>
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground">Cadastro de Pacientes</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Gerencie os dados dos pacientes da UBSF</p>
         </div>
       </div>
 

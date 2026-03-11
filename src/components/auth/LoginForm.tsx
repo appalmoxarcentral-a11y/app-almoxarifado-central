@@ -52,7 +52,7 @@ export function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
@@ -61,7 +61,7 @@ export function LoginForm() {
             </div>
           </div>
           <CardTitle className="text-2xl">Sistema de Farmácia</CardTitle>
-          <p className="text-gray-600">Faça login para continuar</p>
+          <p className="text-muted-foreground">Faça login para continuar</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

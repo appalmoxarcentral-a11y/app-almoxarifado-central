@@ -59,7 +59,7 @@ export function HistoryView() {
         <History className="h-6 w-6 md:h-8 md:w-8 text-primary" />
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Históricos</h1>
-          <p className="text-sm md:text-base text-gray-600">Controle de movimentações</p>
+          <p className="text-sm md:text-base text-muted-foreground">Controle de movimentações</p>
         </div>
       </div>
 
