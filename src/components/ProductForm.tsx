@@ -82,9 +82,9 @@ export function ProductForm() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div className="flex items-center gap-2">
-        <Package className="h-6 w-6 text-primary" />
+        <Package className="h-6 w-6 md:h-8 md:w-8 text-primary" />
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">Cadastro de Produtos</h1>
           <p className="text-sm md:text-base text-muted-foreground">Gerencie o catálogo de produtos farmacêuticos</p>
@@ -92,7 +92,7 @@ export function ProductForm() {
       </div>
 
       <Tabs defaultValue="manual" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-3 text-xs md:text-sm">
           <TabsTrigger value="manual">Cadastro Manual</TabsTrigger>
           <TabsTrigger value="excel">
             <FileSpreadsheet className="h-4 w-4 mr-2" />

@@ -57,10 +57,13 @@ export function ProductEntryForm() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div className="flex items-center gap-2">
-        <PackagePlus className="h-8 w-8 text-primary" />
-        <h1 className="text-3xl font-bold">Entrada de Produtos</h1>
+        <PackagePlus className="h-6 w-6 md:h-8 md:w-8 text-primary" />
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Entrada de Produtos</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Registre a entrada de novos produtos</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
