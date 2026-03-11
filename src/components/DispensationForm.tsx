@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ShoppingCart } from 'lucide-react';
 import { format } from 'date-fns';
@@ -9,6 +8,9 @@ import { ProductSelection } from './dispensation/ProductSelection';
 import { RecentDispensations } from './dispensation/RecentDispensations';
 import { useDispensationQueries } from './dispensation/hooks/useDispensationQueries';
 import { useDispensationMutations } from './dispensation/hooks/useDispensationMutations';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Badge } from '@/components/ui/badge';
 import type { Product } from '@/types';
 
 interface CarrinhoItem {
@@ -24,6 +26,8 @@ export function DispensationForm() {
   const [selectedLote, setSelectedLote] = useState('');
   const [dataDispensa, setDataDispensa] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [carrinho, setCarrinho] = useState<CarrinhoItem[]>([]);
+  const [cartOpen, setCartOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   const {
     pacientes,
@@ -40,6 +44,7 @@ export function DispensationForm() {
     setQuantidade('');
     setSelectedLote('');
     setDataDispensa(format(new Date(), 'yyyy-MM-dd'));
+    setCartOpen(false);
   };
 
   const { createDispensationMutation } = useDispensationMutations(
@@ -71,7 +76,6 @@ export function DispensationForm() {
       return;
     }
 
-    // Verificar se produto já está no carrinho
     const produtoJaNoCarrinho = carrinho.find(item => 
       item.produto.id === selectedProduct && item.lote === selectedLote
     );
@@ -92,8 +96,6 @@ export function DispensationForm() {
     };
 
     setCarrinho(prev => [...prev, novoItem]);
-    
-    // Limpar campos do produto
     setSelectedProduct('');
     setQuantidade('');
     setSelectedLote('');
@@ -130,12 +132,91 @@ export function DispensationForm() {
     createDispensationMutation.mutate(carrinho);
   };
 
-  // Limpar lote quando produto muda
   const handleProductChange = (productId: string) => {
     setSelectedProduct(productId);
     setSelectedLote('');
   };
 
+  const totalItensCarrinho = carrinho.reduce((total, item) => total + item.quantidade, 0);
+
+  // Mobile layout
+  if (isMobile) {
+    return (
+      <div className="space-y-4">
+        {/* Mobile Header */}
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <ShoppingCart className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-foreground">Dispensação Múltipla</h1>
+            <p className="text-xs text-muted-foreground">Gerencie dispensações</p>
+          </div>
+        </div>
+
+        {/* Step 1: Patient */}
+        <PatientSelection
+          selectedPatient={selectedPatient}
+          setSelectedPatient={setSelectedPatient}
+          dataDispensa={dataDispensa}
+          setDataDispensa={setDataDispensa}
+          pacientes={pacientes}
+        />
+
+        {/* Step 2: Products */}
+        <ProductSelection
+          selectedProduct={selectedProduct}
+          onProductChange={handleProductChange}
+          selectedLote={selectedLote}
+          setSelectedLote={setSelectedLote}
+          quantidade={quantidade}
+          setQuantidade={setQuantidade}
+          produtos={produtos}
+          lotes={lotes}
+          onAddToCart={adicionarAoCarrinho}
+        />
+
+        {/* Recent Dispensations */}
+        <RecentDispensations
+          dispensacoes={dispensacoes}
+          isLoading={isLoadingDispensacoes}
+        />
+
+        {/* Floating Cart Button */}
+        <Sheet open={cartOpen} onOpenChange={setCartOpen}>
+          <SheetTrigger asChild>
+            <button className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center active:scale-95 transition-transform">
+              <ShoppingCart className="h-6 w-6" />
+              {carrinho.length > 0 && (
+                <Badge className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center text-[10px] p-0 bg-destructive text-destructive-foreground">
+                  {carrinho.length}
+                </Badge>
+              )}
+            </button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="max-h-[80vh] rounded-t-2xl">
+            <SheetHeader>
+              <SheetTitle className="flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5" />
+                Carrinho ({totalItensCarrinho} itens)
+              </SheetTitle>
+            </SheetHeader>
+            <div className="mt-4">
+              <ProductCart
+                carrinho={carrinho}
+                onRemoveItem={removerDoCarrinho}
+                onConfirmDispensation={confirmarDispensacao}
+                selectedPatient={selectedPatient}
+                isProcessing={createDispensationMutation.isPending}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+    );
+  }
+
+  // Desktop layout (unchanged)
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
