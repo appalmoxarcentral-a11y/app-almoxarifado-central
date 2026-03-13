@@ -120,44 +120,52 @@ export function ProductForm() {
   };
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div className="flex items-center gap-2">
-        <Package className="h-6 w-6 md:h-8 md:w-8 text-primary" />
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Cadastro de Produtos</h1>
-          <p className="text-sm md:text-base text-muted-foreground">Gerencie o catálogo de produtos farmacêuticos</p>
+    <div className="space-y-6 md:space-y-10 pb-24 md:pb-10">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border pb-6 md:pb-8">
+        <div className="flex items-center gap-3 md:gap-5">
+          <div className="p-2.5 md:p-3 bg-primary/10 rounded-xl md:rounded-2xl shrink-0">
+            <Package className="h-6 w-6 md:h-10 md:w-10 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-5xl font-black tracking-tight text-foreground leading-tight">Cadastro de Produtos</h1>
+            <p className="text-muted-foreground text-sm md:text-xl mt-0.5 md:mt-2 font-medium">Gerencie o catálogo de medicamentos</p>
+          </div>
         </div>
       </div>
 
-      <Tabs defaultValue="manual" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 text-xs md:text-sm">
-          <TabsTrigger value="manual">Cadastro Manual</TabsTrigger>
-          <TabsTrigger value="excel">
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
-            Importar Excel
+      <Tabs defaultValue="manual" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3 h-12 md:h-14 bg-muted/50 p-1 rounded-xl md:rounded-2xl border border-border/50">
+          <TabsTrigger value="manual" className="rounded-lg md:rounded-xl font-bold text-[10px] md:text-sm uppercase tracking-wider">Cadastro Manual</TabsTrigger>
+          <TabsTrigger value="excel" className="rounded-lg md:rounded-xl font-bold text-[10px] md:text-sm uppercase tracking-wider">
+            <FileSpreadsheet className="h-3.5 w-3.5 md:h-4 md:w-4 md:mr-2" />
+            <span className="hidden xs:inline">Excel</span>
           </TabsTrigger>
-          <TabsTrigger value="units">
-            <Settings className="h-4 w-4 mr-2" />
-            Unidades de Medida
+          <TabsTrigger value="units" className="rounded-lg md:rounded-xl font-bold text-[10px] md:text-sm uppercase tracking-wider">
+            <Settings className="h-3.5 w-3.5 md:h-4 md:w-4 md:mr-2" />
+            <span className="hidden xs:inline">Unidades</span>
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="manual" className="space-y-6">
-          <Card ref={formRef}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                {editingProduct ? <Edit className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+          <Card ref={formRef} className="border-border bg-card shadow-xl rounded-2xl md:rounded-3xl overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-32 md:w-64 h-32 md:h-64 bg-primary/5 blur-3xl -mr-16 -mt-16 md:-mr-32 md:-mt-32" />
+            
+            <CardHeader className="p-5 md:p-8 relative">
+              <CardTitle className="flex items-center gap-3 text-xl md:text-3xl font-black tracking-tighter">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  {editingProduct ? <Edit className="h-5 w-5 text-primary" /> : <Plus className="h-5 w-5 text-primary" />}
+                </div>
                 {editingProduct ? 'Editar Produto' : 'Novo Produto'}
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-xs md:text-base font-medium mt-2">
                 {editingProduct 
                   ? 'Atualize os dados do produto selecionado'
                   : 'Cadastre um novo produto no sistema farmacêutico'
                 }
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
+            <CardContent className="p-5 md:p-8 md:pt-0 relative">
+              <form onSubmit={handleSubmit} className="space-y-8">
                 <ProductFormFields
                   formData={formData}
                   onFormDataChange={setFormData}
@@ -165,22 +173,25 @@ export function ProductForm() {
                   editingProductId={editingProduct?.id}
                 />
 
-                <div className="flex justify-end gap-4">
-                  {editingProduct && (
-                    <Button type="button" variant="outline" onClick={handleCancelEdit}>
-                      <X className="h-4 w-4 mr-2" />
-                      Cancelar
+                <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-border/50">
+                  <div className="flex gap-3 w-full sm:w-auto">
+                    {editingProduct && (
+                      <Button type="button" variant="outline" onClick={handleCancelEdit} className="flex-1 sm:flex-none h-12 md:h-14 px-6 rounded-xl font-bold border-border hover:bg-muted transition-all">
+                        <X className="h-5 w-5 mr-2" />
+                        Cancelar
+                      </Button>
+                    )}
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      onClick={() => setFormData({ descricao: '', codigo: '', unidade_medida: '' })}
+                      className="flex-1 sm:flex-none h-12 md:h-14 px-6 rounded-xl font-bold text-muted-foreground hover:text-foreground transition-all"
+                    >
+                      Limpar
                     </Button>
-                  )}
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => setFormData({ descricao: '', codigo: '', unidade_medida: '' })}
-                  >
-                    Limpar
-                  </Button>
-                  <Button type="submit" disabled={loading} className="flex items-center gap-2">
-                    <Save className="h-4 w-4" />
+                  </div>
+                  <Button type="submit" disabled={loading} className="w-full sm:w-auto h-12 md:h-14 px-8 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:shadow-none active:scale-95 transition-all">
+                    <Save className="h-5 w-5 mr-2" />
                     {loading 
                       ? (editingProduct ? 'Atualizando...' : 'Salvando...') 
                       : (editingProduct ? 'Atualizar Produto' : 'Salvar Produto')

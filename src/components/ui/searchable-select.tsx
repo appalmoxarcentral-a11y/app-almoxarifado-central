@@ -91,7 +91,7 @@ export function SearchableSelect<T>({
               placeholder={searchPlaceholder}
               value={searchValue}
               onValueChange={setSearchValue}
-              className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-12 w-full rounded-md bg-transparent py-3 text-[16px] outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
             />
           </div>
           <CommandList>

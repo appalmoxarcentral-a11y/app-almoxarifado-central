@@ -83,10 +83,82 @@
 @layer base {
   * {
     @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html, body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    position: relative;
+    -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground font-sans antialiased;
+    touch-action: manipulation;
+    position: relative;
+    margin: 0;
+    padding: 0;
+  }
+
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Enforce max-width on all major layout components */
+  [data-sidebar="sidebar-wrapper"], 
+  [data-sidebar="content"],
+  main,
+  header,
+  nav,
+  section,
+  article,
+  aside,
+  footer {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  /* Specific mobile enforcements */
+  @media (max-width: 428px) {
+    .container {
+      padding-left: 1rem !important;
+      padding-right: 1rem !important;
+      width: 100% !important;
+      max-width: 100vw !important;
+    }
+    
+    body, html, #root {
+      overflow-x: hidden !important;
+      position: relative !important;
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+  }
+
+  /* Re-enable horizontal scroll ONLY for elements that explicitly need it */
+  .overflow-x-auto, 
+  [data-embla-container],
+  .embla__container,
+  [style*="overflow-x: auto"],
+  [style*="overflow-x: scroll"] {
+    overflow-x: auto !important;
+    max-width: none !important;
+    width: auto !important;
+  }
+
+  /* Impedir zoom em inputs no iOS */
+  input, select, textarea, button {
+    font-size: 16px !important;
   }
 }
 

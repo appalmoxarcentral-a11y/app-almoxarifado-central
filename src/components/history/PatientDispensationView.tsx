@@ -6,8 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { User, Package, Calendar } from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { format } from 'date-fns/format';
+import { ptBR } from 'date-fns/locale/pt-BR';
 import type { Dispensation } from '@/types';
 
 interface PatientDispensationViewProps {
@@ -140,7 +140,7 @@ export function PatientDispensationView({ searchTerm }: PatientDispensationViewP
           </CardHeader>
           <CardContent>
             {/* Resumo do paciente */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 p-4 bg-muted rounded-lg border border-border">
               <div className="flex items-center gap-2">
                 <Package className="h-4 w-4 text-green-600" />
                 <div>

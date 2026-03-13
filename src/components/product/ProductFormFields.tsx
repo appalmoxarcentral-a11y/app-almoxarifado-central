@@ -24,20 +24,21 @@ export function ProductFormFields({ formData, onFormDataChange, unidadesMedida, 
     editingProductId
   });
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div className="space-y-2">
-        <Label htmlFor="descricao">Descrição do Produto *</Label>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+      <div className="space-y-1.5 md:space-y-2">
+        <Label htmlFor="descricao" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Descrição do Produto *</Label>
         <Input
           id="descricao"
           value={formData.descricao}
           onChange={(e) => onFormDataChange(prev => ({ ...prev, descricao: e.target.value }))}
           placeholder="Ex: Dipirona 500mg"
           required
+          className="h-12 text-[16px]"
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="codigo">Código do Produto *</Label>
+      <div className="space-y-1.5 md:space-y-2">
+        <Label htmlFor="codigo" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Código do Produto *</Label>
         <div className="relative">
           <Input
             id="codigo"
@@ -45,7 +46,7 @@ export function ProductFormFields({ formData, onFormDataChange, unidadesMedida, 
             onChange={(e) => onFormDataChange(prev => ({ ...prev, codigo: e.target.value.toUpperCase() }))}
             placeholder="Ex: DIP500"
             required
-            className={isDuplicate ? "border-red-500" : ""}
+            className={`h-12 text-[16px] ${isDuplicate ? "border-red-500" : ""}`}
           />
           <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
             {isValidating && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
@@ -59,21 +60,22 @@ export function ProductFormFields({ formData, onFormDataChange, unidadesMedida, 
         </div>
         
         {isDuplicate && (
-          <Alert variant="destructive" className="mt-2">
+          <Alert variant="destructive" className="mt-2 rounded-xl">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
+            <AlertDescription className="text-xs">
               Este código já existe no sistema.
               {suggestedCodes.length > 0 && (
                 <div className="mt-2">
-                  <p className="text-sm font-medium">Sugestões:</p>
-                  <div className="flex gap-2 mt-1">
+                  <p className="text-xs font-bold mb-1">Sugestões:</p>
+                  <div className="flex flex-wrap gap-2">
                     {suggestedCodes.map((suggestion) => (
                       <Button
                         key={suggestion}
+                        type="button"
                         variant="outline"
                         size="sm"
                         onClick={() => onFormDataChange(prev => ({ ...prev, codigo: suggestion }))}
-                        className="text-xs"
+                        className="h-8 text-[11px] font-bold"
                       >
                         {suggestion}
                       </Button>
@@ -86,15 +88,15 @@ export function ProductFormFields({ formData, onFormDataChange, unidadesMedida, 
         )}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="unidade_medida">Unidade de Medida *</Label>
+      <div className="space-y-1.5 md:space-y-2">
+        <Label htmlFor="unidade_medida" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Unidade de Medida *</Label>
         <Select 
           value={formData.unidade_medida} 
           onValueChange={(value: string) => 
             onFormDataChange(prev => ({ ...prev, unidade_medida: value }))
           }
         >
-          <SelectTrigger>
+          <SelectTrigger className="h-12 text-[16px]">
             <SelectValue placeholder="Selecione a unidade" />
           </SelectTrigger>
           <SelectContent>

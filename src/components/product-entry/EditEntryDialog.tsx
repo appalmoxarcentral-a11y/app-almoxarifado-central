@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ProductEntry } from '@/types';
 import { format } from 'date-fns';
+import { SmartDatePicker } from '@/components/ui/smart-date-picker';
+import { Calendar as CalendarIcon, Package } from 'lucide-react';
 
 interface EditEntryDialogProps {
   entry: ProductEntry | null;
@@ -50,70 +52,81 @@ export function EditEntryDialog({ entry, isOpen, onClose, onSave, isLoading }: E
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] rounded-2xl md:rounded-3xl border-border bg-card p-6">
         <DialogHeader>
-          <DialogTitle>Editar Entrada</DialogTitle>
+          <DialogTitle className="text-2xl font-black tracking-tighter flex items-center gap-3">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <Package className="h-5 w-5 text-primary" />
+            </div>
+            Editar Entrada
+          </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
+        <form onSubmit={handleSubmit} className="space-y-6 pt-4">
+          <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Produto</Label>
-              <div className="p-2 bg-gray-50 rounded text-sm">
+              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Produto</Label>
+              <div className="p-3 bg-muted/50 border border-border/50 rounded-xl text-sm font-bold text-foreground/80">
                 {entry.produto?.descricao} ({entry.produto?.codigo})
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="quantidade">Quantidade *</Label>
-              <Input
-                id="quantidade"
-                type="number"
-                value={formData.quantidade}
-                onChange={(e) => setFormData(prev => ({ ...prev, quantidade: e.target.value }))}
-                required
-                min="1"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="quantidade" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Quantidade *</Label>
+                <Input
+                  id="quantidade"
+                  type="number"
+                  value={formData.quantidade}
+                  onChange={(e) => setFormData(prev => ({ ...prev, quantidade: e.target.value }))}
+                  required
+                  min="1"
+                  className="h-12 text-[16px] rounded-xl border-border bg-background"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="lote" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Lote *</Label>
+                <Input
+                  id="lote"
+                  value={formData.lote}
+                  onChange={(e) => setFormData(prev => ({ ...prev, lote: e.target.value }))}
+                  required
+                  className="h-12 text-[16px] rounded-xl border-border bg-background"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="lote">Lote *</Label>
-              <Input
-                id="lote"
-                value={formData.lote}
-                onChange={(e) => setFormData(prev => ({ ...prev, lote: e.target.value }))}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="vencimento">Data de Vencimento *</Label>
-              <Input
+              <Label htmlFor="vencimento" className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <CalendarIcon className="h-3.5 w-3.5" />
+                Vencimento *
+              </Label>
+              <SmartDatePicker
                 id="vencimento"
-                type="date"
                 value={formData.vencimento}
-                onChange={(e) => setFormData(prev => ({ ...prev, vencimento: e.target.value }))}
-                required
+                onChange={(val) => setFormData(prev => ({ ...prev, vencimento: val }))}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="data_entrada">Data da Entrada *</Label>
-              <Input
+              <Label htmlFor="data_entrada" className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <CalendarIcon className="h-3.5 w-3.5" />
+                Data da Entrada *
+              </Label>
+              <SmartDatePicker
                 id="data_entrada"
-                type="date"
                 value={formData.data_entrada}
-                onChange={(e) => setFormData(prev => ({ ...prev, data_entrada: e.target.value }))}
-                required
+                onChange={(val) => setFormData(prev => ({ ...prev, data_entrada: val }))}
               />
             </div>
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
+          <DialogFooter className="gap-3 pt-2">
+            <Button type="button" variant="outline" onClick={onClose} disabled={isLoading} className="h-12 rounded-xl font-bold border-border">
               Cancelar
             </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Salvando...' : 'Salvar'}
+            <Button type="submit" disabled={isLoading} className="h-12 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-primary/20">
+              {isLoading ? 'Salvando...' : 'Salvar Alterações'}
             </Button>
           </DialogFooter>
         </form>

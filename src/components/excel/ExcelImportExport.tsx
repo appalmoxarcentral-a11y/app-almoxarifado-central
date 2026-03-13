@@ -180,50 +180,58 @@ export function ExcelImportExport({ mode, onSuccess }: ExcelImportExportProps) {
   const canImport = mode === 'entries' || (mode === 'products' && (user?.tipo === 'ADMIN' || user?.tipo === 'SUPER_ADMIN' || isImpersonating));
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileSpreadsheet className="h-5 w-5" />
+    <Card className="border-border bg-card shadow-xl rounded-2xl md:rounded-3xl overflow-hidden relative">
+      <div className="absolute top-0 right-0 w-32 md:w-64 h-32 md:h-64 bg-primary/5 blur-3xl -mr-16 -mt-16 md:-mr-32 md:-mt-32" />
+      
+      <CardHeader className="p-5 md:p-8 relative">
+        <CardTitle className="flex items-center gap-3 text-xl md:text-3xl font-black tracking-tighter">
+          <div className="p-2 bg-primary/10 rounded-lg">
+            <FileSpreadsheet className="h-5 w-5 text-primary" />
+          </div>
           Importação/Exportação Excel
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="text-sm text-gray-600">
+      <CardContent className="p-5 md:p-8 md:pt-0 relative">
+        <div className="space-y-6">
+          <div className="text-sm md:text-base font-medium text-muted-foreground leading-relaxed">
             {mode === 'products' 
-              ? 'Use o modelo Excel para cadastrar novos produtos. O modelo virá preenchido com produtos já cadastrados.'
-              : 'Use o modelo Excel para registrar entradas de produtos. O modelo virá preenchido com todos os produtos disponíveis.'
+              ? 'Use o modelo Excel para cadastrar novos produtos de forma massiva.'
+              : 'Use o modelo Excel para registrar entradas de produtos em lote.'
             }
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Download do modelo */}
-            <div className="space-y-2">
-              <h4 className="font-medium">1. Baixar Modelo</h4>
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">1. Baixar Modelo</h4>
               <Button 
                 onClick={handleDownloadTemplate}
                 variant="outline" 
-                className="w-full flex items-center gap-2"
+                className="w-full h-12 md:h-14 flex items-center justify-center gap-3 rounded-xl font-bold border-border hover:bg-muted transition-all"
                 disabled={isLoadingTemplate}
               >
-                <Download className="h-4 w-4" />
+                <Download className="h-5 w-5" />
                 {isLoadingTemplate ? 'Preparando...' : 'Baixar Modelo Excel'}
               </Button>
             </div>
 
             {/* Upload do arquivo */}
-            <div className="space-y-2">
-              <h4 className="font-medium">2. Importar Dados</h4>
-              <div className="space-y-2">
-                <Input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={handleFileSelect}
-                  disabled={!canImport}
-                />
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">2. Importar Dados</h4>
+              <div className="space-y-3">
+                <div className="relative">
+                  <Input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleFileSelect}
+                    disabled={!canImport}
+                    className="h-12 md:h-14 pt-2.5 pl-4 rounded-xl cursor-pointer bg-muted/30 border-dashed border-2 hover:bg-muted/50 transition-all text-xs"
+                  />
+                </div>
                 {!canImport && (
-                  <p className="text-xs text-orange-600">
+                  <p className="text-xs font-bold text-destructive flex items-center gap-2">
+                    <AlertCircle className="h-3.5 w-3.5" />
                     Apenas administradores podem importar produtos.
                   </p>
                 )}
@@ -231,14 +239,16 @@ export function ExcelImportExport({ mode, onSuccess }: ExcelImportExportProps) {
             </div>
           </div>
 
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <h4 className="font-medium text-blue-900 mb-2">Instruções:</h4>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li>• O modelo virá preenchido com dados existentes</li>
-              <li>• {mode === 'products' ? 'Adicione novos produtos nas linhas vazias' : 'Preencha quantidade, lote e vencimento para registrar entradas'}</li>
-              <li>• Campos obrigatórios: Código, Descrição, Unidade de Medida</li>
-              <li>• Para registrar entradas: preencha Quantidade, Lote e Vencimento</li>
-              <li>• Mantenha o formato do modelo para evitar erros</li>
+          <div className="bg-primary/5 border border-primary/10 p-5 rounded-2xl space-y-3 shadow-inner">
+            <h4 className="font-black text-primary text-xs uppercase tracking-widest flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              Instruções de Uso
+            </h4>
+            <ul className="text-xs md:text-sm text-muted-foreground space-y-2 font-medium">
+              <li className="flex items-start gap-2">• <span>O modelo virá preenchido com dados existentes para sua referência.</span></li>
+              <li className="flex items-start gap-2">• <span>{mode === 'products' ? 'Adicione novos produtos nas linhas vazias seguindo o padrão.' : 'Preencha quantidade, lote e vencimento para registrar entradas.'}</span></li>
+              <li className="flex items-start gap-2">• <span>Campos obrigatórios: <strong>Código, Descrição e Unidade de Medida</strong>.</span></li>
+              <li className="flex items-start gap-2">• <span>Mantenha o formato original do modelo para evitar falhas no processamento.</span></li>
             </ul>
           </div>
         </div>

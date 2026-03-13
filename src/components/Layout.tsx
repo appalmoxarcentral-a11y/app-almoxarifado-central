@@ -8,9 +8,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import useEmblaCarousel from 'embla-carousel-react';
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import type { User } from "@/types";
 
@@ -25,6 +25,12 @@ export function Layout({ children }: LayoutProps) {
   const isMobile = useIsMobile();
   const isSuperAdmin = user?.tipo === 'SUPER_ADMIN';
   const isSubscriptionBlocked = user?.subscription_blocked && !isSuperAdmin;
+
+  const [emblaRef] = useEmblaCarousel({
+    dragFree: true,
+    containScroll: 'trimSnaps',
+    align: 'start',
+  });
 
   // Buscar usuários para o Acesso Rápido (apenas se for ADMIN ou SUPER_ADMIN)
   const { data: availableUsers } = useQuery({
@@ -95,46 +101,46 @@ export function Layout({ children }: LayoutProps) {
 
   return (
     <SidebarProvider defaultOpen={false}>
-      <div className="min-h-screen flex w-full bg-background">
+      <div className="min-h-screen flex w-full max-w-full bg-background overflow-x-hidden relative">
         {/* Sidebar */}
         <AppSidebar />
         
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0 max-w-full relative overflow-x-hidden">
           {/* Impersonation Banner */}
           {isImpersonating && (
-            <div className="bg-blue-600 text-white px-4 py-2 flex items-center justify-between text-sm animate-in fade-in slide-in-from-top-4">
-              <div className="flex items-center gap-2">
-                <Zap className="h-4 w-4 fill-white" />
-                <span>
-                  Você está acessando como <strong>{user?.nome}</strong> (Modo de Acesso Rápido - Poder Total)
+            <div className="bg-blue-600 text-white px-4 py-2 flex items-center justify-between text-sm animate-in fade-in slide-in-from-top-4 w-full">
+              <div className="flex items-center gap-2 overflow-hidden">
+                <Zap className="h-4 w-4 shrink-0 fill-white" />
+                <span className="truncate">
+                  Acesso Rápido: <strong>{user?.nome}</strong>
                 </span>
               </div>
               <Button 
                 variant="link" 
                 size="sm" 
-                className="text-white hover:text-blue-100 p-0 h-auto"
+                className="text-white hover:text-blue-100 p-0 h-auto shrink-0 ml-2"
                 onClick={stopImpersonating}
               >
-                Encerrar Acesso Rápido
-                <X className="h-4 w-4 ml-2" />
+                Encerrar
+                <X className="h-4 w-4 ml-1" />
               </Button>
             </div>
           )}
 
           {/* Header */}
-          <header className="bg-card border-b border-border px-4 py-3 flex justify-between items-center sticky top-0 z-40">
-            <div className="flex items-center gap-3">
-              <SidebarTrigger />
+          <header className="bg-card border-b border-border px-4 py-3 flex justify-between items-center sticky top-0 z-40 w-full max-w-full">
+            <div className="flex items-center gap-2 md:gap-3 overflow-hidden">
+              {!isMobile && <SidebarTrigger className="shrink-0" />}
               {isMobile && (
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
+                <div className="flex items-center gap-1.5 shrink-0 overflow-hidden">
+                  <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center shrink-0">
                     <Pill className="w-3.5 h-3.5 text-primary-foreground" />
                   </div>
-                  <span className="text-sm font-semibold text-foreground">UBSF</span>
+                  <span className="text-sm font-bold text-foreground truncate">UBSF</span>
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 md:gap-4 shrink-0">
               {/* Acesso Rápido Dropdown (apenas para Admin/SuperAdmin quando não está impersonando) */}
               {!isImpersonating && (user?.tipo === 'ADMIN' || user?.tipo === 'SUPER_ADMIN') && availableUsers && availableUsers.length > 0 && (
                 <div className="hidden md:flex items-center gap-2">
@@ -152,46 +158,64 @@ export function Layout({ children }: LayoutProps) {
                 </div>
               )}
 
-              <div className="flex items-center gap-2">
-                <UserIcon className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium hidden sm:inline text-foreground">{user?.nome}</span>
+              <div className="flex items-center gap-1.5 md:gap-2">
+                <UserIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-sm font-medium hidden sm:inline text-foreground truncate max-w-[100px]">{user?.nome}</span>
                 <Badge 
                   variant={user?.tipo === 'SUPER_ADMIN' ? 'destructive' : user?.tipo === 'ADMIN' ? 'default' : 'secondary'} 
-                  className="text-[10px]"
+                  className="text-[9px] md:text-[10px] shrink-0"
                 >
-                  {user?.tipo === 'SUPER_ADMIN' ? 'SUPER ADMIN' : user?.tipo === 'ADMIN' ? 'ADMIN' : 'COMUM'}
+                  {user?.tipo === 'SUPER_ADMIN' ? 'SUPER' : user?.tipo === 'ADMIN' ? 'ADMIN' : 'COMUM'}
                 </Badge>
               </div>
-              <Button variant="outline" size="sm" onClick={logout}>
-                <LogOut className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Sair</span>
+              <Button variant="outline" size="sm" onClick={logout} className="shrink-0">
+                <LogOut className="h-4 w-4 md:mr-2" />
+                <span className="hidden md:inline">Sair</span>
               </Button>
             </div>
           </header>
           
           {/* Main content - add bottom padding on mobile for nav */}
-          <main className={`flex-1 p-4 lg:p-6 ${isMobile ? 'pb-24' : ''}`}>
+          <main className={`flex-1 w-full max-w-full overflow-x-hidden p-4 lg:p-6 ${isMobile ? 'pb-24' : ''}`}>
             {children}
           </main>
 
           {/* Mobile Bottom Navigation */}
           {isMobile && (
-            <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border safe-area-bottom">
-              <div className="flex items-center overflow-x-auto no-scrollbar">
-                {visibleNavItems.map((item) => (
-                  <button
-                    key={item.path}
-                    onClick={() => navigate(item.path)}
-                    className={`flex flex-col items-center gap-0.5 py-2 px-2.5 min-w-[60px] flex-shrink-0 transition-colors ${
-                      isActive(item.path)
-                        ? 'text-primary'
-                        : 'text-muted-foreground'
-                    }`}
-                  >
-                    <item.icon className={`h-5 w-5 ${isActive(item.path) ? 'stroke-[2.5]' : ''}`} />
-                    <span className="text-[9px] font-medium leading-tight">{item.label}</span>
-                  </button>
-                ))}
+            <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border safe-area-bottom shadow-[0_-4px_12px_rgba(0,0,0,0.05)] w-full max-w-full overflow-hidden">
+              <div className="overflow-hidden cursor-grab active:cursor-grabbing w-full" ref={emblaRef}>
+                <div className="flex touch-pan-x select-none embla__container">
+                  {visibleNavItems.map((item) => (
+                    <button
+                      key={item.path}
+                      onClick={() => navigate(item.path)}
+                      className={`flex flex-col items-center justify-center gap-1 py-3 px-1 min-w-[72px] flex-shrink-0 transition-all duration-200 relative group ${
+                        isActive(item.path)
+                          ? 'text-primary'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <div className={`p-1.5 rounded-xl transition-all duration-300 ${
+                        isActive(item.path) 
+                          ? 'bg-primary/10 shadow-sm' 
+                          : 'group-active:scale-90 group-active:bg-muted'
+                      }`}>
+                        <item.icon className={`h-5 w-5 transition-transform duration-300 ${
+                          isActive(item.path) ? 'stroke-[2.5] scale-110' : ''
+                        }`} />
+                      </div>
+                      <span className={`text-[9px] font-bold tracking-tight transition-all duration-300 ${
+                        isActive(item.path) ? 'opacity-100' : 'opacity-80'
+                      }`}>
+                        {item.label}
+                      </span>
+                      
+                      {isActive(item.path) && (
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-primary rounded-full" />
+                      )}
+                    </button>
+                  ))}
+                </div>
               </div>
             </nav>
           )}

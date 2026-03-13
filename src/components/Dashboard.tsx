@@ -5,8 +5,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Activity, Users, Package, TrendingUp, TrendingDown, AlertTriangle, Calendar, AlertCircle } from 'lucide-react';
-import { format, startOfMonth } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { format } from 'date-fns/format';
+import { startOfMonth } from 'date-fns/startOfMonth';
+import { ptBR } from 'date-fns/locale/pt-BR';
 import { useAuth } from '@/contexts/AuthContext';
 
 export function Dashboard() {

@@ -1,7 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import confetti from 'canvas-confetti';
 import { CheckCircle2, PartyPopper } from 'lucide-react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 
 interface PaymentCelebrationProps {
   isOpen: boolean;
@@ -13,34 +18,41 @@ export function PaymentCelebration({ isOpen, onClose }: PaymentCelebrationProps)
 
   useEffect(() => {
     if (isOpen) {
-      // Fire confetti multiple times for a richer effect
-      const duration = 5 * 1000;
-      const animationEnd = Date.now() + duration;
-      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
-
-      const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
-
-      const interval: any = setInterval(function() {
-        const timeLeft = animationEnd - Date.now();
-
-        if (timeLeft <= 0) {
-          return clearInterval(interval);
-        }
-
-        const particleCount = 50 * (timeLeft / duration);
+      // Dynamic import to avoid build-time resolution issues
+      import('canvas-confetti').then((confettiModule) => {
+        const confetti = confettiModule.default;
         
-        // Since particles fall down, start a bit higher than random
-        confetti({
-          ...defaults,
-          particleCount,
-          origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
-        });
-        confetti({
-          ...defaults,
-          particleCount,
-          origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
-        });
-      }, 250);
+        const duration = 5 * 1000;
+        const animationEnd = Date.now() + duration;
+        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
+
+        const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
+
+        const interval: any = setInterval(function() {
+          const timeLeft = animationEnd - Date.now();
+
+          if (timeLeft <= 0) {
+            return clearInterval(interval);
+          }
+
+          const particleCount = 50 * (timeLeft / duration);
+          
+          confetti({
+            ...defaults,
+            particleCount,
+            origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+          });
+          confetti({
+            ...defaults,
+            particleCount,
+            origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+          });
+        }, 250);
+        
+        return () => clearInterval(interval);
+      }).catch(err => {
+        console.error('Falha ao carregar animação de confetes:', err);
+      });
 
       // 10 second countdown to close
       const timer = setInterval(() => {
@@ -55,7 +67,6 @@ export function PaymentCelebration({ isOpen, onClose }: PaymentCelebrationProps)
       }, 1000);
 
       return () => {
-        clearInterval(interval);
         clearInterval(timer);
       };
     } else {

@@ -7,8 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { format } from 'date-fns/format';
+import { ptBR } from 'date-fns/locale/pt-BR';
 import type { Product } from '@/types';
 
 interface LoteInfo {
@@ -72,13 +72,13 @@ export function ProductSelection({
           </div>
 
           {produtoSelecionado && (
-            <div className="bg-blue-50 p-3 rounded-lg">
-              <div className="flex items-center gap-2 text-blue-700">
-                <Package className="h-4 w-4" />
-                <span className="font-medium">Estoque Disponível</span>
+            <div className="bg-primary/10 p-4 rounded-xl border border-primary/20 shadow-sm transition-all animate-in fade-in slide-in-from-top-1">
+              <div className="flex items-center gap-2 text-primary">
+                <Package className="h-5 w-5" />
+                <span className="font-semibold">Estoque Disponível</span>
               </div>
-              <p className="text-blue-600 mt-1">
-                {produtoSelecionado.estoque_atual} {produtoSelecionado.unidade_medida}
+              <p className="text-foreground/90 mt-1 font-bold text-2xl">
+                {produtoSelecionado.estoque_atual} <span className="text-lg font-medium text-muted-foreground">{produtoSelecionado.unidade_medida}</span>
               </p>
             </div>
           )}
