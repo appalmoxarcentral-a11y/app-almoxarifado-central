@@ -28,6 +28,9 @@ dist-ssr
 .env.test.local
 .env.production.local
 
+# Vercel
+.vercel/
+.vercelignore
 # Local Docs & PRD
 PRD.md
 docs/
