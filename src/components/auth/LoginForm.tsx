@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { LogIn, User } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -14,11 +14,17 @@ export function LoginForm() {
   const [senha, setSenha] = useState('');
   const { login, isLoading, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Redirecionar se já estiver logado
   useEffect(() => {
     if (user) {
-      navigate('/', { replace: true });
+      console.log('[LoginForm] Redirecionando usuário logado:', user);
+      if (user.tipo === 'SUPER_ADMIN') {
+          navigate('/admin', { replace: true });
+      } else {
+          navigate('/', { replace: true });
+      }
     }
   }, [user, navigate]);
 
@@ -41,11 +47,11 @@ export function LoginForm() {
         title: "Login realizado!",
         description: "Bem-vindo ao sistema.",
       });
-      navigate('/', { replace: true });
+      // O useEffect cuidará do redirecionamento
     } else {
       toast({
         title: "Erro no login",
-        description: "Email ou senha incorretos.",
+        description: "Email ou senha incorretos. Se esta é sua primeira vez no novo sistema SaaS, crie uma conta.",
         variant: "destructive",
       });
     }
@@ -105,6 +111,12 @@ export function LoginForm() {
             </Button>
           </form>
         </CardContent>
+        <CardFooter className="flex justify-center flex-col gap-2">
+            <p className="text-sm text-muted-foreground">Novo no sistema SaaS?</p>
+            <Button variant="outline" className="w-full" asChild>
+                <Link to="/signup">Criar Conta Administrativa</Link>
+            </Button>
+        </CardFooter>
       </Card>
     </div>
   );

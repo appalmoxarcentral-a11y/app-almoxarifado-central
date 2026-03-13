@@ -15,7 +15,7 @@ import { ProductEntryPagination } from './ProductEntryPagination';
 import { useProductEntryQueries } from './hooks/useProductEntryQueries';
 
 export function RecentEntriesList() {
-  const { user } = useAuth();
+  const { user, isImpersonating } = useAuth();
   const { updateEntryMutation, deleteEntryMutation } = useProductEntryMutations();
   const [editingEntry, setEditingEntry] = useState<ProductEntry | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -23,7 +23,7 @@ export function RecentEntriesList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
 
-  const isAdmin = user?.tipo === 'ADMIN';
+  const isAdmin = user?.tipo === 'ADMIN' || user?.tipo === 'SUPER_ADMIN' || isImpersonating;
 
   // Debounce search term
   useEffect(() => {

@@ -7,6 +7,7 @@ import { usePurchaseDraftPersistence } from './usePurchaseDraftPersistence';
 export function usePurchaseState() {
   const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([]);
   const [lastSavedState, setLastSavedState] = useState<string>('');
+  const [hasAttemptedAutoLoad, setHasAttemptedAutoLoad] = useState(false);
   const [filters, setFilters] = useState<PurchaseFilters>({
     searchTerm: '',
     estoqueMinimo: undefined,
@@ -133,16 +134,49 @@ export function usePurchaseState() {
     return () => clearTimeout(timer);
   }, [purchaseItems, persistence.autoSave, itemsForPDF.length]);
 
-  // Load latest draft on component mount
+  // Carregar rascunho mais recente apenas na montagem inicial
   useEffect(() => {
-    if (persistence.drafts.length > 0 && !persistence.currentDraftId && purchaseItems.length > 0) {
-      const latestDraft = persistence.drafts[0]; // Already sorted by data_atualizacao desc
+    if (!hasAttemptedAutoLoad && persistence.drafts.length > 0 && !persistence.currentDraftId && purchaseItems.length > 0) {
+      setHasAttemptedAutoLoad(true);
+      const latestDraft = persistence.drafts[0]; // Já ordenado por data_atualizacao desc
       if (latestDraft.dados_produtos && latestDraft.dados_produtos.length > 0) {
         console.log('🔄 Carregando rascunho mais recente automaticamente:', latestDraft.nome_rascunho);
         loadDraft(latestDraft);
       }
     }
-  }, [persistence.drafts, persistence.currentDraftId, purchaseItems.length, loadDraft]);
+  }, [persistence.drafts, persistence.currentDraftId, purchaseItems.length, loadDraft, hasAttemptedAutoLoad]);
+
+  const loadDraftAsBase = useCallback((draft: any) => {
+    setHasAttemptedAutoLoad(true); // Marca como carregado para evitar auto-load posterior
+    const loadedItems = persistence.loadDraft(draft);
+    persistence.createNewDraft(); // Reseta currentDraftId para nulo
+    const items = loadedItems.map(item => ({
+      id: item.id,
+      codigo: item.codigo,
+      descricao: item.descricao,
+      unidade_medida: item.unidade_medida,
+      estoque_atual: item.estoque_atual,
+      quantidade_reposicao: item.quantidade_reposicao
+    }));
+    setPurchaseItems(items);
+    setLastSavedState(''); // Reseta para detectar mudanças
+    return loadedItems;
+  }, [persistence.loadDraft, persistence.createNewDraft]);
+
+  const createNewDraft = useCallback(() => {
+    setHasAttemptedAutoLoad(true); // Marca como carregado para evitar auto-load posterior
+    persistence.createNewDraft();
+    setPurchaseItems(items => items.map(item => ({
+      ...item,
+      quantidade_reposicao: undefined
+    })));
+    setLastSavedState('');
+  }, [persistence.createNewDraft]);
+
+  const loadDraftWrapper = useCallback((draft: any) => {
+    setHasAttemptedAutoLoad(true); // Marca como carregado
+    return loadDraft(draft);
+  }, [loadDraft]);
 
   return {
     purchaseItems,
@@ -154,8 +188,10 @@ export function usePurchaseState() {
     initializePurchaseItems,
     // Draft management
     ...persistence,
+    createNewDraft,
+    loadDraftAsBase,
     saveDraft,
-    loadDraft,
+    loadDraft: loadDraftWrapper,
     draftItems: purchaseItems.map(item => ({
       id: item.id,
       codigo: item.codigo,

@@ -30,7 +30,7 @@ export function UnidadeMedidaManager() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [unidadeToDelete, setUnidadeToDelete] = useState<UnidadeMedida | null>(null);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
 
   useEffect(() => {
     loadUnidades();
@@ -60,6 +60,15 @@ export function UnidadeMedidaManager() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!hasPermission('cadastro_produtos')) {
+      toast({
+        title: "Acesso negado",
+        description: "Você não tem permissão para gerenciar unidades de medida.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!formData.codigo || !formData.descricao) {
       toast({
         title: "Campos obrigatórios",
@@ -150,6 +159,7 @@ export function UnidadeMedidaManager() {
   };
 
   const handleEdit = (unidade: UnidadeMedida) => {
+    if (!hasPermission('cadastro_produtos')) return;
     setEditingUnidade(unidade);
     setFormData({
       codigo: unidade.codigo,
@@ -190,6 +200,15 @@ export function UnidadeMedidaManager() {
   };
 
   const handleDeleteConfirm = async (unidade: UnidadeMedida) => {
+    if (!hasPermission('pode_excluir')) {
+      toast({
+        title: "Acesso negado",
+        description: "Você não tem permissão para excluir registros.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const dependencyCount = await checkProductDependencies(unidade.id);
       
@@ -214,7 +233,7 @@ export function UnidadeMedidaManager() {
   };
 
   const handleDelete = async () => {
-    if (!unidadeToDelete) return;
+    if (!unidadeToDelete || !hasPermission('pode_excluir')) return;
 
     try {
       const { error } = await supabase
@@ -242,6 +261,7 @@ export function UnidadeMedidaManager() {
   };
 
   const toggleUnidadeAtiva = async (id: string, ativo: boolean) => {
+    if (!hasPermission('cadastro_produtos')) return;
     try {
       const { error } = await supabase
         .from('unidades_medida')
@@ -265,11 +285,11 @@ export function UnidadeMedidaManager() {
     }
   };
 
-  if (user?.tipo !== 'ADMIN') {
+  if (!hasPermission('cadastro_produtos')) {
     return (
       <Card>
         <CardContent className="p-6 text-center">
-          <p className="text-gray-500">Apenas administradores podem gerenciar unidades de medida.</p>
+          <p className="text-gray-500">Você não tem permissão para gerenciar unidades de medida.</p>
         </CardContent>
       </Card>
     );

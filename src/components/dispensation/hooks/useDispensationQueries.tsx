@@ -17,7 +17,8 @@ export function useDispensationQueries(selectedProduct: string) {
       const { data, error } = await supabase
         .from('pacientes')
         .select('*')
-        .order('nome');
+        .order('nome')
+        .limit(10000); // Aumentado para suportar bases maiores e garantir busca completa no client-side
       
       if (error) throw error;
       return data as Patient[];
@@ -83,6 +84,9 @@ export function useDispensationQueries(selectedProduct: string) {
             descricao,
             codigo,
             unidade_medida
+          ),
+          tenant:tenant_id (
+            name
           )
         `)
         .order('created_at', { ascending: false })

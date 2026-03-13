@@ -6,11 +6,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 
 export function usePurchaseDraftPersistence() {
-  const { user, hasPermission } = useAuth();
+  const { user, hasPermission, isImpersonating } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
+
+  const isManagement = user?.tipo === 'ADMIN' || user?.tipo === 'SUPER_ADMIN' || isImpersonating;
 
   // Check permissions - allow both types of users to manage drafts
   const canManageDrafts = hasPermission('gerenciar_rascunhos_compras') || hasPermission('relatorio_compras');
@@ -41,15 +43,15 @@ export function usePurchaseDraftPersistence() {
 
       console.log('✅ Rascunhos encontrados:', data?.length || 0);
       
-      // Buscar dados dos usuários separadamente
+      // Buscar dados dos usuários separadamente (usando a tabela profiles)
       const userIds = [...new Set(data?.map(item => item.usuario_id) || [])];
       const usersData = userIds.length > 0 ? await supabase
-        .from('usuarios')
-        .select('id, nome, email')
+        .from('profiles')
+        .select('id, full_name, email')
         .in('id', userIds) : { data: [] };
 
       const usersMap = new Map(
-        (usersData.data || []).map(user => [user.id, { nome: user.nome, email: user.email }])
+        (usersData.data || []).map(p => [p.id, { nome: p.full_name, email: p.email }])
       );
       
       return (data || []).map(item => ({
@@ -82,7 +84,8 @@ export function usePurchaseDraftPersistence() {
           usuario_id: user.id,
           nome_rascunho,
           dados_produtos: dados_produtos as any,
-          ativo: true
+          ativo: true,
+          tenant_id: user.tenant_id || '00000000-0000-0000-0000-000000000000'
         })
         .select()
         .single();
@@ -136,7 +139,7 @@ export function usePurchaseDraftPersistence() {
       const draft = drafts.find(d => d.id === id);
       const canEdit = draft && (
         draft.usuario_id === user.id || 
-        user.tipo === 'ADMIN' || 
+        isManagement || 
         canAccessReports || 
         canManageDrafts
       );
@@ -187,7 +190,7 @@ export function usePurchaseDraftPersistence() {
 
       // Verificar se o usuário pode excluir este rascunho
       const draft = drafts.find(d => d.id === draftId);
-      const canDelete = draft && (draft.usuario_id === user.id || user.tipo === 'ADMIN' || canAccessReports);
+      const canDelete = draft && (draft.usuario_id === user.id || isManagement || canAccessReports);
       
       if (!canDelete) {
         throw new Error('Você não tem permissão para excluir este rascunho');
@@ -233,37 +236,16 @@ export function usePurchaseDraftPersistence() {
       setIsAutoSaving(true);
       console.log('💾 Auto-salvando rascunho...');
 
-      // Find existing draft or create one
+      // SÓ auto-salva se já houver um rascunho selecionado (evita sobreposição)
       if (currentDraftId) {
-        // Atualizar rascunho existente
         await updateDraftMutation.mutateAsync({
           id: currentDraftId,
           dados_produtos: items
         });
+        console.log('✅ Auto-save concluído');
       } else {
-        // Try to find the latest draft from this user or shared drafts
-        const latestDraft = drafts.find(d => d.usuario_id === user.id) || drafts[0];
-        
-        if (latestDraft) {
-          // Update existing draft
-          setCurrentDraftId(latestDraft.id);
-          await updateDraftMutation.mutateAsync({
-            id: latestDraft.id,
-            dados_produtos: items
-          });
-        } else {
-          // Create new draft only if user can manage drafts
-          if (canManageDrafts) {
-            const newDraft = await createDraftMutation.mutateAsync({
-              nome_rascunho: `Rascunho ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`,
-              dados_produtos: items
-            });
-            setCurrentDraftId(newDraft.id);
-          }
-        }
+        console.log('ℹ️ Auto-save ignorado: nenhum rascunho ativo (novo pedido)');
       }
-      
-      console.log('✅ Auto-save concluído');
     } catch (error) {
       console.error('❌ Erro no auto-save:', error);
     } finally {
@@ -272,30 +254,22 @@ export function usePurchaseDraftPersistence() {
   };
 
   const saveDraft = (nome: string, items: PurchaseDraftItem[]) => {
-    // Allow saving for both types of users
+    // Permitir salvar para ambos os tipos de usuários
     if (!canManageDrafts && !canAccessReports) {
       console.error('Usuário sem permissão para gerenciar rascunhos');
       return;
     }
     
     if (currentDraftId) {
+      // Se já temos um ID, estamos editando um rascunho existente
       updateDraftMutation.mutate({
         id: currentDraftId,
         nome_rascunho: nome,
         dados_produtos: items
       });
     } else {
-      // Find existing draft to update or create new one
-      const existingDraft = drafts.find(d => d.usuario_id === user?.id) || drafts[0];
-      
-      if (existingDraft && canEditDraft(existingDraft)) {
-        setCurrentDraftId(existingDraft.id);
-        updateDraftMutation.mutate({
-          id: existingDraft.id,
-          nome_rascunho: nome,
-          dados_produtos: items
-        });
-      } else if (canManageDrafts) {
+      // Se o ID é nulo, é um NOVO rascunho (mesmo que baseado em outro)
+      if (canManageDrafts) {
         createDraftMutation.mutate({
           nome_rascunho: nome,
           dados_produtos: items
@@ -321,7 +295,7 @@ export function usePurchaseDraftPersistence() {
     
     // Verificar permissão antes de executar
     const draft = drafts.find(d => d.id === draftId);
-    const canDelete = draft && (draft.usuario_id === user?.id || user?.tipo === 'ADMIN' || canAccessReports);
+    const canDelete = draft && (draft.usuario_id === user?.id || isManagement || canAccessReports);
     
     if (!canDelete) {
       toast({
@@ -341,12 +315,12 @@ export function usePurchaseDraftPersistence() {
 
   // Função para verificar se pode editar um rascunho
   const canEditDraft = (draft: RascunhoCompra): boolean => {
-    return draft.usuario_id === user?.id || user?.tipo === 'ADMIN' || canAccessReports;
+    return draft.usuario_id === user?.id || isManagement || canAccessReports;
   };
 
   // Função para verificar se pode excluir um rascunho
   const canDeleteDraft = (draft: RascunhoCompra): boolean => {
-    return draft.usuario_id === user?.id || user?.tipo === 'ADMIN' || canAccessReports;
+    return draft.usuario_id === user?.id || isManagement || canAccessReports;
   };
 
   return {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Save, FolderOpen, Plus, Trash2 } from 'lucide-react';
+import { Save, FolderOpen, Plus, Trash2, Calendar, Copy, FileText, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,8 +24,15 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, addMonths, format, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { RascunhoCompra, PurchaseDraftItem } from '@/types/purchase-draft';
 
 interface DraftManagerProps {
@@ -37,10 +44,13 @@ interface DraftManagerProps {
   canDeleteDraft: (draft: RascunhoCompra) => boolean;
   onSaveDraft: (nome: string, items: PurchaseDraftItem[]) => void;
   onLoadDraft: (draft: RascunhoCompra) => PurchaseDraftItem[];
+  onLoadDraftAsBase: (draft: RascunhoCompra) => PurchaseDraftItem[];
   onDeleteDraft: (draftId: string) => void;
   onCreateNew: () => void;
   getCurrentDraft: () => RascunhoCompra | undefined;
   items: PurchaseDraftItem[];
+  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  className?: string;
 }
 
 export function DraftManager({
@@ -52,16 +62,37 @@ export function DraftManager({
   canDeleteDraft,
   onSaveDraft,
   onLoadDraft,
+  onLoadDraftAsBase,
   onDeleteDraft,
   onCreateNew,
   getCurrentDraft,
-  items
+  items,
+  variant,
+  className
 }: DraftManagerProps) {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [loadDialogOpen, setLoadDialogOpen] = useState(false);
+  const [createStepDialogOpen, setCreateStepDialogOpen] = useState(false);
+  const [creationMode, setCreationMode] = useState<'type' | 'base'>('type');
   const [draftName, setDraftName] = useState('');
 
   const currentDraft = getCurrentDraft();
+  const isMobileLayout = className?.includes('h-10'); // Heurística baseada no layout mobile do PurchaseReport
+
+  const getMonthOptions = () => {
+    const options = [];
+    const now = new Date();
+    
+    for (let i = 0; i < 4; i++) {
+      const date = addMonths(now, i);
+      const label = format(date, "'Pedido mês' MMMM yyyy", { locale: ptBR });
+      options.push({ label, value: label });
+    }
+    
+    return options;
+  };
+
+  const monthOptions = getMonthOptions();
 
   const handleSave = () => {
     if (currentDraft) {
@@ -69,6 +100,7 @@ export function DraftManager({
       onSaveDraft(currentDraft.nome_rascunho, items);
     } else {
       // Criar novo rascunho
+      setDraftName(monthOptions[0].value);
       setSaveDialogOpen(true);
     }
   };
@@ -87,8 +119,27 @@ export function DraftManager({
   };
 
   const handleCreateNew = () => {
-    onCreateNew();
     setLoadDialogOpen(false);
+    setCreationMode('type');
+    setCreateStepDialogOpen(true);
+  };
+
+  const handleStartFromScratch = () => {
+    onCreateNew();
+    setCreateStepDialogOpen(false);
+    setDraftName(monthOptions[0].value);
+    setSaveDialogOpen(true);
+  };
+
+  const handleBaseOnExisting = () => {
+    setCreationMode('base');
+  };
+
+  const handleSelectBaseDraft = (draft: RascunhoCompra) => {
+    onLoadDraftAsBase(draft);
+    setCreateStepDialogOpen(false);
+    setDraftName(monthOptions[0].value);
+    setSaveDialogOpen(true);
   };
 
   const getItemsWithQuantity = (draftItems: PurchaseDraftItem[]) => {
@@ -96,8 +147,8 @@ export function DraftManager({
   };
 
   return (
-    <div className="flex items-center gap-2">
-      {currentDraft && (
+    <div className={`flex items-center ${isMobileLayout ? 'gap-1' : 'gap-2'} w-full`}>
+      {currentDraft && !isMobileLayout && (
         <Badge variant="outline" className="text-xs">
           {currentDraft.nome_rascunho}
         </Badge>
@@ -107,24 +158,26 @@ export function DraftManager({
         onClick={handleSave}
         disabled={isSaving}
         size="sm"
-        variant="outline"
+        variant={variant || "outline"}
+        className={className}
       >
-        <Save className="h-4 w-4 mr-2" />
-        {currentDraft ? 'Salvar' : 'Salvar Como...'}
+        <Save className="h-4 w-4 mr-1.5" />
+        {currentDraft ? 'Salvar' : 'Salvar'}
       </Button>
 
-      <Dialog open={loadDialogOpen} onOpenChange={setLoadDialogOpen}>
-        <DialogTrigger asChild>
-          <Button size="sm" variant="outline">
-            <FolderOpen className="h-4 w-4 mr-2" />
-            Rascunhos
-          </Button>
-        </DialogTrigger>
+      {(isMobileLayout || !className) && (
+        <Dialog open={loadDialogOpen} onOpenChange={setLoadDialogOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" variant="outline" className={className}>
+              <FolderOpen className="h-4 w-4 mr-1.5" />
+              Rascunhos
+            </Button>
+          </DialogTrigger>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Gerenciar Rascunhos</DialogTitle>
+            <DialogTitle>Selecionar Mês ou Rascunho</DialogTitle>
             <DialogDescription>
-              Carregue um rascunho salvo ou crie um novo relatório.
+              Escolha o rascunho mensal que deseja editar ou crie um novo.
             </DialogDescription>
           </DialogHeader>
           
@@ -152,6 +205,9 @@ export function DraftManager({
                   <div key={draft.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
+                        {draft.nome_rascunho.startsWith('Pedido mês') ? (
+                          <Calendar className="h-4 w-4 text-primary" />
+                        ) : null}
                         <h4 className="font-medium">{draft.nome_rascunho}</h4>
                         {draft.id === currentDraftId && (
                           <Badge variant="default" className="text-xs">Atual</Badge>
@@ -214,6 +270,80 @@ export function DraftManager({
           </div>
         </DialogContent>
       </Dialog>
+      )}
+
+      <Dialog open={createStepDialogOpen} onOpenChange={setCreateStepDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Novo Pedido de Compras</DialogTitle>
+            <DialogDescription>
+              Como deseja iniciar este novo pedido?
+            </DialogDescription>
+          </DialogHeader>
+
+          {creationMode === 'type' ? (
+            <div className="grid grid-cols-1 gap-4 py-4">
+              <Button 
+                variant="outline" 
+                className="h-24 flex flex-col items-center justify-center gap-2 hover:border-primary hover:bg-primary/5"
+                onClick={handleStartFromScratch}
+              >
+                <FileText className="h-8 w-8 text-muted-foreground" />
+                <div className="text-center">
+                  <div className="font-semibold">Pedido do Zero</div>
+                  <div className="text-xs text-muted-foreground">Inicia com todos os itens vazios</div>
+                </div>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="h-24 flex flex-col items-center justify-center gap-2 hover:border-primary hover:bg-primary/5"
+                onClick={handleBaseOnExisting}
+                disabled={drafts.length === 0}
+              >
+                <Copy className="h-8 w-8 text-muted-foreground" />
+                <div className="text-center">
+                  <div className="font-semibold">Basear em Rascunho</div>
+                  <div className="text-xs text-muted-foreground">Copia as quantidades de um pedido anterior</div>
+                </div>
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4 py-4">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="p-0 h-auto font-normal text-primary hover:underline"
+                  onClick={() => setCreationMode('type')}
+                >
+                  Voltar
+                </Button>
+                <span>/ Selecionar rascunho base</span>
+              </div>
+              
+              <div className="max-h-64 overflow-y-auto space-y-2 pr-2">
+                {drafts.map((draft) => (
+                  <Button
+                    key={draft.id}
+                    variant="outline"
+                    className="w-full justify-between h-auto p-3 text-left hover:border-primary"
+                    onClick={() => handleSelectBaseDraft(draft)}
+                  >
+                    <div className="flex flex-col gap-1 overflow-hidden">
+                      <div className="font-medium truncate">{draft.nome_rascunho}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {getItemsWithQuantity(draft.dados_produtos)} produtos • {formatDistanceToNow(new Date(draft.data_atualizacao), { locale: ptBR, addSuffix: true })}
+                      </div>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
         <DialogContent>
@@ -225,17 +355,30 @@ export function DraftManager({
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="draft-name">Nome do Rascunho</Label>
+              <Label htmlFor="draft-month">Selecione o Mês do Pedido</Label>
+              <Select 
+                value={draftName} 
+                onValueChange={(value) => setDraftName(value)}
+              >
+                <SelectTrigger id="draft-month">
+                  <SelectValue placeholder="Selecione um mês" />
+                </SelectTrigger>
+                <SelectContent>
+                  {monthOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="draft-name">Nome do Rascunho (opcional para ajuste)</Label>
               <Input
                 id="draft-name"
                 value={draftName}
                 onChange={(e) => setDraftName(e.target.value)}
                 placeholder="Ex: Relatório Janeiro 2024"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleSaveNew();
-                  }
-                }}
               />
             </div>
           </div>

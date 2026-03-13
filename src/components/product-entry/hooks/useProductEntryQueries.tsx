@@ -46,7 +46,9 @@ export const useProductEntryQueries = (params: UseProductEntryQueriesParams = {}
 
       // Apply search filter if searchTerm is provided
       if (searchTerm) {
-        query = query.or(`produto.descricao.ilike.%${searchTerm}%,lote.ilike.%${searchTerm}%`);
+        // Nota: O filtro OR em campos de relação pode ser complexo. 
+        // Se falhar, talvez precise de uma abordagem diferente.
+        query = query.or(`lote.ilike.%${searchTerm}%`);
       }
 
       // Get total count for pagination

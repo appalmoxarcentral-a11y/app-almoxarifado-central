@@ -26,7 +26,7 @@ export function ExcelImportExport({ mode, onSuccess }: ExcelImportExportProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isImpersonating } = useAuth();
   const { processProductsFromExcel, processEntriesFromExcel, isProcessing } = useExcelProcessor();
 
   React.useEffect(() => {
@@ -177,7 +177,7 @@ export function ExcelImportExport({ mode, onSuccess }: ExcelImportExportProps) {
     );
   }
 
-  const canImport = mode === 'entries' || (mode === 'products' && user?.tipo === 'ADMIN');
+  const canImport = mode === 'entries' || (mode === 'products' && (user?.tipo === 'ADMIN' || user?.tipo === 'SUPER_ADMIN' || isImpersonating));
 
   return (
     <Card>

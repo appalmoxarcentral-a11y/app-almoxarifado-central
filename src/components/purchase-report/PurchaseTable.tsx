@@ -2,8 +2,10 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Package } from 'lucide-react';
+import { Package, Hash, Layers } from 'lucide-react';
 import type { PurchaseItem } from '@/types/purchase';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Badge } from '@/components/ui/badge';
 
 interface PurchaseTableProps {
   items: PurchaseItem[];
@@ -11,6 +13,7 @@ interface PurchaseTableProps {
 }
 
 export function PurchaseTable({ items, onQuantityChange }: PurchaseTableProps) {
+  const isMobile = useIsMobile();
   const handleQuantityChange = (productId: string, value: string) => {
     const quantity = value === '' ? undefined : parseInt(value);
     if (quantity !== undefined && quantity < 0) return;
@@ -30,6 +33,59 @@ export function PurchaseTable({ items, onQuantityChange }: PurchaseTableProps) {
     );
   }
 
+  if (isMobile) {
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg font-bold uppercase tracking-wider text-muted-foreground px-1">
+          Lista de Produtos ({items.length})
+        </h3>
+        <div className="grid grid-cols-1 gap-4 pb-20">
+          {items.map((item) => (
+            <Card key={item.id} className="overflow-hidden border-muted-foreground/10 hover:border-primary/50 transition-all">
+              <CardContent className="p-4 space-y-4">
+                <div className="flex justify-between items-start gap-4">
+                  <div className="space-y-1 flex-1">
+                    <h4 className="font-bold text-lg leading-tight text-foreground">{item.descricao}</h4>
+                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Hash className="h-3 w-3" /> {item.codigo}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Layers className="h-3 w-3" /> {item.unidade_medida}
+                      </span>
+                    </div>
+                  </div>
+                  <Badge 
+                    variant="outline" 
+                    className={`shrink-0 font-bold ${
+                      item.estoque_atual <= 10 ? 'bg-red-500/10 text-red-500 border-red-500/20' : 
+                      item.estoque_atual <= 50 ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 
+                      'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                    }`}
+                  >
+                    {item.estoque_atual} em estoque
+                  </Badge>
+                </div>
+
+                <div className="flex items-center justify-between gap-4 pt-2 border-t border-muted/30">
+                  <span className="text-sm font-medium text-muted-foreground">Qtd. Reposição</span>
+                  <Input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={item.quantidade_reposicao || ''}
+                    onChange={(e) => handleQuantityChange(item.id, e.target.value)}
+                    className="w-24 text-center bg-muted/20 border-muted-foreground/20 focus:border-primary font-bold h-10"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -37,42 +93,42 @@ export function PurchaseTable({ items, onQuantityChange }: PurchaseTableProps) {
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full border-collapse">
             <thead>
-              <tr className="border-b">
-                <th className="text-left p-2 font-medium">Código</th>
-                <th className="text-left p-2 font-medium">Descrição</th>
-                <th className="text-center p-2 font-medium">Unidade</th>
-                <th className="text-center p-2 font-medium">Estoque Atual</th>
-                <th className="text-center p-2 font-medium">Qtd. Reposição</th>
+              <tr className="border-b bg-muted/20">
+                <th className="text-left p-3 font-semibold text-muted-foreground uppercase text-xs tracking-wider">Código</th>
+                <th className="text-left p-3 font-semibold text-muted-foreground uppercase text-xs tracking-wider">Descrição</th>
+                <th className="text-center p-3 font-semibold text-muted-foreground uppercase text-xs tracking-wider">Unidade</th>
+                <th className="text-center p-3 font-semibold text-muted-foreground uppercase text-xs tracking-wider">Estoque Atual</th>
+                <th className="text-center p-3 font-semibold text-muted-foreground uppercase text-xs tracking-wider">Qtd. Reposição</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-border">
               {items.map((item) => (
-                <tr key={item.id} className="border-b hover:bg-gray-50">
-                  <td className="p-2 font-mono text-sm">{item.codigo}</td>
-                  <td className="p-2">{item.descricao}</td>
-                  <td className="p-2 text-center">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                <tr key={item.id} className="group transition-colors hover:bg-muted/40">
+                  <td className="p-3 font-mono text-sm text-foreground/80">{item.codigo}</td>
+                  <td className="p-3 text-foreground font-medium">{item.descricao}</td>
+                  <td className="p-3 text-center">
+                    <span className="px-2 py-1 bg-blue-900/30 text-blue-300 border border-blue-800/50 rounded text-xs font-medium">
                       {item.unidade_medida}
                     </span>
                   </td>
-                  <td className="p-2 text-center">
-                    <span className={`font-medium ${
-                      item.estoque_atual <= 10 ? 'text-red-600' : 
-                      item.estoque_atual <= 50 ? 'text-yellow-600' : 'text-green-600'
+                  <td className="p-3 text-center">
+                    <span className={`font-bold text-base ${
+                      item.estoque_atual <= 10 ? 'text-red-500' : 
+                      item.estoque_atual <= 50 ? 'text-amber-500' : 'text-emerald-500'
                     }`}>
                       {item.estoque_atual}
                     </span>
                   </td>
-                  <td className="p-2">
+                  <td className="p-3">
                     <Input
                       type="number"
                       min="0"
                       placeholder="0"
                       value={item.quantidade_reposicao || ''}
                       onChange={(e) => handleQuantityChange(item.id, e.target.value)}
-                      className="w-20 text-center mx-auto"
+                      className="w-24 text-center mx-auto bg-background border-muted-foreground/20 focus:border-primary transition-all font-bold"
                     />
                   </td>
                 </tr>

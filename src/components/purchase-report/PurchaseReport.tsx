@@ -1,18 +1,19 @@
 
 import React, { useEffect } from 'react';
-import { ShoppingCart } from 'lucide-react';
+import { ShoppingCart, Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PurchaseFilters } from './PurchaseFilters';
 import { PurchaseTable } from './PurchaseTable';
 import { PurchasePDFGenerator } from './PurchasePDFGenerator';
 import { DraftManager } from './DraftManager';
-import { AutoSaveIndicator } from './AutoSaveIndicator';
 import { usePurchaseData } from './hooks/usePurchaseData';
 import { usePurchaseState } from './hooks/usePurchaseState';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export function PurchaseReport() {
+  const isMobile = useIsMobile();
   const { user, hasPermission } = useAuth();
   const { produtos, isLoading, error } = usePurchaseData();
   const {
@@ -31,12 +32,11 @@ export function PurchaseReport() {
     canDeleteDraft,
     saveDraft,
     loadDraft,
+    loadDraftAsBase,
     deleteDraft,
     createNewDraft,
     getCurrentDraft,
     draftItems,
-    hasChanges,
-    isAutoSaving
   } = usePurchaseState();
 
   // Verificar se o usuário tem permissão para relatório de compras
@@ -86,77 +86,130 @@ export function PurchaseReport() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <ShoppingCart className="h-8 w-8 text-primary" />
+          {!isMobile && <ShoppingCart className="h-8 w-8 text-primary" />}
           <div>
-            <h1 className="text-3xl font-bold">Relatório de Compras</h1>
-            <div className="flex items-center gap-2">
-              <p className="text-gray-600">Gerencie as necessidades de reposição de produtos</p>
-              <AutoSaveIndicator 
-                isAutoSaving={isAutoSaving}
-                currentDraftId={currentDraftId}
-                hasChanges={hasChanges}
-              />
+            <h1 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-bold`}>Relatório de Compras</h1>
+            {!isMobile && <p className="text-gray-600">Gerencie as necessidades de reposição de produtos</p>}
+          </div>
+        </div>
+      </div>
+
+      {isMobile && itemsForPDF.length > 0 && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="p-4 bg-orange-900/10 border border-orange-500/20 rounded-xl space-y-1">
+            <div className="text-[10px] font-bold text-orange-500 uppercase tracking-wider">Produtos em Reposição</div>
+            <div className="text-3xl font-black text-foreground">{itemsForPDF.length}</div>
+          </div>
+          <div className="p-4 bg-primary/5 border border-primary/10 rounded-xl space-y-1">
+            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Total de Unidades</div>
+            <div className="text-3xl font-black text-foreground">
+              {itemsForPDF.reduce((sum, item) => sum + (item.quantidade_reposicao || 0), 0)}
             </div>
           </div>
         </div>
-        
-        <div className="flex items-center gap-4">
-          <DraftManager
-            drafts={drafts}
-            currentDraftId={currentDraftId}
-            isLoading={isDraftsLoading}
-            isSaving={isSaving}
-            canEditDraft={canEditDraft}
-            canDeleteDraft={canDeleteDraft}
-            onSaveDraft={saveDraft}
-            onLoadDraft={loadDraft}
-            onDeleteDraft={deleteDraft}
-            onCreateNew={createNewDraft}
-            getCurrentDraft={getCurrentDraft}
-            items={draftItems}
-          />
-          <PurchasePDFGenerator items={itemsForPDF} />
-        </div>
-      </div>
+      )}
 
       <PurchaseFilters 
         filters={filters}
         onFiltersChange={setFilters}
       />
 
-      {itemsForPDF.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-green-700">
-              ✓ {itemsForPDF.length} {itemsForPDF.length === 1 ? 'produto selecionado' : 'produtos selecionados'} para compra
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <div className="text-2xl font-bold text-blue-600">
-                  {itemsForPDF.length}
+      {!isMobile && itemsForPDF.length > 0 && (
+        <div className="sticky top-[73px] z-50 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <Card className="shadow-lg border-primary/20">
+            <CardHeader className="py-3">
+              <CardTitle className="text-green-700 text-lg flex items-center gap-2">
+                ✓ {itemsForPDF.length} {itemsForPDF.length === 1 ? 'produto selecionado' : 'produtos selecionados'} para compra
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="py-3">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+                <div className="text-center p-3 bg-blue-50 rounded-lg">
+                  <div className="text-xl font-bold text-blue-600">
+                    {itemsForPDF.length}
+                  </div>
+                  <div className="text-xs text-blue-600 font-medium">Produtos</div>
                 </div>
-                <div className="text-sm text-blue-600">Produtos</div>
-              </div>
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <div className="text-2xl font-bold text-green-600">
-                  {itemsForPDF.reduce((sum, item) => sum + (item.quantidade_reposicao || 0), 0)}
+                <div className="text-center p-3 bg-green-50 rounded-lg">
+                  <div className="text-xl font-bold text-green-600">
+                    {itemsForPDF.reduce((sum, item) => sum + (item.quantidade_reposicao || 0), 0)}
+                  </div>
+                  <div className="text-xs text-green-600 font-medium">Total de Unidades</div>
                 </div>
-                <div className="text-sm text-green-600">Total de Unidades</div>
+                <div className="flex items-center justify-center">
+                  <DraftManager
+                    drafts={drafts}
+                    currentDraftId={currentDraftId}
+                    isLoading={isDraftsLoading}
+                    isSaving={isSaving}
+                    canEditDraft={canEditDraft}
+                    canDeleteDraft={canDeleteDraft}
+                    onSaveDraft={saveDraft}
+                    onLoadDraft={loadDraft}
+                    onLoadDraftAsBase={loadDraftAsBase}
+                    onDeleteDraft={deleteDraft}
+                    onCreateNew={createNewDraft}
+                    getCurrentDraft={getCurrentDraft}
+                    items={draftItems}
+                  />
+                </div>
+                <div className="flex items-center justify-center">
+                  <PurchasePDFGenerator items={itemsForPDF} />
+                </div>
               </div>
-              <div className="flex items-center justify-center">
-                <PurchasePDFGenerator items={itemsForPDF} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       <PurchaseTable
         items={filteredItems}
         onQuantityChange={updatePurchaseQuantity}
       />
+
+      {isMobile && itemsForPDF.length > 0 && (
+        <div className="fixed bottom-[72px] left-0 right-0 z-50 px-2 py-3 bg-background/95 backdrop-blur-md border-t border-border shadow-[0_-4px_12px_rgba(0,0,0,0.1)]">
+          <div className="flex flex-col gap-3 max-w-md mx-auto">
+            {currentDraftId && (
+               <div className="flex justify-center">
+                 <div className="max-w-[80%] px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-[10px] font-bold text-primary flex items-center gap-1.5 animate-in fade-in slide-in-from-bottom-2">
+                   <Calendar className="h-3 w-3 shrink-0" />
+                   <span className="truncate">{getCurrentDraft()?.nome_rascunho}</span>
+                 </div>
+               </div>
+             )}
+            
+            <div className="grid grid-cols-3 gap-2">
+              <div className="col-span-1">
+                <PurchasePDFGenerator 
+                  items={itemsForPDF} 
+                  className="w-full h-10 bg-blue-600 hover:bg-blue-700 text-white font-bold border-none shadow-sm text-[10px] px-1"
+                />
+              </div>
+              
+              <div className="col-span-2">
+                <DraftManager
+                  drafts={drafts}
+                  currentDraftId={currentDraftId}
+                  isLoading={isDraftsLoading}
+                  isSaving={isSaving}
+                  canEditDraft={canEditDraft}
+                  canDeleteDraft={canDeleteDraft}
+                  onSaveDraft={saveDraft}
+                  onLoadDraft={loadDraft}
+                  onLoadDraftAsBase={loadDraftAsBase}
+                  onDeleteDraft={deleteDraft}
+                  onCreateNew={createNewDraft}
+                  getCurrentDraft={getCurrentDraft}
+                  items={draftItems}
+                  variant="outline"
+                  className="flex-1 h-10 border-muted-foreground/30 font-bold text-[10px] px-1"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -7,6 +7,10 @@ import { useToast } from "@/hooks/use-toast";
 export const useProductQueries = () => {
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [isSearching, setIsSearching] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 15;
   const [unidadesMedida, setUnidadesMedida] = useState<{ value: string; label: string }[]>([]);
 
   const loadUnidadesMedida = async () => {
@@ -35,15 +39,46 @@ export const useProductQueries = () => {
     }
   };
 
-  const loadProducts = async () => {
+  const loadProducts = async (search = '', page = 1) => {
     try {
-      const { data, error } = await supabase
+      setIsSearching(true);
+      setCurrentPage(page);
+      
+      let query = supabase
         .from('produtos')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select(`
+          *,
+          tenant:tenant_id (
+            name
+          )
+        `, { count: 'exact' });
+
+      if (search) {
+        // Busca por descrição ou código
+        query = query.or(`descricao.ilike.%${search}%,codigo.ilike.%${search}%`);
+      }
+
+      // Paginação
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
+      const { data, error, count } = await query
+        .order('descricao', { ascending: true }) // Ordenar por nome facilita a navegação
+        .range(from, to);
 
       if (error) throw error;
-      setProducts(data || []);
+      
+      // Atualiza o total
+      if (count !== null) {
+        setTotalProducts(count);
+      }
+      
+      const mappedProducts = data?.map(p => ({
+        ...p,
+        tenant_name: p.tenant?.name || 'Unidade'
+      })) || [];
+
+      setProducts(mappedProducts as any);
     } catch (error) {
       console.error('Erro ao carregar produtos:', error);
       toast({
@@ -51,16 +86,22 @@ export const useProductQueries = () => {
         description: "Não foi possível carregar a lista de produtos.",
         variant: "destructive",
       });
+    } finally {
+      setIsSearching(false);
     }
   };
 
   useEffect(() => {
-    loadProducts();
     loadUnidadesMedida();
+    // A carga inicial de produtos agora será feita pelo componente via loadProducts
   }, []);
 
   return {
     products,
+    totalProducts,
+    isSearching,
+    currentPage,
+    pageSize,
     unidadesMedida,
     loadProducts,
     loadUnidadesMedida

@@ -6,10 +6,12 @@ import { toast } from '@/hooks/use-toast';
 
 export function useProductEntryMutations() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
 
   const createEntryMutation = useMutation({
     mutationFn: async (entryData: any) => {
+      if (!hasPermission('entrada_produtos')) throw new Error('Sem permissão para registrar entradas');
+      
       const { error } = await supabase
         .from('entradas_produtos')
         .insert([{
@@ -18,7 +20,8 @@ export function useProductEntryMutations() {
           lote: entryData.lote,
           vencimento: entryData.vencimento,
           data_entrada: entryData.data_entrada,
-          usuario_id: user!.id
+          usuario_id: user!.id,
+          tenant_id: user?.tenant_id || '00000000-0000-0000-0000-000000000000'
         }]);
       
       if (error) throw error;
@@ -43,18 +46,11 @@ export function useProductEntryMutations() {
 
   const updateEntryMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      // Buscar dados atuais da entrada para calcular diferença no estoque
-      const { data: currentEntry, error: fetchError } = await supabase
-        .from('entradas_produtos')
-        .select('quantidade, produto_id')
-        .eq('id', id)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      const quantidadeDiferenca = data.quantidade - currentEntry.quantidade;
-
+      if (!hasPermission('entrada_produtos')) throw new Error('Sem permissão para atualizar entradas');
+      
       // Atualizar entrada
+      // O gatilho no banco de dados cuidará do ajuste de estoque se necessário
+      // (Se o gatilho estiver configurado para UPDATE, senão precisaremos ajustar aqui)
       const { error: updateError } = await supabase
         .from('entradas_produtos')
         .update({
@@ -66,29 +62,6 @@ export function useProductEntryMutations() {
         .eq('id', id);
 
       if (updateError) throw updateError;
-
-      // Ajustar estoque se houve mudança na quantidade
-      if (quantidadeDiferenca !== 0) {
-        // Buscar estoque atual
-        const { data: product, error: productFetchError } = await supabase
-          .from('produtos')
-          .select('estoque_atual')
-          .eq('id', currentEntry.produto_id)
-          .single();
-
-        if (productFetchError) throw productFetchError;
-
-        // Calcular novo estoque
-        const novoEstoque = product.estoque_atual + quantidadeDiferenca;
-
-        // Atualizar estoque
-        const { error: stockError } = await supabase
-          .from('produtos')
-          .update({ estoque_atual: novoEstoque })
-          .eq('id', currentEntry.produto_id);
-
-        if (stockError) throw stockError;
-      }
     },
     onSuccess: () => {
       toast({
@@ -110,46 +83,16 @@ export function useProductEntryMutations() {
 
   const deleteEntryMutation = useMutation({
     mutationFn: async (id: string) => {
-      // Buscar dados da entrada para reverter estoque
-      const { data: entry, error: fetchError } = await supabase
-        .from('entradas_produtos')
-        .select('quantidade, produto_id')
-        .eq('id', id)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      // Verificar se há estoque suficiente para reverter
-      const { data: product, error: productError } = await supabase
-        .from('produtos')
-        .select('estoque_atual')
-        .eq('id', entry.produto_id)
-        .single();
-
-      if (productError) throw productError;
-
-      if (product.estoque_atual < entry.quantidade) {
-        throw new Error('Não é possível excluir esta entrada. Estoque insuficiente para reverter a operação.');
-      }
-
+      if (!hasPermission('pode_excluir')) throw new Error('Sem permissão para excluir registros');
+      
       // Excluir entrada
+      // O gatilho no banco de dados cuidará da reversão do estoque
       const { error: deleteError } = await supabase
         .from('entradas_produtos')
         .delete()
         .eq('id', id);
 
       if (deleteError) throw deleteError;
-
-      // Calcular novo estoque (subtrair a quantidade da entrada)
-      const novoEstoque = product.estoque_atual - entry.quantidade;
-
-      // Reverter estoque
-      const { error: stockError } = await supabase
-        .from('produtos')
-        .update({ estoque_atual: novoEstoque })
-        .eq('id', entry.produto_id);
-
-      if (stockError) throw stockError;
     },
     onSuccess: () => {
       toast({

@@ -28,6 +28,9 @@ export function useHistoryData({
             descricao,
             codigo,
             unidade_medida
+          ),
+          tenant:tenant_id (
+            name
           )
         `)
         .order('created_at', { ascending: false });
@@ -64,6 +67,9 @@ export function useHistoryData({
             descricao,
             codigo,
             unidade_medida
+          ),
+          tenant:tenant_id (
+            name
           )
         `)
         .order('created_at', { ascending: false });

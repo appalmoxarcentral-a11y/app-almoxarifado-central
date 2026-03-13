@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   StockOnlyTable, 
   PatientDispensationView, 
@@ -22,6 +23,7 @@ interface MovimentacaoType {
   quantidade: number;
   lote: string;
   paciente: string | null;
+  tenant_name?: string;
   created_at?: string;
 }
 
@@ -50,6 +52,9 @@ export function HistoryTabs({
   movimentacoes,
   logs
 }: HistoryTabsProps) {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.tipo === 'SUPER_ADMIN';
+
   // Função para renderizar conteúdo baseado no tipo
   const renderContent = () => {
     switch (filtroTipo) {
@@ -86,6 +91,7 @@ export function HistoryTabs({
             <TableHeader>
               <TableRow>
                 <TableHead className="min-w-[100px]">Data</TableHead>
+                {isSuperAdmin && <TableHead className="min-w-[150px]">Unidade</TableHead>}
                 <TableHead className="min-w-[120px]">Tipo</TableHead>
                 <TableHead className="min-w-[150px]">Produto</TableHead>
                 <TableHead className="min-w-[80px]">Qtd</TableHead>
@@ -99,6 +105,11 @@ export function HistoryTabs({
                   <TableCell className="text-xs md:text-sm">
                     {format(new Date(mov.data), 'dd/MM/yy', { locale: ptBR })}
                   </TableCell>
+                  {isSuperAdmin && (
+                    <TableCell className="text-xs font-medium text-blue-600">
+                      {mov.tenant_name}
+                    </TableCell>
+                  )}
                   <TableCell>
                     <Badge variant={mov.tipo === 'entrada' ? 'default' : 'secondary'} className="text-xs">
                       {mov.tipo === 'entrada' ? (
@@ -120,7 +131,7 @@ export function HistoryTabs({
               ))}
               {movimentacoes.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={isSuperAdmin ? 7 : 6} className="text-center py-8 text-gray-500">
                     Nenhuma movimentação encontrada
                   </TableCell>
                 </TableRow>

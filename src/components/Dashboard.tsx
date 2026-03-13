@@ -4,28 +4,43 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Activity, Users, Package, TrendingUp, TrendingDown, AlertTriangle, Calendar } from 'lucide-react';
+import { Activity, Users, Package, TrendingUp, TrendingDown, AlertTriangle, Calendar, AlertCircle } from 'lucide-react';
 import { format, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function Dashboard() {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.tipo === 'SUPER_ADMIN';
+  const isSubscriptionBlocked = user?.subscription_blocked && !isSuperAdmin;
+
   const { data: produtoStats } = useQuery({
     queryKey: ['produto-stats'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('produtos').select('estoque_atual');
-      if (error) throw error;
-      const total = data.length;
-      const baixoEstoque = data.filter(p => p.estoque_atual <= 10).length;
-      return { total, baixoEstoque };
+      const [totalRes, baixoRes] = await Promise.all([
+        supabase.from('produtos').select('*', { count: 'exact', head: true }),
+        supabase.from('produtos').select('*', { count: 'exact', head: true }).lte('estoque_atual', 10)
+      ]);
+      
+      if (totalRes.error) throw totalRes.error;
+      if (baixoRes.error) throw baixoRes.error;
+      
+      return { 
+        total: totalRes.count || 0, 
+        baixoEstoque: baixoRes.count || 0 
+      };
     }
   });
 
   const { data: pacienteStats } = useQuery({
     queryKey: ['paciente-stats'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('pacientes').select('id');
+      const { count, error } = await supabase
+        .from('pacientes')
+        .select('*', { count: 'exact', head: true });
+      
       if (error) throw error;
-      return data.length;
+      return count || 0;
     }
   });
 
@@ -99,6 +114,30 @@ export function Dashboard() {
         <Activity className="h-6 w-6 md:h-8 md:w-8 text-primary" />
         <h1 className="text-2xl md:text-3xl font-bold text-foreground">Dashboard</h1>
       </div>
+
+      {isSubscriptionBlocked && (
+        <div className="bg-red-50 p-4 rounded-lg border border-red-200 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+          <AlertCircle className="h-5 w-5 text-red-600 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-red-800">
+              Acesso Restrito: Sua unidade possui faturas pendentes.
+            </p>
+            <p className="text-xs text-red-700">
+              {user?.tipo === 'ADMIN' 
+                ? "As funcionalidades do sistema estão bloqueadas. Regularize sua assinatura para liberar o acesso total."
+                : "Entre em contato com o administrador da sua unidade para regularizar a assinatura."}
+            </p>
+          </div>
+          {user?.tipo === 'ADMIN' && (
+            <Badge 
+              className="bg-red-600 hover:bg-red-700 cursor-pointer"
+              onClick={() => window.location.href = '/assinatura'}
+            >
+              Ir para Pagamento
+            </Badge>
+          )}
+        </div>
+      )}
 
       {/* Cards de Estatísticas */}
       <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">

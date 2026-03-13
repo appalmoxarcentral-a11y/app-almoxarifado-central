@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Dispensation } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface RecentDispensationsProps {
   dispensacoes?: Dispensation[];
@@ -12,6 +13,9 @@ interface RecentDispensationsProps {
 }
 
 export function RecentDispensations({ dispensacoes, isLoading }: RecentDispensationsProps) {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.tipo === 'SUPER_ADMIN';
+
   return (
     <Card>
       <CardHeader>
@@ -26,7 +30,14 @@ export function RecentDispensations({ dispensacoes, isLoading }: RecentDispensat
               <div key={dispensacao.id} className="border rounded-lg p-3">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="font-medium text-sm">{dispensacao.produto?.descricao}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-sm">{dispensacao.produto?.descricao}</p>
+                      {isSuperAdmin && (
+                        <Badge variant="outline" className="text-[10px] text-blue-600 border-blue-600 px-1 py-0 h-4">
+                          {(dispensacao as any).tenant?.name}
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-600">
                       {dispensacao.paciente?.nome}
                     </p>

@@ -34,14 +34,16 @@ export function HistoryView() {
       tipo: 'entrada' as const,
       data: entrada.data_entrada,
       descricao_produto: entrada.produto?.descricao || '',
-      paciente: null
+      paciente: null,
+      tenant_name: entrada.tenant?.name || 'Unidade Desconhecida'
     })) || []),
     ...(dispensacoes?.map(dispensacao => ({
       ...dispensacao,
       tipo: 'dispensacao' as const,
       data: dispensacao.data_dispensa,
       descricao_produto: dispensacao.produto?.descricao || '',
-      paciente: dispensacao.paciente?.nome || ''
+      paciente: dispensacao.paciente?.nome || '',
+      tenant_name: dispensacao.tenant?.name || 'Unidade Desconhecida'
     })) || [])
   ].sort((a, b) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime());
 

@@ -13,7 +13,7 @@ interface ProductFormData {
 }
 
 export function useProductMutations(onSuccess?: () => void) {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
@@ -21,6 +21,7 @@ export function useProductMutations(onSuccess?: () => void) {
   const createProductMutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
       if (!user) throw new Error('Usuário não autenticado');
+      if (!hasPermission('cadastro_produtos')) throw new Error('Sem permissão para criar produtos');
 
       const { data: result, error } = await supabase
         .from('produtos')
@@ -28,6 +29,7 @@ export function useProductMutations(onSuccess?: () => void) {
           descricao: data.descricao,
           codigo: data.codigo,
           unidade_medida: data.unidade_medida,
+          tenant_id: user?.tenant_id || '00000000-0000-0000-0000-000000000000'
         }])
         .select()
         .single();
@@ -75,6 +77,7 @@ export function useProductMutations(onSuccess?: () => void) {
   const updateProductMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: ProductFormData }) => {
       if (!user) throw new Error('Usuário não autenticado');
+      if (!hasPermission('cadastro_produtos')) throw new Error('Sem permissão para atualizar produtos');
 
       const { data: result, error } = await supabase
         .from('produtos')
@@ -130,6 +133,7 @@ export function useProductMutations(onSuccess?: () => void) {
   const deleteProductMutation = useMutation({
     mutationFn: async (id: string) => {
       if (!user) throw new Error('Usuário não autenticado');
+      if (!hasPermission('pode_excluir')) throw new Error('Sem permissão para excluir produtos');
 
       const { error } = await supabase
         .from('produtos')
@@ -182,10 +186,10 @@ export function useProductMutations(onSuccess?: () => void) {
   };
 
   const deleteProduct = async (id: string, descricao: string) => {
-    if (user?.tipo !== 'ADMIN') {
+    if (!hasPermission('pode_excluir')) {
       toast({
         title: "Acesso negado",
-        description: "Apenas administradores podem excluir produtos.",
+        description: "Você não tem permissão para excluir produtos.",
         variant: "destructive",
       });
       return;

@@ -1,10 +1,11 @@
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Package, Save, Plus, Edit, X, FileSpreadsheet, Settings } from "lucide-react";
 import { Product } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
+import { PermissionCheck } from "@/components/auth/PermissionCheck";
 import { ExcelImportExport } from "@/components/excel/ExcelImportExport";
 import { UnidadeMedidaManager } from "@/components/excel/UnidadeMedidaManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,18 +15,40 @@ import { useProductQueries } from "@/components/product/hooks/useProductQueries"
 import { useProductMutations } from "@/components/product/hooks/useProductMutations";
 
 export function ProductForm() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const formRef = useRef<HTMLDivElement>(null);
+
+  if (!hasPermission('cadastro_produtos')) {
+    return (
+      <div className="p-8 text-center">
+        <Package className="h-16 w-16 mx-auto text-muted-foreground mb-4 opacity-20" />
+        <h2 className="text-2xl font-bold text-muted-foreground">Acesso Restrito</h2>
+        <p className="text-muted-foreground">Você não tem permissão para visualizar o cadastro de produtos.</p>
+      </div>
+    );
+  }
+
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     descricao: '',
     codigo: '',
     unidade_medida: '',
   });
 
-  const { products, unidadesMedida, loadProducts, loadUnidadesMedida } = useProductQueries();
+  const { 
+    products, 
+    totalProducts, 
+    isSearching, 
+    currentPage, 
+    pageSize, 
+    unidadesMedida, 
+    loadProducts, 
+    loadUnidadesMedida 
+  } = useProductQueries();
+
   const { loading, submitForm, deleteProduct } = useProductMutations(() => {
-    loadProducts();
+    loadProducts(searchTerm, currentPage);
     setEditingProduct(null);
     setFormData({
       descricao: '',
@@ -33,6 +56,21 @@ export function ProductForm() {
       unidade_medida: '',
     });
   });
+
+  // Debounce na busca
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadProducts(searchTerm, 1); // Ao buscar, volta para a página 1
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const handlePageChange = (page: number) => {
+    loadProducts(searchTerm, page);
+    // Scroll suave para o topo da lista ao trocar de página
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleEdit = (product: Product) => {
     if (user?.tipo !== 'ADMIN') {
@@ -165,6 +203,13 @@ export function ProductForm() {
 
       <ProductList
         products={products}
+        totalProducts={totalProducts}
+        isSearching={isSearching}
+        searchTerm={searchTerm}
+        currentPage={currentPage}
+        pageSize={pageSize}
+        onPageChange={handlePageChange}
+        onSearchChange={setSearchTerm}
         onEdit={handleEdit}
         onDelete={deleteProduct}
       />

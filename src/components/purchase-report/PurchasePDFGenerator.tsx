@@ -10,9 +10,11 @@ import type { PurchaseItem } from '@/types/purchase';
 interface PurchasePDFGeneratorProps {
   items: PurchaseItem[];
   disabled?: boolean;
+  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  className?: string;
 }
 
-export function PurchasePDFGenerator({ items, disabled }: PurchasePDFGeneratorProps) {
+export function PurchasePDFGenerator({ items, disabled, variant, className }: PurchasePDFGeneratorProps) {
   const { user } = useAuth();
 
   const generatePDF = () => {
@@ -28,6 +30,7 @@ export function PurchasePDFGenerator({ items, disabled }: PurchasePDFGeneratorPr
             font-family: Arial, sans-serif; 
             margin: 20px; 
             line-height: 1.4;
+            color: #333;
           }
           .header { 
             text-align: center; 
@@ -83,7 +86,7 @@ export function PurchasePDFGenerator({ items, disabled }: PurchasePDFGeneratorPr
             margin: 20px auto 10px;
           }
           @media print {
-            body { margin: 0; }
+            body { margin: 1cm; }
             .no-print { display: none; }
           }
         </style>
@@ -146,17 +149,32 @@ export function PurchasePDFGenerator({ items, disabled }: PurchasePDFGeneratorPr
       </html>
     `;
 
-    // Abrir janela de impressão
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(printContent);
-      printWindow.document.close();
-      printWindow.focus();
-      
-      // Aguardar carregamento e imprimir
+    // Criar um iframe oculto para impressão (mais robusto que window.open)
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document || iframe.contentDocument;
+    if (doc) {
+      doc.open();
+      doc.write(printContent);
+      doc.close();
+
+      // Aguardar o carregamento do conteúdo no iframe
       setTimeout(() => {
-        printWindow.print();
-      }, 250);
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        
+        // Remover o iframe após a impressão (ou cancelamento)
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 1000);
+      }, 500);
     }
   };
 
@@ -164,10 +182,11 @@ export function PurchasePDFGenerator({ items, disabled }: PurchasePDFGeneratorPr
     <Button
       onClick={generatePDF}
       disabled={disabled || items.length === 0}
-      className="w-full md:w-auto"
+      variant={variant || "default"}
+      className={className || "w-full md:w-auto"}
     >
       <Download className="h-4 w-4 mr-2" />
-      Gerar PDF ({items.length} {items.length === 1 ? 'item' : 'itens'})
+      Gerar PDF ({items.length})
     </Button>
   );
 }

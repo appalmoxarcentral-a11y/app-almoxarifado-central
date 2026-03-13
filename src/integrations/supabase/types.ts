@@ -24,6 +24,7 @@ export type Database = {
           produto_id: string
           quantidade: number
           usuario_id: string
+          tenant_id: string
         }
         Insert: {
           created_at?: string | null
@@ -34,6 +35,7 @@ export type Database = {
           produto_id: string
           quantidade: number
           usuario_id: string
+          tenant_id?: string
         }
         Update: {
           created_at?: string | null
@@ -44,6 +46,7 @@ export type Database = {
           produto_id?: string
           quantidade?: number
           usuario_id?: string
+          tenant_id?: string
         }
         Relationships: [
           {
@@ -79,6 +82,7 @@ export type Database = {
           quantidade: number
           usuario_id: string
           vencimento: string
+          tenant_id: string
         }
         Insert: {
           created_at?: string | null
@@ -89,6 +93,7 @@ export type Database = {
           quantidade: number
           usuario_id: string
           vencimento: string
+          tenant_id?: string
         }
         Update: {
           created_at?: string | null
@@ -99,6 +104,7 @@ export type Database = {
           quantidade?: number
           usuario_id?: string
           vencimento?: string
+          tenant_id?: string
         }
         Relationships: [
           {
@@ -125,6 +131,7 @@ export type Database = {
           id: string
           tabela: string
           usuario_id: string | null
+          tenant_id: string
         }
         Insert: {
           acao: string
@@ -133,6 +140,7 @@ export type Database = {
           id?: string
           tabela: string
           usuario_id?: string | null
+          tenant_id?: string
         }
         Update: {
           acao?: string
@@ -141,6 +149,7 @@ export type Database = {
           id?: string
           tabela?: string
           usuario_id?: string | null
+          tenant_id?: string
         }
         Relationships: [
           {
@@ -163,6 +172,7 @@ export type Database = {
           nome: string
           sus_cpf: string
           telefone: string
+          tenant_id: string
         }
         Insert: {
           bairro: string
@@ -174,6 +184,7 @@ export type Database = {
           nome: string
           sus_cpf: string
           telefone: string
+          tenant_id?: string
         }
         Update: {
           bairro?: string
@@ -185,6 +196,7 @@ export type Database = {
           nome?: string
           sus_cpf?: string
           telefone?: string
+          tenant_id?: string
         }
         Relationships: []
       }
@@ -196,6 +208,7 @@ export type Database = {
           estoque_atual: number
           id: string
           unidade_medida: string
+          tenant_id: string
         }
         Insert: {
           codigo: string
@@ -204,6 +217,7 @@ export type Database = {
           estoque_atual?: number
           id?: string
           unidade_medida: string
+          tenant_id?: string
         }
         Update: {
           codigo?: string
@@ -212,6 +226,7 @@ export type Database = {
           estoque_atual?: number
           id?: string
           unidade_medida?: string
+          tenant_id?: string
         }
         Relationships: [
           {
@@ -232,6 +247,7 @@ export type Database = {
           id: string
           nome_rascunho: string
           usuario_id: string
+          tenant_id: string
         }
         Insert: {
           ativo?: boolean
@@ -241,6 +257,7 @@ export type Database = {
           id?: string
           nome_rascunho: string
           usuario_id: string
+          tenant_id?: string
         }
         Update: {
           ativo?: boolean
@@ -250,6 +267,7 @@ export type Database = {
           id?: string
           nome_rascunho?: string
           usuario_id?: string
+          tenant_id?: string
         }
         Relationships: [
           {
@@ -306,6 +324,8 @@ export type Database = {
           permissoes: Json
           senha: string
           tipo: Database["public"]["Enums"]["tipo_usuario"]
+          tenant_id: string | null
+          profile_id: string | null
         }
         Insert: {
           ativo?: boolean
@@ -316,6 +336,8 @@ export type Database = {
           permissoes?: Json
           senha: string
           tipo?: Database["public"]["Enums"]["tipo_usuario"]
+          tenant_id?: string | null
+          profile_id?: string | null
         }
         Update: {
           ativo?: boolean
@@ -326,8 +348,228 @@ export type Database = {
           permissoes?: Json
           senha?: string
           tipo?: Database["public"]["Enums"]["tipo_usuario"]
+          tenant_id?: string | null
+          profile_id?: string | null
         }
         Relationships: []
+      }
+      tenants: {
+        Row: {
+          id: string
+          name: string
+          document: string | null
+          slug: string
+          created_at: string
+          updated_at: string
+          phone: string | null
+          address: string | null
+          city: string | null
+          state: string | null
+          postal_code: string | null
+        }
+        Insert: {
+          id?: string
+          name: string
+          document?: string | null
+          slug: string
+          created_at?: string
+          updated_at?: string
+          phone?: string | null
+          address?: string | null
+          city?: string | null
+          state?: string | null
+          postal_code?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          document?: string | null
+          slug?: string
+          created_at?: string
+          updated_at?: string
+          phone?: string | null
+          address?: string | null
+          city?: string | null
+          state?: string | null
+          postal_code?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          id: string
+          tenant_id: string | null
+          full_name: string | null
+          email: string | null
+          role: string | null
+          permissions: Json | null
+          created_at: string
+          phone: string | null
+        }
+        Insert: {
+          id: string
+          tenant_id?: string | null
+          full_name?: string | null
+          email?: string | null
+          role?: string | null
+          permissions?: Json | null
+          created_at?: string
+          phone?: string | null
+        }
+        Update: {
+          id?: string
+          tenant_id?: string | null
+          full_name?: string | null
+          email?: string | null
+          role?: string | null
+          permissions?: Json | null
+          created_at?: string
+          phone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      plans: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          price: number
+          max_users: number
+          max_products: number | null
+          features: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          price: number
+          max_users: number
+          max_products?: number | null
+          features?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          price?: number
+          max_users?: number
+          max_products?: number | null
+          features?: Json | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          id: string
+          tenant_id: string
+          plan_id: string
+          status: string
+          current_period_start: string
+          current_period_end: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          plan_id: string
+          status?: string
+          current_period_start: string
+          current_period_end: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          plan_id?: string
+          status?: string
+          current_period_start?: string
+          current_period_end?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      subscription_invoices: {
+        Row: {
+          id: string
+          tenant_id: string
+          subscription_id: string | null
+          amount: number
+          status: string
+          pix_code: string | null
+          pix_qr_code_url: string | null
+          pix_id: string | null
+          payment_date: string | null
+          due_date: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          subscription_id?: string | null
+          amount: number
+          status?: string
+          pix_code?: string | null
+          pix_qr_code_url?: string | null
+          pix_id?: string | null
+          payment_date?: string | null
+          due_date?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          subscription_id?: string | null
+          amount?: number
+          status?: string
+          pix_code?: string | null
+          pix_qr_code_url?: string | null
+          pix_id?: string | null
+          payment_date?: string | null
+          due_date?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_invoices_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {

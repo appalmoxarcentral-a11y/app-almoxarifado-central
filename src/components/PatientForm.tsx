@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
@@ -12,10 +13,11 @@ import { PermissionCheck } from "@/components/auth/PermissionCheck";
 
 export function PatientForm() {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [patients, setPatients] = useState<Patient[]>([]);
-  const [filteredPatients, setFilteredPatients] = useState<Patient[]>([]);
+  const [totalPatients, setTotalPatients] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [formData, setFormData] = useState({
@@ -74,16 +76,40 @@ export function PatientForm() {
     }));
   };
 
-  const loadPatients = async () => {
+  const loadPatients = async (search = '') => {
     try {
-      const { data, error } = await supabase
+      setIsSearching(true);
+      let query = supabase
         .from('pacientes')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select(`
+          *,
+          tenant:tenant_id (
+            name
+          )
+        `, { count: 'exact' });
+
+      if (search) {
+        // Busca por nome, SUS/CPF ou telefone
+        query = query.or(`nome.ilike.%${search}%,sus_cpf.ilike.%${search}%,telefone.ilike.%${search}%`);
+      }
+
+      const { data, error, count } = await query
+        .order('created_at', { ascending: false })
+        .limit(search ? 100 : 10);
 
       if (error) throw error;
-      setPatients(data || []);
-      setFilteredPatients(data || []);
+      
+      // Atualiza o total apenas se não houver busca
+      if (!search && count !== null) {
+        setTotalPatients(count);
+      }
+      
+      const mappedPatients = data?.map(p => ({
+        ...p,
+        tenant_name: p.tenant?.name || 'Unidade Desconhecida'
+      })) || [];
+
+      setPatients(mappedPatients as any);
     } catch (error) {
       console.error('Erro ao carregar pacientes:', error);
       toast({
@@ -91,32 +117,31 @@ export function PatientForm() {
         description: "Não foi possível carregar a lista de pacientes.",
         variant: "destructive",
       });
+    } finally {
+      setIsSearching(false);
     }
   };
 
-  // Filtrar pacientes por busca
+  const isSuperAdmin = user?.tipo === 'SUPER_ADMIN';
+
+  // Debounce na busca
   useEffect(() => {
-    if (!searchTerm) {
-      setFilteredPatients(patients);
-    } else {
-      const filtered = patients.filter(patient =>
-        patient.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        patient.sus_cpf.includes(searchTerm) ||
-        patient.telefone.includes(searchTerm)
-      );
-      setFilteredPatients(filtered);
-    }
-  }, [searchTerm, patients]);
+    const timer = setTimeout(() => {
+      loadPatients(searchTerm);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   useEffect(() => {
-    loadPatients();
+    // A primeira carga é feita pelo useEffect do searchTerm
   }, []);
 
   const handleEdit = (patient: Patient) => {
-    if (user?.tipo !== 'ADMIN') {
+    if (!hasPermission('cadastro_pacientes')) {
       toast({
         title: "Acesso negado",
-        description: "Apenas administradores podem editar pacientes. Entre em contato com o administrador do sistema.",
+        description: "Você não tem permissão para editar pacientes.",
         variant: "destructive",
       });
       return;
@@ -211,7 +236,8 @@ export function PatientForm() {
             bairro: formData.bairro,
             telefone: formData.telefone,
             nascimento: formData.nascimento,
-            idade: idade
+            idade: idade,
+            tenant_id: user?.tenant_id || '00000000-0000-0000-0000-000000000000'
           }]);
 
         if (error) {
@@ -242,7 +268,7 @@ export function PatientForm() {
       });
 
       // Recarregar lista
-      await loadPatients();
+      await loadPatients(searchTerm);
       
     } catch (error) {
       console.error('Erro no handleSubmit:', error);
@@ -270,10 +296,10 @@ export function PatientForm() {
   };
 
   const handleDelete = async (id: string, nome: string) => {
-    if (user?.tipo !== 'ADMIN') {
+    if (!hasPermission('pode_excluir')) {
       toast({
         title: "Acesso negado",
-        description: "Apenas administradores podem excluir pacientes. Entre em contato com o administrador do sistema.",
+        description: "Você não tem permissão para excluir registros.",
         variant: "destructive",
       });
       return;
@@ -294,7 +320,7 @@ export function PatientForm() {
         description: `${nome} foi removido do sistema.`,
       });
 
-      await loadPatients();
+      await loadPatients(searchTerm);
     } catch (error) {
       toast({
         title: "Erro ao excluir paciente",
@@ -438,13 +464,15 @@ export function PatientForm() {
               >
                 Limpar
               </Button>
-              <Button type="submit" disabled={loading} className="flex items-center justify-center gap-2 h-12 order-1 md:order-3">
-                <Save className="h-4 w-4" />
-                {loading 
-                  ? (editingPatient ? 'Atualizando...' : 'Salvando...') 
-                  : (editingPatient ? 'Atualizar Paciente' : 'Salvar Paciente')
-                }
-              </Button>
+              <PermissionCheck permission="cadastro_pacientes">
+                <Button type="submit" disabled={loading} className="flex items-center justify-center gap-2 h-12 order-1 md:order-3">
+                  <Save className="h-4 w-4" />
+                  {loading 
+                    ? (editingPatient ? 'Atualizando...' : 'Salvando...') 
+                    : (editingPatient ? 'Atualizar Paciente' : 'Salvar Paciente')
+                  }
+                </Button>
+              </PermissionCheck>
             </div>
           </form>
         </CardContent>
@@ -455,31 +483,47 @@ export function PatientForm() {
         <CardHeader>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <CardTitle className="text-lg md:text-xl">Pacientes Cadastrados ({filteredPatients.length})</CardTitle>
-              <CardDescription className="text-sm">Lista dos pacientes no sistema</CardDescription>
+              <CardTitle className="text-lg md:text-xl">
+                {searchTerm ? `Pacientes Encontrados (${patients.length})` : `Pacientes Cadastrados (${totalPatients})`}
+              </CardTitle>
+              <CardDescription className="text-sm">
+                {searchTerm ? "Resultados da busca no sistema" : "Últimos pacientes cadastrados no sistema"}
+              </CardDescription>
             </div>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 ${isSearching ? 'text-primary animate-pulse' : 'text-muted-foreground'}`} />
               <Input
-                placeholder="Buscar paciente..."
+                placeholder="Buscar por nome, SUS ou telefone..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 h-12 w-full md:w-64"
+                className="pl-10 h-12 w-full md:w-80"
               />
             </div>
           </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {filteredPatients.length === 0 ? (
+            {isSearching && patients.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <p className="text-muted-foreground mt-4">Buscando na base de dados...</p>
+              </div>
+            ) : patients.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">
                 {searchTerm ? "Nenhum paciente encontrado com o termo de busca." : "Nenhum paciente cadastrado."}
               </p>
             ) : (
-              filteredPatients.map((patient) => (
+              patients.map((patient) => (
                 <div key={patient.id} className="flex flex-col md:flex-row md:items-center md:justify-between p-4 border rounded-lg gap-4">
                   <div className="flex-1">
-                    <p className="font-medium text-sm md:text-base">{patient.nome}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-sm md:text-base">{patient.nome}</p>
+                      {isSuperAdmin && (
+                        <Badge variant="outline" className="text-[10px] text-blue-600 border-blue-600">
+                          {(patient as any).tenant_name}
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-xs md:text-sm text-muted-foreground">
                       SUS/CPF: {patient.sus_cpf} | Idade: {patient.idade} anos
                     </p>
@@ -489,20 +533,7 @@ export function PatientForm() {
                     <p className="text-xs md:text-sm text-muted-foreground">Tel: {patient.telefone}</p>
                   </div>
                   <div className="flex gap-2 md:flex-col lg:flex-row">
-                    <PermissionCheck 
-                      permission="cadastro_pacientes"
-                      fallback={
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(patient)}
-                          className="flex items-center gap-2 flex-1 md:flex-none h-10"
-                        >
-                          <Edit className="h-4 w-4" />
-                          <span className="md:hidden lg:inline">Editar</span>
-                        </Button>
-                      }
-                    >
+                    <PermissionCheck permission="cadastro_pacientes">
                       <Button
                         variant="outline"
                         size="sm"
@@ -514,20 +545,7 @@ export function PatientForm() {
                       </Button>
                     </PermissionCheck>
                     
-                    <PermissionCheck 
-                      permission="cadastro_pacientes"
-                      fallback={
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDelete(patient.id, patient.nome)}
-                          className="flex items-center gap-2 flex-1 md:flex-none h-10"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          <span className="md:hidden lg:inline">Excluir</span>
-                        </Button>
-                      }
-                    >
+                    <PermissionCheck permission="pode_excluir">
                       <Button
                         variant="destructive"
                         size="sm"

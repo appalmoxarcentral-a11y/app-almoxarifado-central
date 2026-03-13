@@ -16,7 +16,7 @@ export function useDispensationMutations(
   dataDispensa: string,
   onSuccess: () => void
 ) {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const queryClient = useQueryClient();
 
   const createDispensationMutation = useMutation({
@@ -25,14 +25,17 @@ export function useDispensationMutations(
         throw new Error('Paciente ou usuário não selecionado');
       }
 
-      // Criar todas as dispensações
+      if (!hasPermission('dispensacao')) {
+        throw new Error('Sem permissão para realizar dispensações');
+      }
       const dispensationsToCreate = items.map(item => ({
         paciente_id: selectedPatient,
         produto_id: item.produto.id,
         quantidade: item.quantidade,
         lote: item.lote,
         data_dispensa: dataDispensa,
-        usuario_id: user.id
+        usuario_id: user.id,
+        tenant_id: user.tenant_id || '00000000-0000-0000-0000-000000000000'
       }));
 
       const { error } = await supabase

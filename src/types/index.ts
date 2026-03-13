@@ -2,9 +2,50 @@ export interface User {
   id: string;
   nome: string;
   email: string;
-  tipo: 'ADMIN' | 'COMUM';
+  tipo: 'SUPER_ADMIN' | 'ADMIN' | 'COMUM';
   permissoes: UserPermissions;
   ativo: boolean;
+  created_at: string;
+  tenant_id?: string;
+  subscription_blocked?: boolean;
+}
+
+export interface Tenant {
+  id: string;
+  name: string;
+  document?: string;
+  slug: string;
+  created_at: string;
+}
+
+export interface Plan {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  max_users: number;
+  max_products?: number;
+  max_patients?: number;
+  features: string[];
+}
+
+export interface Subscription {
+  id: string;
+  tenant_id: string;
+  plan_id: string;
+  status: 'active' | 'canceled' | 'past_due' | 'trialing';
+  current_period_start: string;
+  current_period_end: string;
+  plan?: Plan;
+}
+
+export interface UserProfile {
+  id: string;
+  tenant_id: string;
+  full_name: string;
+  email: string;
+  role: 'admin' | 'user' | 'viewer';
+  permissions: UserPermissions;
   created_at: string;
 }
 
@@ -17,6 +58,7 @@ export interface UserPermissions {
   relatorio_compras: boolean;
   gestao_usuarios?: boolean;
   gerenciar_rascunhos_compras: boolean;
+  pode_excluir?: boolean;
 }
 
 export interface Patient {

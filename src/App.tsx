@@ -6,6 +6,10 @@ import { Toaster } from '@/components/ui/toaster';
 import { Layout } from '@/components/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { LoginForm } from '@/components/auth/LoginForm';
+import { SignUp } from '@/pages/auth/SignUp';
+import { Onboarding } from '@/pages/auth/Onboarding';
+import { AdminDashboard } from '@/pages/admin/Dashboard';
+import { SubscriptionPage } from '@/pages/subscription/SubscriptionPage';
 import Index from '@/pages/Index';
 import NotFound from '@/pages/NotFound';
 import { PatientForm } from '@/components/PatientForm';
@@ -32,6 +36,25 @@ function App() {
         <Router>
           <Routes>
             <Route path="/login" element={<LoginForm />} />
+            <Route path="/signup" element={<SignUp />} />
+            <Route
+              path="/onboarding"
+              element={
+                <ProtectedRoute>
+                  <Onboarding />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute requiredPermission="gestao_usuarios">
+                  <Layout>
+                     <AdminDashboard />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/*"
               element={
@@ -46,6 +69,7 @@ function App() {
                       <Route path="/historicos" element={<HistoryView />} />
                       <Route path="/usuarios" element={<UserManagement />} />
                       <Route path="/relatorio-compras" element={<PurchaseReport />} />
+                      <Route path="/assinatura" element={<SubscriptionPage />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </Layout>
