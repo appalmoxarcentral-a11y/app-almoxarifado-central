@@ -133,17 +133,22 @@ export function SubscriptionForm({ planName, planId, planPrice, subscriptionId, 
         .eq('id', user.id);
 
       // 2.5 Create Invoice (Waiting for first invoice)
-      const nextDueDate = new Date();
+      // Normalizar para Meio-Dia (12:00) para evitar saltos de data entre UTC e Brasília
+      const today = new Date();
+      const currentDueDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0);
+      
+      const nextDueDate = new Date(currentDueDate);
       nextDueDate.setMonth(nextDueDate.getMonth() + 1);
 
       const { data: invoice, error: invoiceError } = await supabase
         .from('subscription_invoices')
         .insert({
             tenant_id: user.tenant_id,
-            subscription_id: subscriptionId, // Atribuir subscription_id se disponível
-            plan_id: planId, // NOVO: Salvar o plano da fatura para facilitar sincronização
+            subscription_id: subscriptionId,
+            plan_id: planId,
             amount: planPrice,
-            status: 'waiting', // Primeira fatura deve ser "Aguardando"
+            status: 'waiting',
+            created_at: currentDueDate.toISOString(),
             due_date: nextDueDate.toISOString()
         })
         .select()

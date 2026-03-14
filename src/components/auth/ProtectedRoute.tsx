@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requiredPermission }: ProtectedRouteProps) {
-  const { user, isLoading, hasPermission } = useAuth();
+  const { user, isLoading, hasPermission, isImpersonating } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -27,7 +27,7 @@ export function ProtectedRoute({ children, requiredPermission }: ProtectedRouteP
   }
 
   // Permitir acesso ao admin para usuários ADMIN mesmo sem tenant_id (Super Admin Global)
-  const isSuperAdmin = user.tipo === 'SUPER_ADMIN';
+  const isSuperAdmin = user.tipo === 'SUPER_ADMIN' || isImpersonating;
   const isAdmin = user.tipo === 'ADMIN' || isSuperAdmin;
 
   // Se o usuário já tem tenant_id e tenta acessar onboarding, manda para home
@@ -56,8 +56,10 @@ export function ProtectedRoute({ children, requiredPermission }: ProtectedRouteP
     }
   }
 
-  // Restrição da rota /admin apenas para ADMIN e SUPER_ADMIN
-  if (location.pathname.startsWith('/admin') && !isSuperAdmin && !isAdmin) {
+  // Restrição da rota /admin para SUPER_ADMIN e ADMIN (conforme solicitado pelo usuário)
+  // Nota: O usuário disse que Admin e Super Admin estão com acesso restrito, 
+  // o que sugere que ambos deveriam ter acesso ou que a trava está pegando o Super Admin por erro.
+  if (location.pathname.startsWith('/admin') && !isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

@@ -8,7 +8,8 @@ BEGIN
     -- Only trigger when status changes from anything to paid
     IF (OLD.status != 'paid' AND NEW.status = 'paid') THEN
         -- The "Vencimento Atual" of the new invoice should be the "Próximo Vencimento" of the paid one
-        v_current_due_date := NEW.due_date;
+        -- Normalizar para Meio-Dia (12:00 UTC) para evitar saltos de data
+        v_current_due_date := date_trunc('day', NEW.due_date) + interval '12 hours';
         -- The "Próximo Vencimento" of the new invoice should be 1 month after the new "Vencimento Atual"
         v_next_due_date := v_current_due_date + interval '1 month';
         

@@ -46,7 +46,7 @@ export interface UserProfile {
   tenant_id: string;
   full_name: string;
   email: string;
-  role: 'admin' | 'user' | 'viewer';
+  role: 'super_admin' | 'admin' | 'user' | 'viewer';
   permissions: UserPermissions;
   created_at: string;
 }

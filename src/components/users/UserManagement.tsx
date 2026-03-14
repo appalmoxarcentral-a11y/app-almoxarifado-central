@@ -38,7 +38,7 @@ export function UserManagement() {
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [unidadeId, setUnidadeId] = useState<string>('');
-  const [tipo, setTipo] = useState<'ADMIN' | 'COMUM'>('COMUM');
+  const [tipo, setTipo] = useState<'SUPER_ADMIN' | 'ADMIN' | 'COMUM'>('COMUM');
   const [permissoes, setPermissoes] = useState<UserPermissions>({
     cadastro_pacientes: false,
     cadastro_produtos: false,
@@ -117,7 +117,7 @@ export function UserManagement() {
           .from('profiles')
           .update({
             full_name: userData.nome,
-            role: userData.tipo === 'ADMIN' ? 'admin' : 'user',
+            role: userData.tipo === 'SUPER_ADMIN' ? 'super_admin' : userData.tipo === 'ADMIN' ? 'admin' : 'user',
             permissions: userData.permissoes,
             unidade_id: userData.unidade_id || null
           })
@@ -248,13 +248,16 @@ export function UserManagement() {
 
                 <div>
                     <Label htmlFor="tipo">Função</Label>
-                    <Select value={tipo} onValueChange={(value: 'ADMIN' | 'COMUM') => setTipo(value)}>
+                    <Select value={tipo} onValueChange={(value: 'SUPER_ADMIN' | 'ADMIN' | 'COMUM') => setTipo(value)}>
                     <SelectTrigger>
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="COMUM">Farmacêutico / Atendente</SelectItem>
                         <SelectItem value="ADMIN">Administrador da Unidade</SelectItem>
+                        {currentUser?.tipo === 'SUPER_ADMIN' && (
+                            <SelectItem value="SUPER_ADMIN">Super Administrador (SaaS)</SelectItem>
+                        )}
                     </SelectContent>
                     </Select>
                 </div>

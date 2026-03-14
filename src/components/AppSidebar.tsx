@@ -7,7 +7,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 export function AppSidebar() {
   const {
     user,
-    logout
+    logout,
+    isImpersonating
   } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -57,11 +58,11 @@ export function AppSidebar() {
   const hasPermission = (permission: string | null) => {
     if (!permission) return true;
     if (!user) return false;
-    // Administradores e Super Admins têm acesso total
-    if (user.tipo === 'SUPER_ADMIN' || user.tipo === 'ADMIN') return true;
+    // Administradores e Super Admins (ou em modo Impersonation) têm acesso total
+    if (user.tipo === 'SUPER_ADMIN' || user.tipo === 'ADMIN' || isImpersonating) return true;
     return user.permissoes?.[permission as keyof typeof user.permissoes] === true;
   };
-  const isSuperAdmin = user?.tipo === 'SUPER_ADMIN';
+  const isSuperAdmin = user?.tipo === 'SUPER_ADMIN' || isImpersonating;
   const isAdmin = user?.tipo === 'ADMIN' || isSuperAdmin;
   const isSubscriptionBlocked = user?.subscription_blocked && !isSuperAdmin;
   const canAccessUsers = isAdmin;
