@@ -343,7 +343,7 @@ export function PatientForm() {
           </div>
           <div>
             <h1 className="text-2xl md:text-5xl font-black tracking-tight text-foreground leading-tight">Pacientes</h1>
-            <p className="text-muted-foreground text-sm md:text-xl mt-0.5 md:mt-2 font-medium">Gerencie o cadastro de usuários da SMSA</p></p>
+            <p className="text-muted-foreground text-sm md:text-xl mt-0.5 md:mt-2 font-medium">Gerencie o cadastro de usuários da SMSA</p>
           </div>
         </div>
       </div>
@@ -503,7 +503,7 @@ export function PatientForm() {
                 {searchTerm ? `Pacientes Encontrados (${patients.length})` : `Pacientes Cadastrados (${totalPatients})`}
               </CardTitle>
               <CardDescription className="text-xs md:text-sm font-medium">
-                {searchTerm ? "Resultados da busca no sistema" : "Últimos registros da SMSA"}}
+                {searchTerm ? "Resultados da busca no sistema" : "Últimos registros da SMSA"}
               </CardDescription>
             </div>
             <div className="relative w-full md:w-80">
