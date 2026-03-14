@@ -28,8 +28,9 @@ export function Layout({ children }: LayoutProps) {
 
   const [emblaRef] = useEmblaCarousel({
     dragFree: true,
-    containScroll: 'trimSnaps',
+    containScroll: false,
     align: 'start',
+    skipSnaps: true
   });
 
   // Buscar usuários para o Acesso Rápido (apenas se for ADMIN ou SUPER_ADMIN)
@@ -182,7 +183,7 @@ export function Layout({ children }: LayoutProps) {
 
           {/* Mobile Bottom Navigation */}
           {isMobile && (
-            <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border safe-area-bottom shadow-[0_-4px_12px_rgba(0,0,0,0.05)] w-full max-w-full overflow-hidden">
+            <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border safe-area-bottom shadow-[0_-4px_12px_rgba(0,0,0,0.05)] w-full max-w-full">
               <div className="overflow-hidden cursor-grab active:cursor-grabbing w-full" ref={emblaRef}>
                 <div className="flex touch-pan-x select-none embla__container">
                   {visibleNavItems.map((item) => (

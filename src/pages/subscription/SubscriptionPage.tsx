@@ -37,7 +37,7 @@ export function SubscriptionPage() {
 
       const [usersCount, productsCount, patientsCount] = await Promise.all([
         supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('tenant_id', user.tenant_id),
-        supabase.from('produtos_master').select('*', { count: 'exact', head: true }).eq('tenant_id', user.tenant_id),
+        supabase.from('produtos').select('*', { count: 'exact', head: true }).eq('tenant_id', user.tenant_id),
         supabase.from('pacientes').select('*', { count: 'exact', head: true }).eq('tenant_id', user.tenant_id),
       ]);
 

@@ -117,7 +117,6 @@
   [data-sidebar="content"],
   main,
   header,
-  nav,
   section,
   article,
   aside,
@@ -148,12 +147,20 @@
   /* Re-enable horizontal scroll ONLY for elements that explicitly need it */
   .overflow-x-auto, 
   [data-embla-container],
-  .embla__container,
   [style*="overflow-x: auto"],
   [style*="overflow-x: scroll"] {
     overflow-x: auto !important;
     max-width: none !important;
     width: auto !important;
+  }
+
+  /* Embla container needs to be flex and NOT have overflow-x auto to work with JS transforms */
+  .embla__container {
+    display: flex !important;
+    overflow-x: visible !important;
+    width: auto !important;
+    max-width: none !important;
+    padding-right: 40px; /* Margem extra para garantir acesso ao último item */
   }
 
   /* Impedir zoom em inputs no iOS */
