@@ -36,11 +36,11 @@ export function SignUp() {
       if (data.user) {
         toast({
           title: "Conta criada com sucesso!",
-          description: "Verifique seu email para confirmar o cadastro, ou faça login se não houver confirmação.",
+          description: "Bem-vindo ao Stock Guardian. Por favor, selecione sua unidade de saúde.",
         });
         
         if (data.session) {
-            navigate('/onboarding');
+            navigate('/select-unidade');
         } else {
             // Caso precise de confirmação de email
             navigate('/login');

@@ -6,13 +6,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 
 export function usePurchaseDraftPersistence() {
-  const { user, hasPermission, isImpersonating } = useAuth();
+  const { user, hasPermission } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
 
-  const isManagement = user?.tipo === 'ADMIN' || user?.tipo === 'SUPER_ADMIN' || isImpersonating;
+  const isManagement = user?.tipo === 'ADMIN' || user?.tipo === 'SUPER_ADMIN';
 
   // Check permissions - allow both types of users to manage drafts
   const canManageDrafts = hasPermission('gerenciar_rascunhos_compras') || hasPermission('relatorio_compras');

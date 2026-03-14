@@ -3,15 +3,12 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Toaster } from "@/components/ui/toaster";
 import { Button } from "@/components/ui/button";
-import { LogOut, User as UserIcon, Home, History, Users, Package, PackagePlus, Pill, ShoppingCart, UserCog, CreditCard, Zap, X } from "lucide-react";
+import { LogOut, User as UserIcon, Home, History, Users, Package, PackagePlus, Pill, ShoppingCart, UserCog, CreditCard, Building2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import useEmblaCarousel from 'embla-carousel-react';
-import { SearchableSelect } from "@/components/ui/searchable-select";
 import type { User } from "@/types";
 
 interface LayoutProps {
@@ -19,12 +16,13 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
-  const { user, logout, impersonateUser, stopImpersonating, isImpersonating, originalUser } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
   const isSuperAdmin = user?.tipo === 'SUPER_ADMIN';
   const isSubscriptionBlocked = user?.subscription_blocked && !isSuperAdmin;
+  const firstName = user?.nome?.split(' ')[0] || '';
 
   const [emblaRef] = useEmblaCarousel({
     dragFree: true,
@@ -33,41 +31,11 @@ export function Layout({ children }: LayoutProps) {
     skipSnaps: true
   });
 
-  // Buscar usuários para o Acesso Rápido (apenas se for ADMIN ou SUPER_ADMIN)
-  const { data: availableUsers } = useQuery({
-    queryKey: ['available-users-impersonation', user?.tenant_id],
-    queryFn: async () => {
-      if (!user || (user.tipo !== 'ADMIN' && user.tipo !== 'SUPER_ADMIN') || isSubscriptionBlocked) return [];
-      
-      let query = supabase.from('profiles').select('*').eq('role', 'user');
-      
-      // Admin vê apenas usuários do seu tenant
-      if (user.tipo === 'ADMIN' && user.tenant_id) {
-        query = query.eq('tenant_id', user.tenant_id);
-      }
-
-      const { data, error } = await query.order('full_name');
-      if (error) throw error;
-
-      return data.map(p => ({
-        id: p.id,
-        nome: p.full_name || '',
-        email: p.email || '',
-        tipo: 'COMUM' as const,
-        permissoes: p.permissions as any,
-        ativo: true,
-        created_at: p.created_at,
-        tenant_id: p.tenant_id
-      })) as User[];
-    },
-    enabled: !!user && (user.tipo === 'ADMIN' || user.tipo === 'SUPER_ADMIN') && !isImpersonating
-  });
-
   const hasPermission = (permission: string | null) => {
     if (!permission) return true;
     if (!user) return false;
-    // Administradores e Super Admins (ou quando em modo Impersonation) têm acesso total
-    if (user.tipo === 'SUPER_ADMIN' || user.tipo === 'ADMIN' || isImpersonating) return true;
+    // Administradores e Super Admins têm acesso total
+    if (user.tipo === 'SUPER_ADMIN' || user.tipo === 'ADMIN') return true;
     return user.permissoes?.[permission] === true;
   };
 
@@ -107,64 +75,40 @@ export function Layout({ children }: LayoutProps) {
         <AppSidebar />
         
         <div className="flex-1 flex flex-col min-w-0 max-w-full relative overflow-x-hidden">
-          {/* Impersonation Banner */}
-          {isImpersonating && (
-            <div className="bg-blue-600 text-white px-4 py-2 flex items-center justify-between text-sm animate-in fade-in slide-in-from-top-4 w-full">
-              <div className="flex items-center gap-2 overflow-hidden">
-                <Zap className="h-4 w-4 shrink-0 fill-white" />
-                <span className="truncate">
-                  Acesso Rápido: <strong>{user?.nome}</strong>
-                </span>
-              </div>
-              <Button 
-                variant="link" 
-                size="sm" 
-                className="text-white hover:text-blue-100 p-0 h-auto shrink-0 ml-2"
-                onClick={stopImpersonating}
-              >
-                Encerrar
-                <X className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
-          )}
-
           {/* Header */}
           <header className="bg-card border-b border-border px-4 py-3 flex justify-between items-center sticky top-0 z-40 w-full max-w-full">
             <div className="flex items-center gap-2 md:gap-3 overflow-hidden">
               {!isMobile && <SidebarTrigger className="shrink-0" />}
               {isMobile && (
-                <div className="flex items-center gap-1.5 shrink-0 overflow-hidden">
+                <div className="flex items-center gap-1.5 shrink-0 overflow-hidden max-w-[150px]">
                   <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center shrink-0">
-                    <Pill className="w-3.5 h-3.5 text-primary-foreground" />
+                    <Building2 className="w-3.5 h-3.5 text-primary-foreground" />
                   </div>
-                  <span className="text-sm font-bold text-foreground truncate">SMSA</span>
+                  <span className="text-xs font-black text-foreground uppercase truncate tracking-tight">
+                    {user?.unidade_nome || 'SMSA'}
+                  </span>
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-2 md:gap-4 shrink-0">
-              {/* Acesso Rápido Dropdown (apenas para Admin/SuperAdmin quando não está impersonando) */}
-              {!isImpersonating && (user?.tipo === 'ADMIN' || user?.tipo === 'SUPER_ADMIN') && availableUsers && availableUsers.length > 0 && (
-                <div className="hidden md:flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">Acesso Rápido:</span>
-                  <div className="w-64">
-                    <SearchableSelect
-                      items={availableUsers}
-                      onSelect={(u) => impersonateUser(u)}
-                      getItemValue={(u) => u.id}
-                      getItemLabel={(u) => u.nome}
-                      getItemSearchText={(u) => `${u.nome} ${u.email}`}
-                      placeholder="Selecionar usuário..."
-                    />
-                  </div>
+            <div className="flex items-center gap-2 md:gap-6 shrink-0">
+              {/* Unidade em Destaque */}
+              {user?.unidade_nome && (
+                <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                  <Building2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                  <span className="text-xs font-bold text-emerald-700 uppercase tracking-wide truncate max-w-[200px]">
+                    {user.unidade_nome}
+                  </span>
                 </div>
               )}
-
+              
               <div className="flex items-center gap-1.5 md:gap-2">
                 <UserIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="text-sm font-medium hidden sm:inline text-foreground truncate max-w-[100px]">{user?.nome}</span>
+                <span className="text-sm font-bold text-foreground truncate max-w-[80px] md:max-w-[150px]">
+                  {isMobile ? firstName : user?.nome}
+                </span>
                 <Badge 
                   variant={user?.tipo === 'SUPER_ADMIN' ? 'destructive' : user?.tipo === 'ADMIN' ? 'default' : 'secondary'} 
-                  className="text-[9px] md:text-[10px] shrink-0"
+                  className="text-[9px] md:text-[10px] shrink-0 font-black uppercase"
                 >
                   {user?.tipo === 'SUPER_ADMIN' ? 'SUPER' : user?.tipo === 'ADMIN' ? 'ADMIN' : 'COMUM'}
                 </Badge>

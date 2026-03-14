@@ -5,6 +5,7 @@ import { Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import type { PurchaseItem } from '@/types/purchase';
 
@@ -17,15 +18,19 @@ interface PurchasePDFGeneratorProps {
 
 export function PurchasePDFGenerator({ items, disabled, variant, className }: PurchasePDFGeneratorProps) {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
 
   const generatePDF = () => {
+    // Definir nome da unidade
+    const unidadeNome = user?.unidade_nome || 'SMSA';
+    
     // Criar conteúdo HTML para impressão
     const printContent = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="UTF-8">
-        <title>Relatório de Compras - SMSA</title>
+        <title>Relatório de Compras - ${unidadeNome}</title>
         <style>
           body { 
             font-family: Arial, sans-serif; 
@@ -43,6 +48,7 @@ export function PurchasePDFGenerator({ items, disabled, variant, className }: Pu
             margin: 0; 
             color: #333; 
             font-size: 24px;
+            text-transform: uppercase;
           }
           .header p { 
             margin: 5px 0; 
@@ -78,13 +84,17 @@ export function PurchasePDFGenerator({ items, disabled, variant, className }: Pu
             padding-top: 20px;
           }
           .signature {
-            margin-top: 50px;
+            margin-top: 60px;
             text-align: center;
           }
           .signature-line {
             border-top: 1px solid #333;
             width: 300px;
-            margin: 20px auto 10px;
+            margin: 0 auto 5px;
+          }
+          .signature p {
+            margin: 0;
+            font-size: 14px;
           }
           @media print {
             body { margin: 1cm; }
@@ -94,7 +104,7 @@ export function PurchasePDFGenerator({ items, disabled, variant, className }: Pu
       </head>
       <body>
         <div class="header">
-          <h1>SMSA - RELATÓRIO DE COMPRAS</h1>
+          <h1>${unidadeNome} - RELATÓRIO DE COMPRAS</h1>
           <p>Registro de Necessidades de Reposição</p>
         </div>
         
@@ -144,38 +154,53 @@ export function PurchasePDFGenerator({ items, disabled, variant, className }: Pu
 
         <div class="signature">
           <div class="signature-line"></div>
-          <p>Assinatura do Responsável</p>
+          <p><strong>${user?.nome || 'Responsável'}</strong></p>
         </div>
       </body>
       </html>
     `;
 
-    // Criar um iframe oculto para impressão (mais robusto que window.open)
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
-    document.body.appendChild(iframe);
-
-    const doc = iframe.contentWindow?.document || iframe.contentDocument;
-    if (doc) {
-      doc.open();
-      doc.write(printContent);
-      doc.close();
-
-      // Aguardar o carregamento do conteúdo no iframe
-      setTimeout(() => {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
+    if (isMobile) {
+      // No mobile, abrir em uma nova janela é mais robusto para acionar o diálogo nativo de impressão
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.open();
+        printWindow.document.write(printContent);
+        printWindow.document.close();
         
-        // Remover o iframe após a impressão (ou cancelamento)
+        // Aguardar o carregamento e estilos
         setTimeout(() => {
-          document.body.removeChild(iframe);
-        }, 1000);
-      }, 500);
+          printWindow.print();
+          // Opcional: fechar a janela após a impressão/cancelamento
+          // printWindow.close();
+        }, 800);
+      }
+    } else {
+      // Criar um iframe oculto para impressão no desktop
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      document.body.appendChild(iframe);
+
+      const doc = iframe.contentWindow?.document || iframe.contentDocument;
+      if (doc) {
+        doc.open();
+        doc.write(printContent);
+        doc.close();
+
+        setTimeout(() => {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+          
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+          }, 1000);
+        }, 500);
+      }
     }
   };
 

@@ -78,7 +78,7 @@ export function DraftManager({
   const [draftName, setDraftName] = useState('');
 
   const currentDraft = getCurrentDraft();
-  const isMobileLayout = className?.includes('h-10'); // Heurística baseada no layout mobile do PurchaseReport
+  const isMobileLayout = className?.includes('h-9') || className?.includes('h-10') || className?.includes('w-full');
 
   const getMonthOptions = () => {
     const options = [];
@@ -159,7 +159,11 @@ export function DraftManager({
         onClick={handleSave}
         disabled={isSaving}
         size="sm"
-        className={cn("transition-all active:scale-95", className)}
+        className={cn(
+          "transition-all active:scale-95 flex-1", 
+          isMobileLayout ? "bg-orange-600 hover:bg-orange-700 text-white border-none" : "",
+          className
+        )}
       >
         <Save className="h-3.5 w-3.5 shrink-0" />
         <span className="truncate ml-1">Salvar</span>
@@ -170,7 +174,12 @@ export function DraftManager({
           <DialogTrigger asChild>
             <Button 
               size="sm" 
-              className={cn("transition-all active:scale-95", className)}
+              variant={isMobileLayout ? "secondary" : "outline"}
+              className={cn(
+                "transition-all active:scale-95 flex-1", 
+                isMobileLayout ? "bg-slate-800 text-white hover:bg-slate-700 border-none" : "",
+                className
+              )}
             >
               <FolderOpen className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate ml-1">Rascunhos</span>

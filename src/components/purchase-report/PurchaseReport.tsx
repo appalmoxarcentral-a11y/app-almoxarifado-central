@@ -202,7 +202,7 @@ export function PurchaseReport() {
                   onCreateNew={createNewDraft}
                   getCurrentDraft={getCurrentDraft}
                   items={draftItems}
-                  className="w-full h-9 bg-blue-600 hover:bg-blue-700 text-white font-bold border-none shadow-sm text-[10px] px-2 rounded-lg"
+                  className="h-9 font-bold text-[10px] px-2 rounded-lg"
                 />
               </div>
             </div>

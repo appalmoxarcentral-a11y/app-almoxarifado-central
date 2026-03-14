@@ -28,10 +28,22 @@ export function ProtectedRoute({ children, requiredPermission }: ProtectedRouteP
 
   // Permitir acesso ao admin para usuários ADMIN mesmo sem tenant_id (Super Admin Global)
   const isSuperAdmin = user.tipo === 'SUPER_ADMIN';
-  const isAdmin = user.tipo === 'ADMIN';
+  const isAdmin = user.tipo === 'ADMIN' || isSuperAdmin;
 
   // Se o usuário já tem tenant_id e tenta acessar onboarding, manda para home
   if (user.tenant_id && location.pathname === '/onboarding') {
+    return <Navigate to="/" replace />;
+  }
+
+  // Lógica de Bloqueio de Unidade
+  // Se o usuário não tiver unidade_id e não for Super Admin nem Admin acessando área administrativa, redireciona para seleção
+  const isAccessingAdmin = location.pathname.startsWith('/admin');
+  if (!user.unidade_id && !isSuperAdmin && (!isAdmin || !isAccessingAdmin) && location.pathname !== '/select-unidade') {
+    return <Navigate to="/select-unidade" replace />;
+  }
+
+  // Se o usuário já tem unidade_id e tenta acessar seleção de unidade, manda para home
+  if (user.unidade_id && location.pathname === '/select-unidade') {
     return <Navigate to="/" replace />;
   }
 
@@ -44,13 +56,13 @@ export function ProtectedRoute({ children, requiredPermission }: ProtectedRouteP
     }
   }
 
-  // Restrição da rota /admin apenas para SUPER_ADMIN
-  if (location.pathname.startsWith('/admin') && !isSuperAdmin) {
+  // Restrição da rota /admin apenas para ADMIN e SUPER_ADMIN
+  if (location.pathname.startsWith('/admin') && !isSuperAdmin && !isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Acesso Restrito</h2>
-          <p className="text-gray-600">Apenas o proprietário do sistema tem acesso a esta área.</p>
+          <p className="text-gray-600">Apenas administradores têm acesso a esta área.</p>
         </div>
       </div>
     );

@@ -1,14 +1,13 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem } from '@/components/ui/sidebar';
-import { Home, Users, Package, PackagePlus, Pill, History, UserCog, LogOut, ShoppingCart, ChevronRight, CreditCard } from 'lucide-react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Home, Users, Package, PackagePlus, Pill, History, UserCog, LogOut, ShoppingCart, ChevronRight, CreditCard, Building2 } from 'lucide-react';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 export function AppSidebar() {
   const {
     user,
-    logout,
-    isImpersonating
+    logout
   } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -58,13 +57,14 @@ export function AppSidebar() {
   const hasPermission = (permission: string | null) => {
     if (!permission) return true;
     if (!user) return false;
-    // Administradores e Super Admins (ou quando em modo Impersonation) têm acesso total
-    if (user.tipo === 'SUPER_ADMIN' || user.tipo === 'ADMIN' || isImpersonating) return true;
+    // Administradores e Super Admins têm acesso total
+    if (user.tipo === 'SUPER_ADMIN' || user.tipo === 'ADMIN') return true;
     return user.permissoes?.[permission as keyof typeof user.permissoes] === true;
   };
   const isSuperAdmin = user?.tipo === 'SUPER_ADMIN';
+  const isAdmin = user?.tipo === 'ADMIN' || isSuperAdmin;
   const isSubscriptionBlocked = user?.subscription_blocked && !isSuperAdmin;
-  const canAccessUsers = hasPermission('gestao_usuarios');
+  const canAccessUsers = isAdmin;
 
   const filteredMenuItems = menuItems.filter(item => {
     // Primeiro, checa permissão básica
@@ -93,10 +93,10 @@ export function AppSidebar() {
         <SidebarMenu>
           {filteredMenuItems.map(item => <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton asChild isActive={isActive(item.url)} className="cursor-pointer">
-                  <div onClick={() => navigate(item.url)} className="flex items-center gap-2">
+                  <Link to={item.url} className="flex items-center gap-2">
                     <item.icon className="w-4 h-4" />
                     <span>{item.title}</span>
-                  </div>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>)}
 
@@ -104,10 +104,10 @@ export function AppSidebar() {
           {isSuperAdmin && (
             <SidebarMenuItem>
               <SidebarMenuButton asChild isActive={isActive('/admin')} className="cursor-pointer">
-                <div onClick={() => navigate('/admin')} className="flex items-center gap-2">
+                <Link to="/admin" className="flex items-center gap-2">
                   <UserCog className="w-4 h-4" />
                   <span>SaaS Admin</span>
-                </div>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
@@ -116,10 +116,10 @@ export function AppSidebar() {
           {user?.tenant_id && (user?.tipo === 'ADMIN' || user?.tipo === 'SUPER_ADMIN' || isSubscriptionBlocked) && (
             <SidebarMenuItem>
               <SidebarMenuButton asChild isActive={isActive('/assinatura')} className="cursor-pointer">
-                <div onClick={() => navigate('/assinatura')} className="flex items-center gap-2 text-red-500 font-semibold">
+                <Link to="/assinatura" className="flex items-center gap-2 text-red-500 font-semibold">
                   <CreditCard className={`w-4 h-4 ${isSubscriptionBlocked ? 'animate-pulse' : ''}`} />
                   <span>{isSubscriptionBlocked ? 'Assinatura Pendente' : 'Assinatura'}</span>
-                </div>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
@@ -137,11 +137,27 @@ export function AppSidebar() {
                 <CollapsibleContent>
                   <SidebarMenuSub>
                     <SidebarMenuSubItem>
-                      <SidebarMenuSubButton asChild isActive={isActive('/usuarios')} className="cursor-pointer">
-                        <div onClick={() => navigate('/usuarios')} className="flex items-center gap-2">
+                      <SidebarMenuSubButton asChild isActive={isActive('/admin/unidades')} className="cursor-pointer">
+                        <Link to="/admin/unidades" className="flex items-center gap-2">
+                          <Building2 className="w-4 h-4" />
+                          <span>Gestão de Unidades</span>
+                        </Link>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton asChild isActive={isActive('/admin/usuarios')} className="cursor-pointer">
+                        <Link to="/admin/usuarios" className="flex items-center gap-2">
                           <UserCog className="w-4 h-4" />
-                          <span>Gestão de Usuários</span>
-                        </div>
+                          <span>Gestão de Equipe</span>
+                        </Link>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton asChild isActive={isActive('/usuarios')} className="cursor-pointer">
+                        <Link to="/usuarios" className="flex items-center gap-2">
+                          <Users className="w-4 h-4" />
+                          <span>Membros da Unidade</span>
+                        </Link>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
                   </SidebarMenuSub>

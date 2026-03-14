@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Users, UserPlus, Edit, UserX, UserCheck, ShieldAlert, Zap } from 'lucide-react';
+import { Users, UserPlus, Edit, UserX, UserCheck, ShieldAlert, Zap, Building2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import type { User, UserPermissions } from '@/types';
@@ -20,7 +20,7 @@ export function UserManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   
-  const { user: currentUser, impersonateUser } = useAuth();
+  const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
 
   // Opções de módulos para o MultiSelect
@@ -37,6 +37,7 @@ export function UserManagement() {
   // Form state
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
+  const [unidadeId, setUnidadeId] = useState<string>('');
   const [tipo, setTipo] = useState<'ADMIN' | 'COMUM'>('COMUM');
   const [permissoes, setPermissoes] = useState<UserPermissions>({
     cadastro_pacientes: false,
@@ -50,13 +51,30 @@ export function UserManagement() {
     pode_excluir: false,
   });
 
+  // Buscar unidades para o select
+  const { data: unidades } = useQuery({
+    queryKey: ['unidades_saude'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('unidades_saude')
+        .select('*')
+        .eq('ativo', true)
+        .order('nome');
+      if (error) throw error;
+      return data;
+    }
+  });
+
   // Buscar perfis (nova tabela profiles)
   const { data: usuarios, isLoading } = useQuery({
     queryKey: ['profiles'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select(`
+          *,
+          unidade:unidades_saude(nome)
+        `)
         .order('full_name');
 
       if (error) throw error;
@@ -70,23 +88,22 @@ export function UserManagement() {
         permissoes: (p.permissions as unknown as UserPermissions) || {},
         ativo: true,
         created_at: p.created_at,
-        tenant_id: p.tenant_id || '00000000-0000-0000-0000-000000000000'
-      })) as User[] || [];
+        tenant_id: p.tenant_id || '00000000-0000-0000-0000-000000000000',
+        unidade_id: p.unidade_id,
+        unidade_nome: (p.unidade as any)?.nome
+      })) as any[] || [];
 
       // Se o usuário atual for SUPER_ADMIN, ele vê todos.
-      // Se for ADMIN, ele NÃO vê os SUPER_ADMINs.
       if (currentUser?.tipo === 'SUPER_ADMIN') {
         return mapped;
       }
       
-      // Para ADMIN comum, mostrar apenas os membros da mesma unidade (tenant)
-      // e que NÃO sejam SUPER_ADMIN.
+      // Para ADMIN comum, mostrar apenas os membros da mesma organização (tenant)
       const filtered = mapped.filter(u => 
         u.tipo !== 'SUPER_ADMIN' && 
         u.tenant_id === currentUser?.tenant_id
       );
       
-      console.log('[UserManagement] Lista de usuários filtrada para ADMIN:', filtered);
       return filtered;
     }
   });
@@ -101,26 +118,20 @@ export function UserManagement() {
           .update({
             full_name: userData.nome,
             role: userData.tipo === 'ADMIN' ? 'admin' : 'user',
-            permissions: userData.permissoes
+            permissions: userData.permissoes,
+            unidade_id: userData.unidade_id || null
           })
           .eq('id', editingUser.id);
 
         if (error) throw error;
       } else {
-        // Criar novo usuário
-        // ATENÇÃO: Sem Edge Function, não podemos criar Auth User diretamente.
-        // Solução: Instruir o admin a pedir para o usuário se cadastrar OU
-        // usar um convite via email se configurado no Supabase.
-        
-        // Tentativa de convite (se SMTP estiver configurado)
-        // Se não, vamos lançar um erro explicativo.
         throw new Error("Para cadastrar novos usuários, peça para eles criarem uma conta no link /signup com este email, ou configure o envio de convites no painel do Supabase.");
       }
     },
     onSuccess: () => {
       toast({
         title: editingUser ? "Usuário atualizado!" : "Convite enviado!",
-        description: editingUser ? "Perfil atualizado com sucesso." : "O usuário receberá um email.",
+        description: editingUser ? "Perfil e vínculo atualizados com sucesso." : "O usuário receberá um email.",
       });
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
       resetForm();
@@ -128,10 +139,9 @@ export function UserManagement() {
     },
     onError: (error: any) => {
       toast({
-        title: "Ação necessária",
+        title: "Erro ao salvar",
         description: error.message,
         variant: "destructive",
-        duration: 10000, // Mostrar por mais tempo
       });
     }
   });
@@ -139,6 +149,7 @@ export function UserManagement() {
   const resetForm = () => {
     setNome('');
     setEmail('');
+    setUnidadeId('');
     setTipo('COMUM');
     setPermissoes({
       cadastro_pacientes: false,
@@ -154,10 +165,11 @@ export function UserManagement() {
     setEditingUser(null);
   };
 
-  const openEditDialog = (usuario: User) => {
+  const openEditDialog = (usuario: any) => {
     setEditingUser(usuario);
     setNome(usuario.nome);
     setEmail(usuario.email);
+    setUnidadeId(usuario.unidade_id || '');
     setTipo(usuario.tipo);
     setPermissoes(usuario.permissoes);
     setIsDialogOpen(true);
@@ -169,7 +181,8 @@ export function UserManagement() {
       nome,
       email,
       tipo,
-      permissoes
+      permissoes,
+      unidade_id: unidadeId
     });
   };
 
@@ -242,6 +255,20 @@ export function UserManagement() {
                     <SelectContent>
                         <SelectItem value="COMUM">Farmacêutico / Atendente</SelectItem>
                         <SelectItem value="ADMIN">Administrador da Unidade</SelectItem>
+                    </SelectContent>
+                    </Select>
+                </div>
+
+                <div>
+                    <Label htmlFor="unidade">Unidade de Saúde</Label>
+                    <Select value={unidadeId} onValueChange={setUnidadeId}>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Selecione uma unidade..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {unidades?.map(u => (
+                          <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>
+                        ))}
                     </SelectContent>
                     </Select>
                 </div>
@@ -325,6 +352,7 @@ export function UserManagement() {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Unidade</TableHead>
                   <TableHead>Função</TableHead>
                   <TableHead>Data Cadastro</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
@@ -336,6 +364,12 @@ export function UserManagement() {
                     <TableCell className="font-medium">{usuario.nome}</TableCell>
                     <TableCell>{usuario.email}</TableCell>
                     <TableCell>
+                      <Badge variant="outline" className="flex items-center gap-1 w-fit">
+                        <Building2 className="h-3 w-3" />
+                        {usuario.unidade_nome || 'Sem unidade'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
                       <Badge 
                         variant={usuario.tipo === 'SUPER_ADMIN' ? 'destructive' : usuario.tipo === 'ADMIN' ? 'default' : 'outline'}
                       >
@@ -346,17 +380,7 @@ export function UserManagement() {
                       {new Date(usuario.created_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-right flex justify-end gap-1">
-                      {usuario.tipo === 'COMUM' && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                          onClick={() => impersonateUser(usuario)}
-                          title="Acesso Rápido"
-                        >
-                          <Zap className="h-4 w-4" />
-                        </Button>
-                      )}
+                      {/* Acesso Rápido removido conforme solicitação */}
                       <Button
                         size="sm"
                         variant="ghost"

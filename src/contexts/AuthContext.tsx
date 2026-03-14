@@ -10,53 +10,17 @@ interface AuthContextType {
   isLoading: boolean;
   hasPermission: (permission: keyof UserPermissions) => boolean;
   refreshProfile: () => Promise<void>;
-  impersonateUser: (userToImpersonate: User) => void;
-  stopImpersonating: () => void;
-  isImpersonating: boolean;
-  originalUser: User | null;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [originalUser, setOriginalUser] = useState<User | null>(null);
-  const [isImpersonating, setIsImpersonating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  const impersonateUser = (userToImpersonate: User) => {
-    if (user?.tipo !== 'SUPER_ADMIN' && user?.tipo !== 'ADMIN') return;
-    
-    setOriginalUser(user);
-    setUser({
-      ...userToImpersonate,
-      // Ao impersonar, mantemos o poder de CRUD total do Admin/Super Admin
-      // conforme solicitado pelo usuário.
-    });
-    setIsImpersonating(true);
-    
-    toast({
-      title: "Modo de Acesso Rápido Ativo",
-      description: `Simulando acesso como ${userToImpersonate.nome}. Você possui acesso total.`,
-    });
-  };
-
-  const stopImpersonating = () => {
-    if (originalUser) {
-      setUser(originalUser);
-      setOriginalUser(null);
-      setIsImpersonating(false);
-      toast({
-        title: "Modo de Acesso Rápido Encerrado",
-        description: "Você retornou ao seu perfil original.",
-      });
-    }
-  };
-
   // Função para carregar perfil
   const loadProfile = useCallback(async (userId: string, email: string) => {
-    if (isImpersonating) return; // Não recarregar perfil se estiver impersonando
     console.log('[AuthContext] Iniciando loadProfile para:', userId);
     try {
       const { data: profile, error } = await supabase
@@ -99,6 +63,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const role = (profile.role || '').toLowerCase();
 
+        // Buscar nome da unidade se houver unidade_id
+        let unidadeNome = undefined;
+        if (profile.unidade_id) {
+          const { data: unidadeData } = await supabase
+            .from('unidades_saude')
+            .select('nome')
+            .eq('id', profile.unidade_id)
+            .single();
+          
+          if (unidadeData) {
+            unidadeNome = unidadeData.nome;
+          }
+        }
+
         // Garantir que Super Admin nunca seja bloqueado
         let isBlocked = false;
         if (role !== 'super_admin') {
@@ -117,16 +95,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           ativo: true,
           created_at: profile.created_at,
           tenant_id: tenantId || undefined,
+          unidade_id: profile.unidade_id || undefined,
+          unidade_nome: unidadeNome,
           subscription_blocked: isBlocked
         };
         
+        console.log('[AuthContext] Novo userData mapeado:', { id: userData.id, unidade_id: userData.unidade_id });
+
         // Evitar loops de atualização se os dados forem idênticos
         setUser(current => {
           if (JSON.stringify(current) === JSON.stringify(userData)) {
-            console.log('[AuthContext] Dados do usuário idênticos, ignorando update');
+            console.log('[AuthContext] Dados do usuário idênticos ao estado atual, ignorando update');
             return current;
           }
-          console.log('[AuthContext] Atualizando estado do usuário');
+          console.log('[AuthContext] Atualizando estado do usuário com novas informações');
           return userData;
         });
       }
@@ -136,7 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [isImpersonating]);
+  }, []);
 
   const refreshProfile = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -217,8 +199,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const hasPermission = (permission: keyof UserPermissions): boolean => {
     if (!user) return false;
-    // Administradores e Super Admins (ou quando em modo Impersonation) têm acesso total
-    if (user.tipo === 'SUPER_ADMIN' || user.tipo === 'ADMIN' || isImpersonating) return true;
+    // Administradores e Super Admins têm acesso total
+    if (user.tipo === 'SUPER_ADMIN' || user.tipo === 'ADMIN') return true;
     return user.permissoes[permission] || false;
   };
 
@@ -229,11 +211,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout,
       isLoading,
       hasPermission,
-      refreshProfile,
-      impersonateUser,
-      stopImpersonating,
-      isImpersonating,
-      originalUser
+      refreshProfile
     }}>
       {children}
     </AuthContext.Provider>

@@ -13,7 +13,10 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 const Index = lazy(() => import('@/pages/Index'));
 const SignUp = lazy(() => import('@/pages/auth/SignUp').then(m => ({ default: m.SignUp })));
 const Onboarding = lazy(() => import('@/pages/auth/Onboarding').then(m => ({ default: m.Onboarding })));
+const SelectUnidade = lazy(() => import('@/pages/auth/SelectUnidade').then(m => ({ default: m.SelectUnidade })));
 const AdminDashboard = lazy(() => import('@/pages/admin/Dashboard').then(m => ({ default: m.AdminDashboard })));
+const UnidadesPage = lazy(() => import('@/pages/admin/UnidadesPage').then(m => ({ default: m.UnidadesPage })));
+const UsuariosPage = lazy(() => import('@/pages/admin/UsuariosPage').then(m => ({ default: m.UsuariosPage })));
 const SubscriptionPage = lazy(() => import('@/pages/subscription/SubscriptionPage').then(m => ({ default: m.SubscriptionPage })));
 const NotFound = lazy(() => import('@/pages/NotFound'));
 const PatientForm = lazy(() => import('@/components/PatientForm').then(m => ({ default: m.PatientForm })));
@@ -50,6 +53,14 @@ function App() {
                 <Route path="/login" element={<LoginForm />} />
                 <Route path="/signup" element={<SignUp />} />
                 <Route
+                  path="/select-unidade"
+                  element={
+                    <ProtectedRoute>
+                      <SelectUnidade />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="/onboarding"
                   element={
                     <ProtectedRoute>
@@ -68,6 +79,26 @@ function App() {
                   }
                 />
                 <Route
+                  path="/admin/unidades"
+                  element={
+                    <ProtectedRoute requiredPermission="gestao_usuarios">
+                      <Layout>
+                        <UnidadesPage />
+                      </Layout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/usuarios"
+                  element={
+                    <ProtectedRoute requiredPermission="gestao_usuarios">
+                      <Layout>
+                        <UsuariosPage />
+                      </Layout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="/*"
                   element={
                     <ProtectedRoute>
@@ -79,7 +110,14 @@ function App() {
                           <Route path="/entradas" element={<ProductEntryForm />} />
                           <Route path="/dispensacao" element={<DispensationForm />} />
                           <Route path="/historicos" element={<HistoryView />} />
-                          <Route path="/usuarios" element={<UserManagement />} />
+                          <Route 
+                            path="/usuarios" 
+                            element={
+                              <ProtectedRoute requiredPermission="gestao_usuarios">
+                                <UserManagement />
+                              </ProtectedRoute>
+                            } 
+                          />
                           <Route path="/relatorio-compras" element={<PurchaseReport />} />
                           <Route path="/assinatura" element={<SubscriptionPage />} />
                           <Route path="*" element={<NotFound />} />

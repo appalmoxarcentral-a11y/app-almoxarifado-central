@@ -7,6 +7,8 @@ export interface User {
   ativo: boolean;
   created_at: string;
   tenant_id?: string;
+  unidade_id?: string;
+  unidade_nome?: string;
   subscription_blocked?: boolean;
 }
 
