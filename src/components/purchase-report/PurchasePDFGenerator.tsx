@@ -5,6 +5,7 @@ import { Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
+import { cn } from '@/lib/utils';
 import type { PurchaseItem } from '@/types/purchase';
 
 interface PurchasePDFGeneratorProps {
@@ -24,7 +25,7 @@ export function PurchasePDFGenerator({ items, disabled, variant, className }: Pu
       <html>
       <head>
         <meta charset="UTF-8">
-        <title>Relatório de Compras - UBSF</title>
+        <title>Relatório de Compras - SMSA</title>
         <style>
           body { 
             font-family: Arial, sans-serif; 
@@ -93,8 +94,8 @@ export function PurchasePDFGenerator({ items, disabled, variant, className }: Pu
       </head>
       <body>
         <div class="header">
-          <h1>UNIDADE BÁSICA DE SAÚDE FLUVIAL</h1>
-          <p>Relatório de Produtos para Compra</p>
+          <h1>SMSA - RELATÓRIO DE COMPRAS</h1>
+          <p>Registro de Necessidades de Reposição</p>
         </div>
         
         <div class="info-section">
@@ -135,7 +136,7 @@ export function PurchasePDFGenerator({ items, disabled, variant, className }: Pu
         <div class="footer">
           <p><strong>Observações:</strong></p>
           <ul>
-            <li>Este relatório foi gerado automaticamente pelo sistema de farmácia da UBSF.</li>
+            <li>Este relatório foi gerado automaticamente pelo sistema de farmácia da SMSA.</li>
             <li>Conferir disponibilidade e preços antes da efetivação da compra.</li>
             <li>Manter comprovantes de compra para controle de estoque.</li>
           </ul>
@@ -183,10 +184,10 @@ export function PurchasePDFGenerator({ items, disabled, variant, className }: Pu
       onClick={generatePDF}
       disabled={disabled || items.length === 0}
       variant={variant || "default"}
-      className={className || "w-full md:w-auto"}
+      className={cn("w-full md:w-auto flex items-center justify-center gap-1", className)}
     >
-      <Download className="h-4 w-4 mr-2" />
-      Gerar PDF ({items.length})
+      <Download className="h-3.5 w-3.5 shrink-0" />
+      <span className="truncate">PDF ({items.length})</span>
     </Button>
   );
 }

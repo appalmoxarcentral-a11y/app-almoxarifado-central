@@ -137,7 +137,7 @@ export function Layout({ children }: LayoutProps) {
                   <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center shrink-0">
                     <Pill className="w-3.5 h-3.5 text-primary-foreground" />
                   </div>
-                  <span className="text-sm font-bold text-foreground truncate">UBSF</span>
+                  <span className="text-sm font-bold text-foreground truncate">SMSA</span>
                 </div>
               )}
             </div>

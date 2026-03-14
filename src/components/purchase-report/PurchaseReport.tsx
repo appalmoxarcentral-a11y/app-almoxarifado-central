@@ -179,11 +179,11 @@ export function PurchaseReport() {
                </div>
              )}
             
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-1.5 px-1">
               <div className="col-span-1">
                 <PurchasePDFGenerator 
                   items={itemsForPDF} 
-                  className="w-full h-10 bg-blue-600 hover:bg-blue-700 text-white font-bold border-none shadow-sm text-[10px] px-1"
+                  className="w-full h-9 bg-blue-600 hover:bg-blue-700 text-white font-bold border-none shadow-sm text-[10px] px-2 rounded-lg"
                 />
               </div>
               
@@ -202,8 +202,7 @@ export function PurchaseReport() {
                   onCreateNew={createNewDraft}
                   getCurrentDraft={getCurrentDraft}
                   items={draftItems}
-                  variant="outline"
-                  className="flex-1 h-10 border-muted-foreground/30 font-bold text-[10px] px-1"
+                  className="w-full h-9 bg-blue-600 hover:bg-blue-700 text-white font-bold border-none shadow-sm text-[10px] px-2 rounded-lg"
                 />
               </div>
             </div>

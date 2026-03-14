@@ -3,6 +3,7 @@ import { Save, FolderOpen, Plus, Trash2, Calendar, Copy, FileText, ChevronRight 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -158,19 +159,21 @@ export function DraftManager({
         onClick={handleSave}
         disabled={isSaving}
         size="sm"
-        variant={variant || "outline"}
-        className={className}
+        className={cn("transition-all active:scale-95", className)}
       >
-        <Save className="h-4 w-4 mr-1.5" />
-        {currentDraft ? 'Salvar' : 'Salvar'}
+        <Save className="h-3.5 w-3.5 shrink-0" />
+        <span className="truncate ml-1">Salvar</span>
       </Button>
 
       {(isMobileLayout || !className) && (
         <Dialog open={loadDialogOpen} onOpenChange={setLoadDialogOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" variant="outline" className={className}>
-              <FolderOpen className="h-4 w-4 mr-1.5" />
-              Rascunhos
+            <Button 
+              size="sm" 
+              className={cn("transition-all active:scale-95", className)}
+            >
+              <FolderOpen className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate ml-1">Rascunhos</span>
             </Button>
           </DialogTrigger>
         <DialogContent className="max-w-2xl">

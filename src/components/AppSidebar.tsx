@@ -83,7 +83,7 @@ export function AppSidebar() {
             <Pill className="w-4 h-4 text-primary-foreground" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold">UBSF</h2>
+            <h2 className="text-lg font-semibold">SMSA</h2>
             <p className="text-xs text-muted-foreground">Sistema Farmácia</p>
           </div>
         </div>
