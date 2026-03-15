@@ -27,6 +27,8 @@ export function DispensationForm() {
   const [dataDispensa, setDataDispensa] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [carrinho, setCarrinho] = useState<CarrinhoItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
+  const [patientSearch, setPatientSearch] = useState('');
+  const [productSearch, setProductSearch] = useState('');
   const isMobile = useIsMobile();
 
   const {
@@ -35,7 +37,7 @@ export function DispensationForm() {
     lotes,
     dispensacoes,
     isLoadingDispensacoes
-  } = useDispensationQueries(selectedProduct);
+  } = useDispensationQueries(selectedProduct, patientSearch, productSearch);
 
   const handleSuccessfulDispensation = () => {
     setCarrinho([]);
@@ -161,6 +163,7 @@ export function DispensationForm() {
           dataDispensa={dataDispensa}
           setDataDispensa={setDataDispensa}
           pacientes={pacientes}
+          onSearchChange={setPatientSearch}
         />
 
         {/* Step 2: Products */}
@@ -174,6 +177,7 @@ export function DispensationForm() {
           produtos={produtos}
           lotes={lotes}
           onAddToCart={adicionarAoCarrinho}
+          onSearchChange={setProductSearch}
         />
 
         {/* Recent Dispensations */}
@@ -231,6 +235,7 @@ export function DispensationForm() {
           dataDispensa={dataDispensa}
           setDataDispensa={setDataDispensa}
           pacientes={pacientes}
+          onSearchChange={setPatientSearch}
         />
 
         <ProductCart
@@ -251,6 +256,7 @@ export function DispensationForm() {
           produtos={produtos}
           lotes={lotes}
           onAddToCart={adicionarAoCarrinho}
+          onSearchChange={setProductSearch}
         />
 
         <RecentDispensations

@@ -29,6 +29,7 @@ interface SearchableSelectProps<T> {
   emptyMessage?: string
   disabled?: boolean
   className?: string
+  onSearchChange?: (value: string) => void
 }
 
 export function SearchableSelect<T>({
@@ -43,17 +44,19 @@ export function SearchableSelect<T>({
   emptyMessage = "Nenhum item encontrado",
   disabled = false,
   className,
+  onSearchChange,
 }: SearchableSelectProps<T>) {
   const [open, setOpen] = React.useState(false)
   const [searchValue, setSearchValue] = React.useState("")
 
   const filteredItems = React.useMemo(() => {
+    if (onSearchChange) return items // Se tiver busca externa, não filtra localmente
     if (!searchValue) return items
     const searchLower = searchValue.toLowerCase()
     return items.filter(item => 
       getItemSearchText(item).toLowerCase().includes(searchLower)
     )
-  }, [items, searchValue, getItemSearchText])
+  }, [items, searchValue, getItemSearchText, onSearchChange])
 
   const selectedItem = items.find(item => getItemValue(item) === value)
 
@@ -61,6 +64,14 @@ export function SearchableSelect<T>({
     onSelect(item)
     setOpen(false)
     setSearchValue("")
+    if (onSearchChange) onSearchChange("")
+  }
+
+  const handleSearchValueChange = (val: string) => {
+    setSearchValue(val)
+    if (onSearchChange) {
+      onSearchChange(val)
+    }
   }
 
   return (
@@ -90,7 +101,7 @@ export function SearchableSelect<T>({
             <CommandInput
               placeholder={searchPlaceholder}
               value={searchValue}
-              onValueChange={setSearchValue}
+              onValueChange={handleSearchValueChange}
               className="flex h-12 w-full rounded-md bg-transparent py-3 text-[16px] outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
             />
           </div>

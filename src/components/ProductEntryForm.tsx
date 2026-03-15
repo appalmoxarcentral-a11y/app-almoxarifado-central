@@ -17,9 +17,10 @@ export function ProductEntryForm() {
   const [lote, setLote] = useState('');
   const [vencimento, setVencimento] = useState('');
   const [dataEntrada, setDataEntrada] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [productSearch, setProductSearch] = useState('');
 
   const { user } = useAuth();
-  const { produtos } = useProductEntryQueries();
+  const { produtos } = useProductEntryQueries({ productSearch });
   const { createEntryMutation, handleSubmit } = useProductEntryMutations();
 
   // Verificar se o usuário está autenticado
@@ -101,6 +102,7 @@ export function ProductEntryForm() {
                   dataEntrada={dataEntrada}
                   setDataEntrada={setDataEntrada}
                   produtos={produtos}
+                  onSearchChange={setProductSearch}
                   onSubmit={onSubmit}
                   isLoading={createEntryMutation.isPending}
                 />

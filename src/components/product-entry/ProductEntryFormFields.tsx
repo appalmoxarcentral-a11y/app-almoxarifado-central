@@ -20,6 +20,7 @@ interface ProductEntryFormFieldsProps {
   dataEntrada: string;
   setDataEntrada: (value: string) => void;
   produtos: Product[] | undefined;
+  onSearchChange?: (value: string) => void;
   onSubmit: (e: React.FormEvent) => void;
   isLoading: boolean;
 }
@@ -36,6 +37,7 @@ export function ProductEntryFormFields({
   dataEntrada,
   setDataEntrada,
   produtos,
+  onSearchChange,
   onSubmit,
   isLoading
 }: ProductEntryFormFieldsProps) {
@@ -50,6 +52,7 @@ export function ProductEntryFormFields({
           items={produtos || []}
           value={selectedProduct}
           onSelect={(produto) => setSelectedProduct(produto.id)}
+          onSearchChange={onSearchChange}
           getItemValue={(produto) => produto.id}
           getItemLabel={(produto) => `${produto.descricao} (${produto.codigo})`}
           getItemSearchText={(produto) => `${produto.descricao} ${produto.codigo}`}

@@ -27,6 +27,7 @@ interface ProductSelectionProps {
   produtos?: Product[];
   lotes?: LoteInfo[];
   onAddToCart: () => void;
+  onSearchChange?: (value: string) => void;
 }
 
 export function ProductSelection({
@@ -38,7 +39,8 @@ export function ProductSelection({
   setQuantidade,
   produtos = [],
   lotes,
-  onAddToCart
+  onAddToCart,
+  onSearchChange
 }: ProductSelectionProps) {
   const produtoSelecionado = produtos.find(p => p.id === selectedProduct);
 
@@ -62,6 +64,7 @@ export function ProductSelection({
               items={produtos}
               value={selectedProduct}
               onSelect={handleProductSelect}
+              onSearchChange={onSearchChange}
               getItemValue={(product) => product.id}
               getItemLabel={(product) => `${product.descricao} (Estoque: ${product.estoque_atual} ${product.unidade_medida})`}
               getItemSearchText={(product) => `${product.descricao} ${product.codigo}`}

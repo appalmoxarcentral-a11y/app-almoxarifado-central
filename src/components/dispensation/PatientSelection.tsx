@@ -15,6 +15,7 @@ interface PatientSelectionProps {
   dataDispensa: string;
   setDataDispensa: (value: string) => void;
   pacientes?: Patient[];
+  onSearchChange?: (value: string) => void;
 }
 
 export function PatientSelection({
@@ -22,7 +23,8 @@ export function PatientSelection({
   setSelectedPatient,
   dataDispensa,
   setDataDispensa,
-  pacientes = []
+  pacientes = [],
+  onSearchChange
 }: PatientSelectionProps) {
   const pacienteSelecionado = pacientes.find(p => p.id === selectedPatient);
 
@@ -47,6 +49,7 @@ export function PatientSelection({
             items={pacientes}
             value={selectedPatient}
             onSelect={handlePatientSelect}
+            onSearchChange={onSearchChange}
             getItemValue={(patient) => patient.id}
             getItemLabel={(patient) => `${patient.nome} - ${patient.sus_cpf}`}
             getItemSearchText={(patient) => `${patient.nome} ${patient.sus_cpf}`}

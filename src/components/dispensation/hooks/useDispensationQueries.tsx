@@ -9,35 +9,48 @@ interface LoteInfo {
   created_at: string;
 }
 
-export function useDispensationQueries(selectedProduct: string) {
+export function useDispensationQueries(selectedProduct: string, patientSearch: string = '', productSearch: string = '') {
   // Buscar pacientes
   const pacientesQuery = useQuery({
-    queryKey: ['pacientes'],
+    queryKey: ['pacientes-global', patientSearch],
     queryFn: async () => {
-      const { data, error } = await supabase
+      console.log('[Queries] Buscando pacientes com termo:', patientSearch);
+      let query = supabase
         .from('pacientes')
         .select('*')
-        .order('nome')
-        .limit(10000); // Aumentado para suportar bases maiores e garantir busca completa no client-side
+        .order('nome');
+      
+      if (patientSearch) {
+        query = query.or(`nome.ilike.%${patientSearch}%,sus_cpf.ilike.%${patientSearch}%`);
+      }
+
+      const { data, error } = await query.limit(50); // Limite menor para busca dinâmica
       
       if (error) throw error;
       return data as Patient[];
-    }
+    },
+    staleTime: 0,
   });
 
   // Buscar produtos com estoque
   const produtosQuery = useQuery({
-    queryKey: ['produtos-estoque'],
+    queryKey: ['produtos-estoque-global', productSearch],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('produtos')
         .select('*')
-        .gt('estoque_atual', 0)
         .order('descricao');
+      
+      if (productSearch) {
+        query = query.or(`descricao.ilike.%${productSearch}%,codigo.ilike.%${productSearch}%`);
+      }
+
+      const { data, error } = await query.limit(50);
       
       if (error) throw error;
       return data as Product[];
-    }
+    },
+    staleTime: 0,
   });
 
   // Buscar lotes do produto selecionado

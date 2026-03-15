@@ -7,22 +7,29 @@ interface UseProductEntryQueriesParams {
   page?: number;
   limit?: number;
   searchTerm?: string;
+  productSearch?: string;
 }
 
 export const useProductEntryQueries = (params: UseProductEntryQueriesParams = {}) => {
-  const { page = 1, limit = 50, searchTerm = '' } = params;
+  const { page = 1, limit = 50, searchTerm = '', productSearch = '' } = params;
 
   const {
     data: produtos = [],
     isLoading: isLoadingProdutos,
     refetch: refetchProdutos
   } = useQuery({
-    queryKey: ['produtos'],
+    queryKey: ['produtos-entrada', productSearch],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('produtos')
         .select('*')
         .order('descricao');
+      
+      if (productSearch) {
+        query = query.or(`descricao.ilike.%${productSearch}%,codigo.ilike.%${productSearch}%`);
+      }
+
+      const { data, error } = await query.limit(100);
       
       if (error) throw error;
       return data as Product[];
