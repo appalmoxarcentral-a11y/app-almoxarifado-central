@@ -47,11 +47,16 @@ export function Layout({ children }: LayoutProps) {
     { icon: Pill, label: "Dispensação", path: "/dispensacao", permission: "dispensacao" },
     { icon: History, label: "Histórico", path: "/historicos", permission: "historicos" },
     { icon: ShoppingCart, label: "Compras", path: "/relatorio-compras", permission: "relatorio_compras" },
-    { icon: UserCog, label: "Usuários", path: "/usuarios", permission: "gestao_usuarios" },
+    // Seção de Administração (Para Admin e Super Admin)
+    ...((user?.tipo === 'ADMIN' || user?.tipo === 'SUPER_ADMIN') ? [
+      { icon: Users, label: "Membros", path: "/usuarios", permission: "gestao_usuarios" },
+      { icon: UserCog, label: "Gestão Equipe", path: "/admin/usuarios", permission: "gestao_usuarios" },
+      { icon: Building2, label: "Gestão Unidades", path: "/admin/unidades", permission: "gestao_usuarios" },
+    ] : []),
     // Apenas Admin do Tenant pode ver Assinatura (Super Admin também pode para gerenciar)
     ...((user?.tipo === 'ADMIN' || user?.tipo === 'SUPER_ADMIN') && user?.tenant_id ? [{ icon: CreditCard, label: "Assinatura", path: "/assinatura", permission: null }] : []),
-    // Adicionar item de SaaS Admin apenas se for SUPER_ADMIN
-    ...(user?.tipo === 'SUPER_ADMIN' ? [{ icon: UserCog, label: "SaaS Admin", path: "/admin", permission: "gestao_usuarios" }] : [])
+    // Item de SaaS Admin para acesso rápido ao dashboard global (Apenas Super Admin)
+    ...(user?.tipo === 'SUPER_ADMIN' ? [{ icon: UserCog, label: "Painel SaaS", path: "/admin", permission: "gestao_usuarios" }] : [])
   ];
 
   const visibleNavItems = allNavItems.filter(item => {
