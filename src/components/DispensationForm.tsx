@@ -49,11 +49,15 @@ export function DispensationForm() {
     setCartOpen(false);
   };
 
-  const { createDispensationMutation } = useDispensationMutations(
+  const { createDispensationMutation, deleteDispensationMutation } = useDispensationMutations(
     selectedPatient,
     dataDispensa,
     handleSuccessfulDispensation
   );
+
+  const handleDeleteDispensation = (id: string) => {
+    deleteDispensationMutation.mutate(id);
+  };
 
   const adicionarAoCarrinho = () => {
     if (!selectedProduct || !quantidade || !selectedLote) {
@@ -184,6 +188,7 @@ export function DispensationForm() {
         <RecentDispensations
           dispensacoes={dispensacoes}
           isLoading={isLoadingDispensacoes}
+          onDelete={handleDeleteDispensation}
         />
 
         {/* Floating Cart Button */}
@@ -262,6 +267,7 @@ export function DispensationForm() {
         <RecentDispensations
           dispensacoes={dispensacoes}
           isLoading={isLoadingDispensacoes}
+          onDelete={handleDeleteDispensation}
         />
       </div>
     </div>

@@ -36,6 +36,16 @@ export function useDispensationQueries(selectedProduct: string, patientSearch: s
   const produtosQuery = useQuery({
     queryKey: ['produtos-estoque-global', productSearch],
     queryFn: async () => {
+      // 1. Obter a unidade atual do usuário
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('unidade_id')
+        .eq('id', (await supabase.auth.getUser()).data.user?.id)
+        .single();
+
+      const unidadeId = profile?.unidade_id;
+
+      // 2. Buscar produtos
       let query = supabase
         .from('produtos')
         .select('*')
@@ -45,10 +55,39 @@ export function useDispensationQueries(selectedProduct: string, patientSearch: s
         query = query.or(`descricao.ilike.%${productSearch}%,codigo.ilike.%${productSearch}%`);
       }
 
-      const { data, error } = await query.limit(50);
-      
+      const { data: produtosData, error } = await query.limit(50);
       if (error) throw error;
-      return data as Product[];
+
+      // 3. Se tivermos unidadeId, buscar o estoque real desta unidade para cada produto
+      if (unidadeId && produtosData) {
+        const produtosComEstoqueReal = await Promise.all(produtosData.map(async (produto) => {
+          // Buscar soma de entradas nesta unidade
+          const { data: entradas } = await supabase
+            .from('entradas_produtos')
+            .select('quantidade')
+            .eq('produto_id', produto.id)
+            .eq('unidade_id', unidadeId);
+          
+          const totalEntradas = entradas?.reduce((sum, item) => sum + (item.quantidade || 0), 0) || 0;
+
+          // Buscar soma de saídas nesta unidade
+          const { data: dispensacoes } = await supabase
+            .from('dispensacoes')
+            .select('quantidade')
+            .eq('produto_id', produto.id)
+            .eq('unidade_id', unidadeId);
+          
+          const totalSaidas = dispensacoes?.reduce((sum, item) => sum + (item.quantidade || 0), 0) || 0;
+
+          return {
+            ...produto,
+            estoque_atual: totalEntradas - totalSaidas
+          };
+        }));
+        return produtosComEstoqueReal as Product[];
+      }
+
+      return produtosData as Product[];
     },
     staleTime: 0,
   });

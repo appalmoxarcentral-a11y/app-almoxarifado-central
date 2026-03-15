@@ -71,7 +71,38 @@ export function useDispensationMutations(
     }
   });
 
+  const deleteDispensationMutation = useMutation({
+    mutationFn: async (id: string) => {
+      if (!hasPermission('pode_excluir')) {
+        throw new Error('Sem permissão para excluir dispensações');
+      }
+
+      const { error } = await supabase
+        .from('dispensacoes')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Dispensação excluída",
+        description: "O registro foi removido e o estoque ajustado.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['dispensacoes'] });
+      queryClient.invalidateQueries({ queryKey: ['produtos-estoque-global'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao excluir dispensação",
+        description: error.message || "Não foi possível remover o registro.",
+        variant: "destructive",
+      });
+    }
+  });
+
   return {
-    createDispensationMutation
+    createDispensationMutation,
+    deleteDispensationMutation
   };
 }

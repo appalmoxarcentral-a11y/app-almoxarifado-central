@@ -48,6 +48,19 @@ export function SearchableSelect<T>({
 }: SearchableSelectProps<T>) {
   const [open, setOpen] = React.useState(false)
   const [searchValue, setSearchValue] = React.useState("")
+  const [lastSelectedItem, setLastSelectedItem] = React.useState<T | null>(null)
+
+  // Atualizar o item selecionado persistente se encontrarmos ele na lista atual
+  React.useEffect(() => {
+    if (value) {
+      const found = items.find(item => getItemValue(item) === value)
+      if (found) {
+        setLastSelectedItem(found)
+      }
+    } else {
+      setLastSelectedItem(null)
+    }
+  }, [value, items, getItemValue])
 
   const filteredItems = React.useMemo(() => {
     if (onSearchChange) return items // Se tiver busca externa, não filtra localmente
@@ -58,9 +71,11 @@ export function SearchableSelect<T>({
     )
   }, [items, searchValue, getItemSearchText, onSearchChange])
 
-  const selectedItem = items.find(item => getItemValue(item) === value)
+  // Tenta achar o item na lista atual, senão usa o último selecionado persistido
+  const selectedItem = items.find(item => getItemValue(item) === value) || lastSelectedItem
 
   const handleSelect = (item: T) => {
+    setLastSelectedItem(item)
     onSelect(item)
     setOpen(false)
     setSearchValue("")

@@ -73,7 +73,7 @@ export function ProductForm() {
   };
 
   const handleEdit = (product: Product) => {
-    if (user?.tipo !== 'ADMIN') {
+    if (user?.tipo !== 'ADMIN' && user?.tipo !== 'SUPER_ADMIN') {
       return;
     }
     
