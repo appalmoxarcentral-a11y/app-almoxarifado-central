@@ -44,8 +44,8 @@ BEGIN
                     v_tenant_id,
                     (v_item->>'quantidade_reposicao')::numeric,
                     'PEDIDO-' || to_char(NEW.data_entrega, 'DDMMYY'), -- Lote automático identificando o pedido
-                    (CURRENT_DATE + INTERVAL '2 years')::text, -- Vencimento padrão (pode ser ajustado)
-                    CURRENT_DATE::text,
+                    (CURRENT_DATE + INTERVAL '2 years')::date, -- Vencimento padrão (pode ser ajustado)
+                    CURRENT_DATE,
                     NOW(),
                     NEW.usuario_id
                 );
