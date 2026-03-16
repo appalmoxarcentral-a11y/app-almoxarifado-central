@@ -34,18 +34,20 @@ BEGIN
                     tenant_id,
                     quantidade,
                     lote,
-                    data_vencimento,
+                    vencimento,
                     data_entrada,
-                    created_at
+                    created_at,
+                    usuario_id
                 ) VALUES (
                     (v_item->>'id')::UUID,
                     v_unidade_id,
                     v_tenant_id,
                     (v_item->>'quantidade_reposicao')::numeric,
                     'PEDIDO-' || to_char(NEW.data_entrega, 'DDMMYY'), -- Lote automático identificando o pedido
-                    CURRENT_DATE + INTERVAL '2 years', -- Vencimento padrão (pode ser ajustado)
-                    CURRENT_DATE,
-                    NOW()
+                    (CURRENT_DATE + INTERVAL '2 years')::text, -- Vencimento padrão (pode ser ajustado)
+                    CURRENT_DATE::text,
+                    NOW(),
+                    NEW.usuario_id
                 );
             END IF;
         END LOOP;
