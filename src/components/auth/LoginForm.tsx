@@ -57,9 +57,20 @@ export function LoginForm() {
     }
   };
 
+  if (isLoading && !email && !senha) {
+    return (
+      <div className="min-h-[100dvh] flex items-center justify-center bg-background p-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground animate-pulse">Verificando sessão...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-[100dvh] flex items-center justify-center bg-background p-4 overflow-y-auto">
+      <Card className="w-full max-w-md my-auto">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
             <div className="p-3 rounded-full bg-primary/10">

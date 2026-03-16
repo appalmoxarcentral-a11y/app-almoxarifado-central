@@ -58,17 +58,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loadProfile = useCallback(async (userId: string, email: string) => {
     if (isImpersonating) return; // Não recarregar perfil se estiver impersonando
     console.log('[AuthContext] Iniciando loadProfile para:', userId);
+    setIsLoading(true);
     try {
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('[AuthContext] Erro ao buscar perfil no Supabase:', error);
         setUser(null);
-      } else if (profile) {
+      } else if (!profile) {
+        console.warn('[AuthContext] Perfil não encontrado para o usuário:', userId);
+        // Se o perfil não existir, pode ser que o trigger falhou ou está lento.
+        // Tentamos novamente em 2 segundos se for a primeira vez?
+        // Por enquanto, apenas liberamos a UI
+        setUser(null);
+      } else {
         console.log('[AuthContext] Dados brutos do perfil recebidos:', profile);
 
         // Mapear Profile para User (Legacy Adapter)
@@ -198,10 +205,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, senha: string): Promise<boolean> => {
     try {
       setIsLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({
+      
+      // Adicionar um timeout de segurança para não travar a UI em caso de rede instável
+      const timeoutId = setTimeout(() => {
+        setIsLoading(false);
+      }, 15000); // 15 segundos
+
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password: senha,
       });
+
+      clearTimeout(timeoutId);
 
       if (error) {
         console.error('Erro no login:', error);
@@ -214,6 +229,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         setIsLoading(false);
         return false;
+      }
+
+      // Se o login foi bem sucedido, o onAuthStateChange cuidará de carregar o perfil.
+      // No entanto, se o perfil demorar para carregar, a UI pode parecer travada.
+      // Se já tivermos o usuário na resposta do signIn, podemos tentar carregar o perfil imediatamente.
+      if (data?.user) {
+        await loadProfile(data.user.id, data.user.email!);
       }
 
       return true;
