@@ -1,15 +1,22 @@
 export interface RascunhoCompra {
   id: string;
   usuario_id: string;
+  unidade_id?: string;
   nome_rascunho: string;
   dados_produtos: PurchaseDraftItem[];
   data_criacao: string;
   data_atualizacao: string;
   ativo: boolean;
+  status: 'pendente' | 'autorizado' | 'entregue';
+  autorizado_por_id?: string;
+  data_autorizacao?: string;
+  entregue_por_id?: string;
+  data_entrega?: string;
   criado_por?: {
     nome: string;
     email: string;
   };
+  unidade_nome?: string;
 }
 
 export interface PurchaseReportDraft {

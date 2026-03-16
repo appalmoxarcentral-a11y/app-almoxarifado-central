@@ -53,15 +53,25 @@ export const useProductEntryQueries = (params: UseProductEntryQueriesParams = {}
 
       // Apply search filter if searchTerm is provided
       if (searchTerm) {
-        // Nota: O filtro OR em campos de relação pode ser complexo. 
-        // Se falhar, talvez precise de uma abordagem diferente.
         query = query.or(`lote.ilike.%${searchTerm}%`);
+      }
+
+      // 1. Obter a unidade atual do usuário logado para garantir o filtro local
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('unidade_id')
+        .eq('id', (await supabase.auth.getUser()).data.user?.id)
+        .single();
+
+      if (profile?.unidade_id) {
+        query = query.eq('unidade_id', profile.unidade_id);
       }
 
       // Get total count for pagination
       const { count } = await supabase
         .from('entradas_produtos')
-        .select('*', { count: 'exact', head: true });
+        .select('*', { count: 'exact', head: true })
+        .eq('unidade_id', profile?.unidade_id || '00000000-0000-0000-0000-000000000000'); // Garante a contagem correta
 
       // Apply pagination
       const from = (page - 1) * limit;

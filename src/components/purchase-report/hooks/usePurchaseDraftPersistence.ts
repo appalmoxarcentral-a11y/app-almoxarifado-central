@@ -18,8 +18,8 @@ export function usePurchaseDraftPersistence() {
   const canManageDrafts = hasPermission('gerenciar_rascunhos_compras') || hasPermission('relatorio_compras');
   const canAccessReports = hasPermission('relatorio_compras');
 
-  // Buscar todos os rascunhos de compras (compartilhados)
-  const { data: drafts = [], isLoading } = useQuery({
+  // Buscar todos os rascunhos ativos (Pedidos)
+  const { data: drafts = [], isLoading, refetch } = useQuery({
     queryKey: ['rascunhos-compras-todos'],
     queryFn: async () => {
       if (!user?.id || (!canManageDrafts && !canAccessReports)) {
@@ -30,11 +30,25 @@ export function usePurchaseDraftPersistence() {
       console.log('🔍 Buscando todos os rascunhos compartilhados');
       
       // Buscar rascunhos sem JOIN para evitar problemas de RLS
-      const { data, error } = await supabase
+      let query = supabase
         .from('rascunhos_compras')
         .select('*')
         .eq('ativo', true)
         .order('data_atualizacao', { ascending: false });
+
+      // Lógica de Filtro:
+      // 1. Super Admin e Admin vêem tudo do município
+      // 2. Usuário Comum com 'acesso_global_pedidos' vê tudo do município
+      // 3. Usuário Comum sem permissão vê apenas o da sua unidade_id
+      const hasGlobalAccess = user?.tipo === 'SUPER_ADMIN' || 
+                             user?.tipo === 'ADMIN' || 
+                             hasPermission('acesso_global_pedidos');
+
+      if (!hasGlobalAccess && (user as any)?.unidade_id) {
+        query = query.eq('unidade_id', (user as any).unidade_id);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('❌ Erro ao buscar rascunhos:', error);
@@ -43,15 +57,25 @@ export function usePurchaseDraftPersistence() {
 
       console.log('✅ Rascunhos encontrados:', data?.length || 0);
       
-      // Buscar dados dos usuários separadamente (usando a tabela profiles)
+      // Buscar dados dos usuários e unidades separadamente
       const userIds = [...new Set(data?.map(item => item.usuario_id) || [])];
-      const usersData = userIds.length > 0 ? await supabase
-        .from('profiles')
-        .select('id, full_name, email')
-        .in('id', userIds) : { data: [] };
+      
+      const [usersData, unitsData] = await Promise.all([
+        userIds.length > 0 ? supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .in('id', userIds) : { data: [] },
+        supabase
+          .from('unidades_saude')
+          .select('id, nome')
+      ]);
 
       const usersMap = new Map(
         (usersData.data || []).map(p => [p.id, { nome: p.full_name, email: p.email }])
+      );
+
+      const unitsMap = new Map(
+        (unitsData.data || []).map(u => [u.id, u.nome])
       );
       
       return (data || []).map(item => ({
@@ -60,7 +84,8 @@ export function usePurchaseDraftPersistence() {
         criado_por: usersMap.get(item.usuario_id) || {
           nome: 'Usuário desconhecido',
           email: ''
-        }
+        },
+        unidade_nome: unitsMap.get((item as any).unidade_id) || 'Unidade não informada'
       })) as RascunhoCompra[];
     },
     enabled: !!user?.id && (canManageDrafts || canAccessReports),
@@ -278,6 +303,59 @@ export function usePurchaseDraftPersistence() {
     }
   };
 
+  const authorizeDraft = useMutation({
+    mutationFn: async (draftId: string) => {
+      if (!user?.id || !hasPermission('acesso_global_pedidos')) {
+        throw new Error('Sem permissão para autorizar pedidos');
+      }
+
+      const { error } = await supabase
+        .from('rascunhos_compras')
+        .update({ 
+          status: 'autorizado',
+          autorizado_por_id: user.id,
+          data_autorizacao: new Date().toISOString()
+        })
+        .eq('id', draftId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Pedido Autorizado!", description: "A unidade já pode retirar os produtos." });
+      queryClient.invalidateQueries({ queryKey: ['purchase-drafts'] });
+    },
+    onError: (err: any) => {
+      toast({ title: "Erro ao autorizar", description: err.message, variant: "destructive" });
+    }
+  });
+
+  const confirmDelivery = useMutation({
+    mutationFn: async (draftId: string) => {
+      if (!user?.id || !hasPermission('acesso_global_pedidos')) {
+        throw new Error('Sem permissão para confirmar entrega');
+      }
+
+      const { error } = await supabase
+        .from('rascunhos_compras')
+        .update({ 
+          status: 'entregue',
+          entregue_por_id: user.id,
+          data_entrega: new Date().toISOString()
+        })
+        .eq('id', draftId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Entrega Confirmada!", description: "O estoque da unidade foi atualizado automaticamente." });
+      queryClient.invalidateQueries({ queryKey: ['purchase-drafts'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-products'] });
+    },
+    onError: (err: any) => {
+      toast({ title: "Erro ao confirmar entrega", description: err.message, variant: "destructive" });
+    }
+  });
+
   const loadDraft = (draft: RascunhoCompra): PurchaseDraftItem[] => {
     setCurrentDraftId(draft.id);
     return Array.isArray(draft.dados_produtos) ? draft.dados_produtos : [];
@@ -309,8 +387,9 @@ export function usePurchaseDraftPersistence() {
     deleteDraftMutation.mutate(draftId);
   };
 
-  const getCurrentDraft = (): RascunhoCompra | undefined => {
-    return drafts.find(draft => draft.id === currentDraftId);
+  const getCurrentDraft = () => {
+    if (!currentDraftId) return undefined;
+    return drafts.find(d => d.id === currentDraftId);
   };
 
   // Função para verificar se pode editar um rascunho
@@ -337,6 +416,8 @@ export function usePurchaseDraftPersistence() {
     autoSave,
     createNewDraft,
     getCurrentDraft,
-    isSaving: createDraftMutation.isPending || updateDraftMutation.isPending || deleteDraftMutation.isPending
+    authorizeDraft,
+    confirmDelivery,
+    isSaving: createDraftMutation.isPending || updateDraftMutation.isPending || deleteDraftMutation.isPending || authorizeDraft.isPending || confirmDelivery.isPending
   };
 }

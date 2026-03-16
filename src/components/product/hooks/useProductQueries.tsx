@@ -44,6 +44,15 @@ export const useProductQueries = () => {
       setIsSearching(true);
       setCurrentPage(page);
       
+      // 1. Obter a unidade atual do usuário para o cálculo de estoque
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('unidade_id')
+        .eq('id', (await supabase.auth.getUser()).data.user?.id)
+        .single();
+
+      const unidadeId = profile?.unidade_id;
+
       let query = supabase
         .from('produtos')
         .select(`
@@ -73,10 +82,38 @@ export const useProductQueries = () => {
         setTotalProducts(count);
       }
       
-      const mappedProducts = data?.map(p => ({
-        ...p,
-        tenant_name: p.tenant?.name || 'Unidade'
-      })) || [];
+      // 2. Calcular estoque real por unidade para cada produto da página atual
+      const mappedProducts = await Promise.all((data || []).map(async (p) => {
+        let estoqueCalculado = 0;
+
+        if (unidadeId) {
+          // Buscar soma de entradas nesta unidade
+          const { data: entradas } = await supabase
+            .from('entradas_produtos')
+            .select('quantidade')
+            .eq('produto_id', p.id)
+            .eq('unidade_id', unidadeId);
+          
+          const totalEntradas = entradas?.reduce((sum, item) => sum + (item.quantidade || 0), 0) || 0;
+
+          // Buscar soma de saídas nesta unidade
+          const { data: dispensacoes } = await supabase
+            .from('dispensacoes')
+            .select('quantidade')
+            .eq('produto_id', p.id)
+            .eq('unidade_id', unidadeId);
+          
+          const totalSaidas = dispensacoes?.reduce((sum, item) => sum + (item.quantidade || 0), 0) || 0;
+
+          estoqueCalculado = totalEntradas - totalSaidas;
+        }
+
+        return {
+          ...p,
+          tenant_name: p.tenant?.name || 'Unidade',
+          estoque_atual: estoqueCalculado
+        };
+      }));
 
       setProducts(mappedProducts as any);
     } catch (error) {

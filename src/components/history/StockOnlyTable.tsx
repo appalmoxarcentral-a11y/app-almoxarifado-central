@@ -16,16 +16,58 @@ interface ProductWithStock {
 
 export function StockOnlyTable() {
   const { data: produtosEmEstoque, isLoading } = useQuery({
-    queryKey: ['produtos-em-estoque'],
+    queryKey: ['produtos-em-estoque-unidade'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // 1. Obter a unidade atual do usuário
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('unidade_id')
+        .eq('id', (await supabase.auth.getUser()).data.user?.id)
+        .single();
+
+      const unidadeId = profile?.unidade_id;
+
+      // 2. Buscar todos os produtos do catálogo
+      const { data: produtosData, error: prodError } = await supabase
         .from('produtos')
-        .select('id, codigo, descricao, unidade_medida, estoque_atual')
-        .gte('estoque_atual', 1)
-        .order('estoque_atual', { ascending: true });
+        .select('id, codigo, descricao, unidade_medida');
       
-      if (error) throw error;
-      return data as ProductWithStock[];
+      if (prodError) throw prodError;
+
+      // 3. Calcular estoque real desta unidade para cada produto
+      if (unidadeId && produtosData) {
+        const produtosComEstoqueReal = await Promise.all(produtosData.map(async (produto) => {
+          // Buscar soma de entradas nesta unidade
+          const { data: entradas } = await supabase
+            .from('entradas_produtos')
+            .select('quantidade')
+            .eq('produto_id', produto.id)
+            .eq('unidade_id', unidadeId);
+          
+          const totalEntradas = entradas?.reduce((sum, item) => sum + (item.quantidade || 0), 0) || 0;
+
+          // Buscar soma de saídas nesta unidade
+          const { data: dispensacoes } = await supabase
+            .from('dispensacoes')
+            .select('quantidade')
+            .eq('produto_id', produto.id)
+            .eq('unidade_id', unidadeId);
+          
+          const totalSaidas = dispensacoes?.reduce((sum, item) => sum + (item.quantidade || 0), 0) || 0;
+
+          return {
+            ...produto,
+            estoque_atual: totalEntradas - totalSaidas
+          };
+        }));
+
+        // Filtrar apenas produtos que possuem estoque (>= 1) nesta unidade
+        return produtosComEstoqueReal
+          .filter(p => p.estoque_atual >= 1)
+          .sort((a, b) => a.estoque_atual - b.estoque_atual);
+      }
+
+      return [] as ProductWithStock[];
     },
   });
 

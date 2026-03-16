@@ -61,6 +61,7 @@ export interface UserPermissions {
   gestao_usuarios?: boolean;
   gerenciar_rascunhos_compras: boolean;
   pode_excluir?: boolean;
+  acesso_global_pedidos?: boolean;
 }
 
 export interface Patient {

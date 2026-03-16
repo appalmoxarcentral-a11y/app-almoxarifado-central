@@ -20,6 +20,13 @@ export function useHistoryData({
   const { data: entradas, isLoading: isLoadingEntradas } = useQuery({
     queryKey: ['historico-entradas', filtroDataInicial, filtroDataFinal, filtroProduto],
     queryFn: async () => {
+      // 1. Obter a unidade atual do usuário logado
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('unidade_id')
+        .eq('id', (await supabase.auth.getUser()).data.user?.id)
+        .single();
+
       let query = supabase
         .from('entradas_produtos')
         .select(`
@@ -34,6 +41,10 @@ export function useHistoryData({
           )
         `)
         .order('created_at', { ascending: false });
+
+      if (profile?.unidade_id) {
+        query = query.eq('unidade_id', profile.unidade_id);
+      }
 
       if (filtroDataInicial) {
         query = query.gte('data_entrada', filtroDataInicial);
@@ -55,6 +66,13 @@ export function useHistoryData({
   const { data: dispensacoes, isLoading: isLoadingDispensacoes } = useQuery({
     queryKey: ['historico-dispensacoes', filtroDataInicial, filtroDataFinal, filtroProduto, filtroPaciente],
     queryFn: async () => {
+      // 1. Obter a unidade atual do usuário logado
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('unidade_id')
+        .eq('id', (await supabase.auth.getUser()).data.user?.id)
+        .single();
+
       let query = supabase
         .from('dispensacoes')
         .select(`
@@ -73,6 +91,10 @@ export function useHistoryData({
           )
         `)
         .order('created_at', { ascending: false });
+
+      if (profile?.unidade_id) {
+        query = query.eq('unidade_id', profile.unidade_id);
+      }
 
       if (filtroDataInicial) {
         query = query.gte('data_dispensa', filtroDataInicial);

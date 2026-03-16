@@ -49,6 +49,7 @@ export function UserManagement() {
     gestao_usuarios: false,
     gerenciar_rascunhos_compras: false,
     pode_excluir: false,
+    acesso_global_pedidos: false,
   });
 
   // Buscar unidades para o select
@@ -161,6 +162,7 @@ export function UserManagement() {
       gestao_usuarios: false,
       gerenciar_rascunhos_compras: false,
       pode_excluir: false,
+      acesso_global_pedidos: false,
     });
     setEditingUser(null);
   };
@@ -281,7 +283,11 @@ export function UserManagement() {
                   <MultiSelect
                     options={moduloOptions}
                     selected={Object.entries(permissoes)
-                      .filter(([key, value]) => value && key !== 'pode_excluir' && key !== 'gerenciar_rascunhos_compras')
+                      .filter(([key, value]) => value && 
+                        key !== 'pode_excluir' && 
+                        key !== 'gerenciar_rascunhos_compras' && 
+                        key !== 'acesso_global_pedidos'
+                      )
                       .map(([key]) => key)}
                     onChange={(selected) => {
                       const newPerms = { ...permissoes };
@@ -300,23 +306,45 @@ export function UserManagement() {
                   />
                 </div>
 
-                <div className="flex items-center space-x-2 border p-3 rounded-md bg-accent/50">
-                  <Checkbox
-                    id="pode_excluir"
-                    checked={permissoes.pode_excluir}
-                    onCheckedChange={(checked) => 
-                      handlePermissionChange('pode_excluir', checked as boolean)
-                    }
-                    disabled={tipo === 'ADMIN'}
-                  />
-                  <div className="grid gap-1.5 leading-none">
-                    <Label htmlFor="pode_excluir" className="flex items-center gap-2 cursor-pointer">
-                      <ShieldAlert className="h-4 w-4 text-destructive" />
-                      Permitir Exclusão de Registros
-                    </Label>
-                    <p className="text-xs text-muted-foreground">
-                      Permite que o usuário apague registros (pacientes, produtos, etc).
-                    </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center space-x-2 border p-3 rounded-md bg-accent/50">
+                    <Checkbox
+                      id="pode_excluir"
+                      checked={permissoes.pode_excluir}
+                      onCheckedChange={(checked) => 
+                        handlePermissionChange('pode_excluir', checked as boolean)
+                      }
+                      disabled={tipo === 'ADMIN'}
+                    />
+                    <div className="grid gap-1.5 leading-none">
+                      <Label htmlFor="pode_excluir" className="flex items-center gap-2 cursor-pointer">
+                        <ShieldAlert className="h-4 w-4 text-destructive" />
+                        Permitir Exclusão de Registros
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Apagar registros (pacientes, produtos, etc).
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2 border p-3 rounded-md bg-accent/50">
+                    <Checkbox
+                      id="acesso_global_pedidos"
+                      checked={permissoes.acesso_global_pedidos}
+                      onCheckedChange={(checked) => 
+                        handlePermissionChange('acesso_global_pedidos', checked as boolean)
+                      }
+                      disabled={tipo === 'ADMIN'}
+                    />
+                    <div className="grid gap-1.5 leading-none">
+                      <Label htmlFor="acesso_global_pedidos" className="flex items-center gap-2 cursor-pointer text-primary">
+                        <Zap className="h-4 w-4" />
+                        Permitir acesso global pedidos
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Visualizar e editar pedidos de todas as unidades.
+                      </p>
+                    </div>
                   </div>
                 </div>
 

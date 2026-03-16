@@ -48,7 +48,7 @@ interface DraftManagerProps {
   onLoadDraftAsBase: (draft: RascunhoCompra) => PurchaseDraftItem[];
   onDeleteDraft: (draftId: string) => void;
   onCreateNew: () => void;
-  getCurrentDraft: () => RascunhoCompra | undefined;
+  getCurrentDraft: () => RascunhoCompra & { unidade_nome?: string } | undefined;
   items: PurchaseDraftItem[];
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
   className?: string;
@@ -76,6 +76,10 @@ export function DraftManager({
   const [createStepDialogOpen, setCreateStepDialogOpen] = useState(false);
   const [creationMode, setCreationMode] = useState<'type' | 'base'>('type');
   const [draftName, setDraftName] = useState('');
+  
+  // Filtros
+  const [filterMonth, setFilterMonth] = useState<string>('all');
+  const [filterUnit, setFilterUnit] = useState<string>('all');
 
   const currentDraft = getCurrentDraft();
   const isMobileLayout = className?.includes('h-9') || className?.includes('h-10') || className?.includes('w-full');
@@ -94,6 +98,29 @@ export function DraftManager({
   };
 
   const monthOptions = getMonthOptions();
+
+  // Obter meses únicos dos rascunhos para o filtro
+  const availableMonths = Array.from(new Set(drafts.map(d => {
+    // Tenta extrair o mês/ano do nome do rascunho ou usa a data de criação
+    if (d.nome_rascunho.includes('mês')) {
+      return d.nome_rascunho.replace('Pedido ', '');
+    }
+    return format(new Date(d.data_criacao), "MMMM yyyy", { locale: ptBR });
+  }))).sort();
+
+  // Obter unidades únicas dos rascunhos para o filtro
+  const availableUnits = Array.from(new Set(drafts.map(d => d.unidade_nome).filter(Boolean))).sort() as string[];
+
+  // Aplicar filtros
+  const filteredDrafts = drafts.filter(draft => {
+    const matchesMonth = filterMonth === 'all' || 
+      draft.nome_rascunho.includes(filterMonth) || 
+      format(new Date(draft.data_criacao), "MMMM yyyy", { locale: ptBR }).includes(filterMonth);
+    
+    const matchesUnit = filterUnit === 'all' || draft.unidade_nome === filterUnit;
+    
+    return matchesMonth && matchesUnit;
+  });
 
   const handleSave = () => {
     if (currentDraft) {
@@ -182,18 +209,44 @@ export function DraftManager({
               )}
             >
               <FolderOpen className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate ml-1">Rascunhos</span>
+              <span className="truncate ml-1">Pedidos</span>
             </Button>
           </DialogTrigger>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Selecionar Mês ou Rascunho</DialogTitle>
+            <DialogTitle>Selecionar Mês ou Pedido</DialogTitle>
             <DialogDescription>
-              Escolha o rascunho mensal que deseja editar ou crie um novo.
+              Escolha o pedido mensal que deseja editar ou crie um novo.
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-2">
+              <Select value={filterMonth} onValueChange={setFilterMonth}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filtrar Mês/Ano" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os Meses</SelectItem>
+                  {availableMonths.map(month => (
+                    <SelectItem key={month} value={month}>{month}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={filterUnit} onValueChange={setFilterUnit}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filtrar Unidade" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as Unidades</SelectItem>
+                  {availableUnits.map(unit => (
+                    <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <Button 
               onClick={handleCreateNew}
               className="w-full justify-start"
@@ -207,13 +260,13 @@ export function DraftManager({
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
               </div>
-            ) : drafts.length === 0 ? (
+            ) : filteredDrafts.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                Nenhum rascunho encontrado
+                Nenhum pedido encontrado com os filtros selecionados
               </div>
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {drafts.map((draft) => (
+                {filteredDrafts.map((draft) => (
                   <div key={draft.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
@@ -224,10 +277,16 @@ export function DraftManager({
                         {draft.id === currentDraftId && (
                           <Badge variant="default" className="text-xs">Atual</Badge>
                         )}
+                        {draft.status === 'autorizado' && (
+                          <Badge className="text-[10px] bg-green-600 hover:bg-green-700">Autorizado</Badge>
+                        )}
+                        {draft.status === 'entregue' && (
+                          <Badge className="text-[10px] bg-blue-600 hover:bg-blue-700">Entregue</Badge>
+                        )}
                       </div>
                       <div className="text-sm text-muted-foreground">
                         <div className="flex items-center gap-2 mb-1">
-                          <span>Criado por: {draft.criado_por?.nome || 'Usuário desconhecido'}</span>
+                          <span>{draft.criado_por?.nome || 'Usuário'} - {draft.unidade_nome || 'Unidade desconhecida'}</span>
                         </div>
                         {getItemsWithQuantity(draft.dados_produtos)} produtos com quantidade • {' '}
                         {formatDistanceToNow(new Date(draft.data_atualizacao), { 
@@ -257,9 +316,9 @@ export function DraftManager({
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Excluir Rascunho</AlertDialogTitle>
+                            <AlertDialogTitle>Excluir Pedido</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Tem certeza que deseja excluir o rascunho "{draft.nome_rascunho}"? 
+                              Tem certeza que deseja excluir o pedido "{draft.nome_rascunho}"? 
                               Esta ação não pode ser desfeita.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
@@ -315,7 +374,7 @@ export function DraftManager({
               >
                 <Copy className="h-8 w-8 text-muted-foreground" />
                 <div className="text-center">
-                  <div className="font-semibold">Basear em Rascunho</div>
+                  <div className="font-semibold">Basear em Pedido</div>
                   <div className="text-xs text-muted-foreground">Copia as quantidades de um pedido anterior</div>
                 </div>
               </Button>
@@ -331,7 +390,7 @@ export function DraftManager({
                 >
                   Voltar
                 </Button>
-                <span>/ Selecionar rascunho base</span>
+                <span>/ Selecionar pedido base</span>
               </div>
               
               <div className="max-h-64 overflow-y-auto space-y-2 pr-2">
@@ -360,9 +419,9 @@ export function DraftManager({
       <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Salvar Rascunho</DialogTitle>
+            <DialogTitle>Salvar Pedido</DialogTitle>
             <DialogDescription>
-              Digite um nome para o rascunho do relatório de compras.
+              Digite um nome para o pedido do relatório de compras.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -385,7 +444,7 @@ export function DraftManager({
               </Select>
             </div>
             <div>
-              <Label htmlFor="draft-name">Nome do Rascunho (opcional para ajuste)</Label>
+              <Label htmlFor="draft-name">Nome do Pedido (opcional para ajuste)</Label>
               <Input
                 id="draft-name"
                 value={draftName}

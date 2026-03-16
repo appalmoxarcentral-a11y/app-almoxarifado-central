@@ -3,6 +3,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import type { PurchaseItem, PurchaseFilters } from '@/types/purchase';
 import type { PurchaseDraftItem } from '@/types/purchase-draft';
 import { usePurchaseDraftPersistence } from './usePurchaseDraftPersistence';
+import { usePurchaseData } from './usePurchaseData';
 
 export function usePurchaseState() {
   const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([]);
@@ -15,6 +16,34 @@ export function usePurchaseState() {
   });
 
   const persistence = usePurchaseDraftPersistence();
+
+  const currentDraft = persistence.getCurrentDraft();
+  const targetUnidadeId = currentDraft?.unidade_id;
+  
+  const { 
+    produtos: initialProducts, 
+    isLoading: isProductsLoading 
+  } = usePurchaseData(targetUnidadeId);
+
+  // Sincronizar purchaseItems com initialProducts (que tem o estoque da unidade correta)
+  useEffect(() => {
+    if (!isProductsLoading && initialProducts.length > 0) {
+      setPurchaseItems(prevItems => {
+        // Se já temos itens (possivelmente com quantidades de reposição), 
+        // apenas atualizamos o estoque_atual vindo da unidade correta
+        if (prevItems.length > 0) {
+          console.log(`🔄 Atualizando estoque para unidade: ${targetUnidadeId || 'local'}`);
+          return prevItems.map(item => {
+            const updated = initialProducts.find(p => p.id === item.id);
+            return updated ? { ...item, estoque_atual: updated.estoque_atual } : item;
+          });
+        }
+        // Se está vazio (primeiro carregamento), inicializamos tudo
+        console.log(`🆕 Inicializando produtos para unidade: ${targetUnidadeId || 'local'}`);
+        return initialProducts.map(p => ({ ...p, quantidade_reposicao: undefined }));
+      });
+    }
+  }, [initialProducts, isProductsLoading, targetUnidadeId]);
 
   const updatePurchaseQuantity = useCallback((productId: string, quantidade: number | undefined) => {
     setPurchaseItems(items => 
@@ -91,19 +120,29 @@ export function usePurchaseState() {
 
   const loadDraft = useCallback((draft: any) => {
     const loadedItems = persistence.loadDraft(draft);
-    const items = loadedItems.map(item => ({
-      id: item.id,
-      codigo: item.codigo,
-      descricao: item.descricao,
-      unidade_medida: item.unidade_medida,
-      estoque_atual: item.estoque_atual,
-      quantidade_reposicao: item.quantidade_reposicao
-    }));
-    setPurchaseItems(items);
     
-    // Atualizar estado salvo
+    // IMPORTANTE: Ao carregar um rascunho, ignoramos o estoque_atual salvo no JSON
+    // e mantemos o estoque_atual que já está no estado (calculado em tempo real pela unidade)
+    setPurchaseItems(prevItems => {
+      return prevItems.map(currentItem => {
+        // Encontrar o item correspondente no rascunho carregado
+        const draftItem = loadedItems.find(d => d.id === currentItem.id);
+        
+        if (draftItem) {
+          // Mantemos os dados do rascunho (quantidade_reposicao), 
+          // mas preservamos o estoque_atual real da unidade (currentItem.estoque_atual)
+          return {
+            ...currentItem,
+            quantidade_reposicao: draftItem.quantidade_reposicao
+          };
+        }
+        return currentItem;
+      });
+    });
+    
+    // Atualizar estado salvo para detecção de mudanças (usando o ID e a quantidade)
     const newStateString = JSON.stringify(
-      items.map(item => ({ 
+      loadedItems.map(item => ({ 
         id: item.id, 
         quantidade_reposicao: item.quantidade_reposicao 
       }))
@@ -150,15 +189,21 @@ export function usePurchaseState() {
     setHasAttemptedAutoLoad(true); // Marca como carregado para evitar auto-load posterior
     const loadedItems = persistence.loadDraft(draft);
     persistence.createNewDraft(); // Reseta currentDraftId para nulo
-    const items = loadedItems.map(item => ({
-      id: item.id,
-      codigo: item.codigo,
-      descricao: item.descricao,
-      unidade_medida: item.unidade_medida,
-      estoque_atual: item.estoque_atual,
-      quantidade_reposicao: item.quantidade_reposicao
-    }));
-    setPurchaseItems(items);
+    
+    // Mesma lógica do loadDraft: preservar estoque real atual
+    setPurchaseItems(prevItems => {
+      return prevItems.map(currentItem => {
+        const draftItem = loadedItems.find(d => d.id === currentItem.id);
+        if (draftItem) {
+          return {
+            ...currentItem,
+            quantidade_reposicao: draftItem.quantidade_reposicao
+          };
+        }
+        return currentItem;
+      });
+    });
+    
     setLastSavedState(''); // Reseta para detectar mudanças
     return loadedItems;
   }, [persistence.loadDraft, persistence.createNewDraft]);
@@ -192,6 +237,14 @@ export function usePurchaseState() {
     loadDraftAsBase,
     saveDraft,
     loadDraft: loadDraftWrapper,
+    getCurrentDraft: useCallback(() => {
+      const draft = persistence.getCurrentDraft();
+      if (!draft) return undefined;
+      
+      return draft as any & { unidade_nome?: string; status: string; data_autorizacao?: string; data_entrega?: string };
+    }, [persistence.getCurrentDraft]),
+    authorizeDraft: persistence.authorizeDraft,
+    confirmDelivery: persistence.confirmDelivery,
     draftItems: purchaseItems.map(item => ({
       id: item.id,
       codigo: item.codigo,

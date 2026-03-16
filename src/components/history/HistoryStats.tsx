@@ -2,6 +2,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { TrendingUp, TrendingDown, Package, Calendar } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 interface HistoryStatsProps {
   totalEntradas: number;
@@ -25,6 +26,9 @@ export function HistoryStats({
             <div>
               <p className="text-xs md:text-sm text-gray-600">Entradas</p>
               <p className="text-lg md:text-2xl font-bold text-green-600">{totalEntradas}</p>
+              <Badge variant="secondary" className="bg-red-600 text-white hover:bg-red-700 text-[10px] h-5 px-1.5 font-bold uppercase mt-1">
+                entrou
+              </Badge>
             </div>
           </div>
         </CardContent>
@@ -37,6 +41,9 @@ export function HistoryStats({
             <div>
               <p className="text-xs md:text-sm text-gray-600">Dispensações</p>
               <p className="text-lg md:text-2xl font-bold text-red-600">{totalDispensacoes}</p>
+              <Badge variant="secondary" className="bg-red-600 text-white hover:bg-red-700 text-[10px] h-5 px-1.5 font-bold uppercase mt-1">
+                saiu
+              </Badge>
             </div>
           </div>
         </CardContent>

@@ -82,6 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           gestao_usuarios: false,
           gerenciar_rascunhos_compras: false,
           pode_excluir: false,
+          acesso_global_pedidos: false,
         };
 
         // Cast do JSONB para UserPermissions
