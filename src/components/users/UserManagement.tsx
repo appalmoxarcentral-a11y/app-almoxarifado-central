@@ -10,7 +10,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Users, UserPlus, Edit, UserX, UserCheck, ShieldAlert, Zap, Building2 } from 'lucide-react';
+import { Users, UserPlus, Edit, Trash2, UserX, UserCheck, ShieldAlert, Zap, Building2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import type { User, UserPermissions } from '@/types';
@@ -18,6 +28,8 @@ import { MultiSelect, Option } from '@/components/ui/multi-select';
 
 export function UserManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   
   const { user: currentUser } = useAuth();
@@ -131,8 +143,8 @@ export function UserManagement() {
     },
     onSuccess: () => {
       toast({
-        title: editingUser ? "Usuário atualizado!" : "Convite enviado!",
-        description: editingUser ? "Perfil e vínculo atualizados com sucesso." : "O usuário receberá um email.",
+        title: "Usuário atualizado!",
+        description: "Perfil e vínculo atualizados com sucesso.",
       });
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
       resetForm();
@@ -141,6 +153,30 @@ export function UserManagement() {
     onError: (error: any) => {
       toast({
         title: "Erro ao salvar",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Excluir usuário via RPC
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase.rpc('delete_user', { p_user_id: userId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Usuário excluído!",
+        description: "O acesso e o perfil foram removidos com sucesso.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      setIsDeleteAlertOpen(false);
+      setUserToDelete(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao excluir",
         description: error.message,
         variant: "destructive",
       });
@@ -411,14 +447,30 @@ export function UserManagement() {
                       {new Date(usuario.created_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-right flex justify-end gap-1">
-                      {/* Acesso Rápido removido conforme solicitação */}
                       <Button
                         size="sm"
                         variant="ghost"
                         onClick={() => openEditDialog(usuario)}
+                        title="Editar Permissões"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
+                      
+                      {/* Botão de Excluir: apenas para Admins/SuperAdmins e não pode excluir a si mesmo */}
+                      {(currentUser?.tipo === 'SUPER_ADMIN' || currentUser?.tipo === 'ADMIN') && usuario.id !== currentUser?.id && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => {
+                            setUserToDelete(usuario);
+                            setIsDeleteAlertOpen(true);
+                          }}
+                          title="Excluir Usuário"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -434,6 +486,28 @@ export function UserManagement() {
           )}
         </CardContent>
       </Card>
+      
+      {/* Dialog de Confirmação de Exclusão */}
+      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação excluirá permanentemente o usuário <strong>{userToDelete?.nome}</strong> ({userToDelete?.email}) e removerá todo o seu acesso ao sistema. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => userToDelete && deleteUserMutation.mutate(userToDelete.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteUserMutation.isPending}
+            >
+              {deleteUserMutation.isPending ? 'Excluindo...' : 'Sim, excluir usuário'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
