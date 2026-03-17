@@ -89,7 +89,6 @@
   html, body {
     width: 100%;
     max-width: 100%;
-    overflow-x: hidden;
     position: relative;
     -webkit-text-size-adjust: 100%;
     -moz-text-size-adjust: 100%;
@@ -108,14 +107,12 @@
   #root {
     width: 100%;
     max-width: 100%;
-    overflow-x: hidden;
     position: relative;
   }
 
   /* Enforce max-width on all major layout components */
   [data-sidebar="sidebar-wrapper"], 
   [data-sidebar="content"],
-  main,
   header,
   section,
   article,
@@ -124,7 +121,12 @@
     max-width: 100% !important;
     width: 100% !important;
     box-sizing: border-box !important;
-    overflow-x: hidden !important;
+  }
+
+  main {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
   }
 
   /* Specific mobile enforcements */
@@ -137,7 +139,6 @@
     }
     
     body, html, #root {
-      overflow-x: hidden !important;
       position: relative !important;
       width: 100% !important;
       max-width: 100% !important;

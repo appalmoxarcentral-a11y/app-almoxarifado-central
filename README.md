@@ -1,73 +1,68 @@
-# Welcome to your Lovable project
+# UBSF Stock Guardian 🛡️
 
-## Project info
+Sistema robusto de gestão de estoque e dispensação para Unidades Básicas de Saúde da Família (UBSF).
 
-**URL**: https://lovable.dev/projects/9be1d2dd-389d-4b3b-87fb-e363f92b0ac1
+## 🚀 Tecnologias Utilizadas
 
-## How can I edit this code?
+- **Frontend**: React + TypeScript + Vite
+- **UI/UX**: Tailwind CSS + shadcn/ui
+- **Backend/Database**: Supabase (PostgreSQL, Auth, RLS)
+- **Integração**: n8n (Webhooks para pagamentos)
 
-There are several ways of editing your application.
+## 🛠️ Configuração Local
 
-**Use Lovable**
+1. **Clone o repositório**:
+   ```bash
+   git clone <URL_DO_REPOSITORIO>
+   cd ubsf-stock-guardian-27
+   ```
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/9be1d2dd-389d-4b3b-87fb-e363f92b0ac1) and start prompting.
+2. **Instale as dependências**:
+   ```bash
+   npm install
+   ```
 
-Changes made via Lovable will be committed automatically to this repo.
+3. **Configure as variáveis de ambiente**:
+   Crie um arquivo `.env` na raiz do projeto baseado no `.env.example`:
+   ```bash
+   cp .env.example .env
+   ```
+   Preencha com suas credenciais do Supabase e n8n.
 
-**Use your preferred IDE**
+4. **Inicie o servidor de desenvolvimento**:
+   ```bash
+   npm run dev
+   ```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 🌐 Deploy na Vercel
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+Siga os passos abaixo para hospedar o projeto na Vercel:
 
-Follow these steps:
+1. **Conectar Repositório**:
+   - No dashboard da [Vercel](https://vercel.com/dashboard), clique em **"Add New..."** -> **"Project"**.
+   - Importe este repositório.
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+2. **Configurações de Build**:
+   - **Framework Preset**: Vite (detectado automaticamente).
+   - **Build Command**: `npm run build`.
+   - **Output Directory**: `dist`.
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+3. **Variáveis de Ambiente**:
+   Adicione as seguintes chaves em **Environment Variables**:
 
-# Step 3: Install the necessary dependencies.
-npm i
+   | Chave | Descrição |
+   | :--- | :--- |
+   | `VITE_SUPABASE_URL` | URL do projeto Supabase |
+   | `VITE_SUPABASE_PUBLISHABLE_KEY` | Anon Key do Supabase |
+   | `VITE_N8N_WEBHOOK_URL` | URL do Webhook do n8n para pagamentos |
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+4. **Finalizar**:
+   - Clique em **Deploy**. A Vercel cuidará do restante.
 
-**Edit a file directly in GitHub**
+## ⚙️ Notas Adicionais
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+- O arquivo `vercel.json` está configurado para suportar Single Page Application (SPA).
+- O banco de dados utiliza **Row Level Security (RLS)** para isolamento de dados entre unidades de saúde (Multi-tenancy).
 
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/9be1d2dd-389d-4b3b-87fb-e363f92b0ac1) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+---
+*Desenvolvido com foco em eficiência, clareza e escalabilidade.*

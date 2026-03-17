@@ -25,6 +25,7 @@ dist-ssr
 *.sw?
 .env
 .env.local
+.env.mcp
 .env.development.local
 .env.test.local
 .env.production.local
@@ -32,6 +33,15 @@ dist-ssr
 # Vercel
 .vercel/
 .vercelignore
+
+# Local Utility Scripts & Placeholders
+verify-supabase.js
+apply_all_migrations_logic.js
+supabase-mcp.js
+temp_verify_connection.js
+verify_connection_v2.js
+public/placeholder.svg
+
 # Local Docs & PRD
 PRD.md
 docs/

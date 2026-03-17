@@ -75,11 +75,11 @@ export function Layout({ children }: LayoutProps) {
 
   return (
     <SidebarProvider defaultOpen={false}>
-      <div className="min-h-screen flex w-full max-w-full bg-background overflow-x-hidden relative">
+      <div className="min-h-screen flex w-full max-w-full bg-background relative">
         {/* Sidebar */}
         <AppSidebar />
         
-        <div className="flex-1 flex flex-col min-w-0 max-w-full relative overflow-x-hidden">
+        <div className="flex-1 flex flex-col min-w-0 max-w-full relative">
           {/* Header */}
           <header className="bg-card border-b border-border px-4 py-3 flex justify-between items-center sticky top-0 z-40 w-full max-w-full">
             <div className="flex items-center gap-2 md:gap-3 overflow-hidden">
@@ -126,7 +126,7 @@ export function Layout({ children }: LayoutProps) {
           </header>
           
           {/* Main content - add bottom padding on mobile for nav */}
-          <main className={`flex-1 w-full max-w-full overflow-x-hidden p-4 lg:p-6 ${isMobile ? 'pb-24' : ''}`}>
+          <main className={`flex-1 w-full max-w-full p-4 lg:p-6 ${isMobile ? 'pb-24' : ''}`}>
             {children}
           </main>
 

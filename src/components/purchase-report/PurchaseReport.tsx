@@ -107,46 +107,83 @@ export function PurchaseReport() {
       )}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {!isMobile && <ShoppingCart className="h-8 w-8 text-primary" />}
+          <ShoppingCart className={`${isMobile ? 'h-6 w-6' : 'h-8 w-8'} text-primary`} />
           <div>
             <h1 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-bold`}>Relatório de Compras</h1>
-            {!isMobile && <p className="text-gray-600">Gerencie as necessidades de reposição de produtos</p>}
+            <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-600`}>Gerencie as necessidades de reposição de produtos</p>
           </div>
         </div>
-        {/* Adicionar botão de Pedidos no topo para desktop quando não houver itens selecionados */}
-        {!isMobile && itemsForPDF.length === 0 && (
-          <DraftManager
-            drafts={drafts}
-            currentDraftId={currentDraftId}
-            isLoading={isDraftsLoading}
-            isSaving={isSaving}
-            canEditDraft={canEditDraft}
-            canDeleteDraft={canDeleteDraft}
-            onSaveDraft={saveDraft}
-            onLoadDraft={loadDraft}
-            onLoadDraftAsBase={loadDraftAsBase}
-            onDeleteDraft={deleteDraft}
-            onCreateNew={createNewDraft}
-            getCurrentDraft={getCurrentDraft}
-            items={draftItems}
-          />
-        )}
       </div>
 
-      {isMobile && itemsForPDF.length > 0 && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="p-4 bg-orange-900/10 border border-orange-500/20 rounded-xl space-y-1">
-            <div className="text-[10px] font-bold text-orange-500 uppercase tracking-wider">Produtos em Reposição</div>
-            <div className="text-3xl font-black text-foreground">{itemsForPDF.length}</div>
+      <div className="space-y-6">
+        <PurchaseFilters 
+          filters={filters}
+          onFiltersChange={setFilters}
+          showOnlyLowStock
+        />
+
+        <div className="grid grid-cols-2 gap-4 w-full md:w-auto">
+          <div className={`text-center p-3 rounded-xl min-w-[120px] transition-colors ${itemsForPDF.length > 0 ? 'bg-blue-600/10 border border-blue-600/20' : 'bg-muted/50 border border-muted/10'}`}>
+            <div className={`text-2xl font-black ${itemsForPDF.length > 0 ? 'text-blue-600' : 'text-muted-foreground'}`}>
+              {itemsForPDF.length}
+            </div>
+            <div className={`text-[10px] uppercase font-bold tracking-wider ${itemsForPDF.length > 0 ? 'text-blue-600' : 'text-muted-foreground'}`}>Produtos</div>
           </div>
-          <div className="p-4 bg-primary/5 border border-primary/10 rounded-xl space-y-1">
-            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Total de Unidades</div>
-            <div className="text-3xl font-black text-foreground">
+          <div className={`text-center p-3 rounded-xl min-w-[120px] transition-colors ${itemsForPDF.length > 0 ? 'bg-green-600/10 border border-green-600/20' : 'bg-muted/50 border border-muted/10'}`}>
+            <div className={`text-2xl font-black ${itemsForPDF.length > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
               {itemsForPDF.reduce((sum, item) => sum + (item.quantidade_reposicao || 0), 0)}
+            </div>
+            <div className={`text-[10px] uppercase font-bold tracking-wider ${itemsForPDF.length > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>Total Unidades</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="sticky top-[52px] z-40 bg-background/95 backdrop-blur-md pb-4 pt-2 -mx-4 px-4 shadow-md border-b md:top-[64px] md:-mx-6 md:px-6">
+        <div className="space-y-4">
+          <PurchaseFilters 
+            filters={filters}
+            onFiltersChange={setFilters}
+            showOnlySearch
+          />
+
+          <div className="flex flex-wrap items-center justify-center md:justify-end gap-2 w-full md:w-auto flex-1">
+            {currentDraftId && (
+              <div className="w-full md:w-auto flex justify-center md:justify-end mb-1 md:mb-0 md:mr-2">
+                <div className="px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-[10px] font-bold text-primary flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate max-w-[150px] md:max-w-[200px]">{getCurrentDraft()?.nome_rascunho}</span>
+                </div>
+              </div>
+            )}
+            <div className="grid grid-cols-3 md:flex gap-2 w-full md:w-auto">
+              <div className="col-span-1">
+                <DraftManager
+                  drafts={drafts}
+                  currentDraftId={currentDraftId}
+                  isLoading={isDraftsLoading}
+                  isSaving={isSaving}
+                  canEditDraft={canEditDraft}
+                  canDeleteDraft={canDeleteDraft}
+                  onSaveDraft={saveDraft}
+                  onLoadDraft={loadDraft}
+                  onLoadDraftAsBase={loadDraftAsBase}
+                  onDeleteDraft={deleteDraft}
+                  onCreateNew={createNewDraft}
+                  getCurrentDraft={getCurrentDraft}
+                  items={draftItems}
+                  className="w-full h-10 md:h-10"
+                />
+              </div>
+              <div className="col-span-2 flex gap-2">
+                <PurchasePDFGenerator 
+                  items={itemsForPDF} 
+                  className="flex-1 h-10 md:h-10 bg-blue-600 hover:bg-blue-700 text-white font-bold"
+                />
+              </div>
             </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Alerta de Autorização e Prazo */}
       {isAuthorized && !isEntregue && (
@@ -212,106 +249,10 @@ export function PurchaseReport() {
         </div>
       )}
 
-      <PurchaseFilters 
-        filters={filters}
-        onFiltersChange={setFilters}
-      />
-
-      {!isMobile && itemsForPDF.length > 0 && (
-        <div className="sticky top-[73px] z-50 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <Card className="shadow-lg border-primary/20">
-            <CardHeader className="py-3">
-              <CardTitle className="text-green-700 text-lg flex items-center gap-2">
-                ✓ {itemsForPDF.length} {itemsForPDF.length === 1 ? 'produto selecionado' : 'produtos selecionados'} para compra
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="py-3">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-                <div className="text-center p-3 bg-blue-50 rounded-lg">
-                  <div className="text-xl font-bold text-blue-600">
-                    {itemsForPDF.length}
-                  </div>
-                  <div className="text-xs text-blue-600 font-medium">Produtos</div>
-                </div>
-                <div className="text-center p-3 bg-green-50 rounded-lg">
-                  <div className="text-xl font-bold text-green-600">
-                    {itemsForPDF.reduce((sum, item) => sum + (item.quantidade_reposicao || 0), 0)}
-                  </div>
-                  <div className="text-xs text-green-600 font-medium">Total de Unidades</div>
-                </div>
-                <div className="flex items-center justify-center">
-                  <DraftManager
-                    drafts={drafts}
-                    currentDraftId={currentDraftId}
-                    isLoading={isDraftsLoading}
-                    isSaving={isSaving}
-                    canEditDraft={canEditDraft}
-                    canDeleteDraft={canDeleteDraft}
-                    onSaveDraft={saveDraft}
-                    onLoadDraft={loadDraft}
-                    onLoadDraftAsBase={loadDraftAsBase}
-                    onDeleteDraft={deleteDraft}
-                    onCreateNew={createNewDraft}
-                    getCurrentDraft={getCurrentDraft}
-                    items={draftItems}
-                  />
-                </div>
-                <div className="flex items-center justify-center">
-                  <PurchasePDFGenerator items={itemsForPDF} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
       <PurchaseTable
         items={filteredItems}
         onQuantityChange={updatePurchaseQuantity}
       />
-
-      {isMobile && itemsForPDF.length > 0 && (
-        <div className="fixed bottom-[72px] left-0 right-0 z-50 px-2 py-3 bg-background/95 backdrop-blur-md border-t border-border shadow-[0_-4px_12px_rgba(0,0,0,0.1)]">
-          <div className="flex flex-col gap-3 max-w-md mx-auto">
-            {currentDraftId && (
-               <div className="flex justify-center">
-                 <div className="max-w-[80%] px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-[10px] font-bold text-primary flex items-center gap-1.5 animate-in fade-in slide-in-from-bottom-2">
-                   <Calendar className="h-3 w-3 shrink-0" />
-                   <span className="truncate">{getCurrentDraft()?.nome_rascunho} ({getCurrentDraft()?.unidade_nome})</span>
-                 </div>
-               </div>
-             )}
-            
-            <div className="grid grid-cols-3 gap-1.5 px-1">
-              <div className="col-span-1">
-                <PurchasePDFGenerator 
-                  items={itemsForPDF} 
-                  className="w-full h-9 bg-blue-600 hover:bg-blue-700 text-white font-bold border-none shadow-sm text-[10px] px-2 rounded-lg"
-                />
-              </div>
-              
-              <div className="col-span-2">
-                <DraftManager
-                  drafts={drafts}
-                  currentDraftId={currentDraftId}
-                  isLoading={isDraftsLoading}
-                  isSaving={isSaving}
-                  canEditDraft={canEditDraft}
-                  canDeleteDraft={canDeleteDraft}
-                  onSaveDraft={saveDraft}
-                  onLoadDraft={loadDraft}
-                  onLoadDraftAsBase={loadDraftAsBase}
-                  onDeleteDraft={deleteDraft}
-                  onCreateNew={createNewDraft}
-                  getCurrentDraft={getCurrentDraft}
-                  items={draftItems}
-                  className="h-9 font-bold text-[10px] px-2 rounded-lg"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

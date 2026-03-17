@@ -79,8 +79,8 @@ export function usePurchaseState() {
         if (item.estoque_atual > filters.estoqueMinimo) return false;
       }
 
-      // Filtro apenas com reposição
-      if (filters.comReposicao) {
+      // Filtro apenas com reposição - IGNORADO se houver busca por texto
+      if (filters.comReposicao && !filters.searchTerm) {
         if (!item.quantidade_reposicao || item.quantidade_reposicao <= 0) return false;
       }
 

@@ -94,8 +94,8 @@ export function PurchaseTable({ items, onQuantityChange }: PurchaseTableProps) {
       <CardContent>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b bg-muted/20">
+            <thead className="sticky top-0 z-10 bg-muted/95 backdrop-blur-sm shadow-sm">
+              <tr className="border-b">
                 <th className="text-left p-3 font-semibold text-muted-foreground uppercase text-xs tracking-wider">Código</th>
                 <th className="text-left p-3 font-semibold text-muted-foreground uppercase text-xs tracking-wider">Descrição</th>
                 <th className="text-center p-3 font-semibold text-muted-foreground uppercase text-xs tracking-wider">Unidade</th>
