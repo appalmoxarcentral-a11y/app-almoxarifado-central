@@ -21,6 +21,8 @@ export function useDispensationMutations(
 
   const createDispensationMutation = useMutation({
     mutationFn: async (items: CarrinhoItem[]) => {
+      console.log(`[Mutations] Iniciando dispensação para paciente ${selectedPatient} com ${items.length} itens`);
+
       if (!selectedPatient || !user) {
         throw new Error('Paciente ou usuário não selecionado');
       }
@@ -35,14 +37,20 @@ export function useDispensationMutations(
         lote: item.lote,
         data_dispensa: dataDispensa,
         usuario_id: user.id,
-        tenant_id: user.tenant_id || '00000000-0000-0000-0000-000000000000'
+        tenant_id: user.tenant_id || '00000000-0000-0000-0000-000000000000',
+        unidade_id: user.unidade_id
       }));
 
       const { error } = await supabase
         .from('dispensacoes')
         .insert(dispensationsToCreate);
       
-      if (error) throw error;
+      if (error) {
+        console.error('[Mutations] Erro ao inserir dispensação:', error);
+        throw error;
+      }
+
+      console.log('[Mutations] Dispensação concluída com sucesso');
     },
     onSuccess: (_, items) => {
       toast({
@@ -50,11 +58,15 @@ export function useDispensationMutations(
         description: `${items.length} produto(s) foram dispensados com sucesso.`,
       });
       queryClient.invalidateQueries({ queryKey: ['dispensacoes'] });
-      queryClient.invalidateQueries({ queryKey: ['produtos-estoque'] });
+      queryClient.invalidateQueries({ queryKey: ['produtos-estoque-global'] });
       onSuccess();
     },
     onError: (error: any) => {
-      if (error.message?.includes('Estoque insuficiente')) {
+      console.error('[Mutations] Erro detalhado:', error);
+      
+      const errorMessage = error.message || "Não foi possível registrar as dispensações.";
+      
+      if (errorMessage.includes('Estoque insuficiente')) {
         toast({
           title: "Estoque insuficiente",
           description: "Não há quantidade suficiente em estoque para algum produto.",
@@ -63,11 +75,10 @@ export function useDispensationMutations(
       } else {
         toast({
           title: "Erro ao registrar dispensações",
-          description: "Não foi possível registrar as dispensações.",
+          description: errorMessage,
           variant: "destructive",
         });
       }
-      console.error('Erro:', error);
     }
   });
 

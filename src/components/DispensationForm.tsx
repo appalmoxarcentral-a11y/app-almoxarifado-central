@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { ShoppingCart } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
@@ -22,6 +23,7 @@ interface CarrinhoItem {
 export function DispensationForm() {
   const [selectedPatient, setSelectedPatient] = useState('');
   const [selectedProduct, setSelectedProduct] = useState('');
+  const [selectedProductData, setSelectedProductData] = useState<Product | null>(null);
   const [quantidade, setQuantidade] = useState('');
   const [selectedLote, setSelectedLote] = useState('');
   const [dataDispensa, setDataDispensa] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -30,6 +32,7 @@ export function DispensationForm() {
   const [patientSearch, setPatientSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
   const isMobile = useIsMobile();
+  const { user } = useAuth();
 
   const {
     pacientes,
@@ -37,12 +40,19 @@ export function DispensationForm() {
     lotes,
     dispensacoes,
     isLoadingDispensacoes
-  } = useDispensationQueries(selectedProduct, patientSearch, productSearch);
+  } = useDispensationQueries(
+    selectedProduct, 
+    patientSearch, 
+    productSearch,
+    user?.unidade_id,
+    user?.tenant_id
+  );
 
   const handleSuccessfulDispensation = () => {
     setCarrinho([]);
     setSelectedPatient('');
     setSelectedProduct('');
+    setSelectedProductData(null);
     setQuantidade('');
     setSelectedLote('');
     setDataDispensa(format(new Date(), 'yyyy-MM-dd'));
@@ -69,14 +79,24 @@ export function DispensationForm() {
       return;
     }
 
-    const produto = produtos?.find(p => p.id === selectedProduct);
-    if (!produto) return;
+    // Usar selectedProductData se disponível, senão buscar na lista atual
+    const produto = selectedProductData || produtos?.find(p => p.id === selectedProduct);
+    
+    if (!produto) {
+      toast({
+        title: "Erro ao adicionar",
+        description: "Produto não encontrado. Tente buscar e selecionar novamente.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const qtd = parseInt(quantidade);
-    if (qtd > produto.estoque_atual) {
+
+    if (qtd > (produto.estoque_atual || 0)) {
       toast({
         title: "Quantidade excede estoque",
-        description: `Estoque disponível: ${produto.estoque_atual} ${produto.unidade_medida}`,
+        description: `Estoque disponível: ${produto.estoque_atual || 0} ${produto.unidade_medida}`,
         variant: "destructive",
       });
       return;
@@ -102,9 +122,13 @@ export function DispensationForm() {
     };
 
     setCarrinho(prev => [...prev, novoItem]);
+
+    // Limpar apenas campos de seleção de produto
     setSelectedProduct('');
+    setSelectedProductData(null);
     setQuantidade('');
     setSelectedLote('');
+    setProductSearch('');
 
     toast({
       title: "Produto adicionado!",
@@ -141,6 +165,12 @@ export function DispensationForm() {
   const handleProductChange = (productId: string) => {
     setSelectedProduct(productId);
     setSelectedLote('');
+    
+    // Buscar e salvar o objeto do produto imediatamente
+    const product = produtos?.find(p => p.id === productId);
+    if (product) {
+      setSelectedProductData(product);
+    }
   };
 
   const totalItensCarrinho = carrinho.reduce((total, item) => total + item.quantidade, 0);

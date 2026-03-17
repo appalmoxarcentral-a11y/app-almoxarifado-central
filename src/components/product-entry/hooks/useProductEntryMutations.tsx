@@ -21,7 +21,8 @@ export function useProductEntryMutations() {
           vencimento: entryData.vencimento,
           data_entrada: entryData.data_entrada,
           usuario_id: user!.id,
-          tenant_id: user?.tenant_id || '00000000-0000-0000-0000-000000000000'
+          tenant_id: user?.tenant_id || '00000000-0000-0000-0000-000000000000',
+          unidade_id: user?.unidade_id
         }]);
       
       if (error) throw error;
@@ -125,10 +126,48 @@ export function useProductEntryMutations() {
   ) => {
     e.preventDefault();
     
-    if (!formData.selectedProduct || !formData.quantidade || !formData.lote || !formData.vencimento) {
+    console.log('[ProductEntry] Submetendo formulário:', formData);
+
+    if (!formData.selectedProduct) {
       toast({
-        title: "Campos obrigatórios",
-        description: "Por favor, preencha todos os campos.",
+        title: "Campo obrigatório",
+        description: "Por favor, selecione um produto.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.quantidade || parseInt(formData.quantidade) <= 0) {
+      toast({
+        title: "Quantidade inválida",
+        description: "A quantidade deve ser maior que zero.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.lote) {
+      toast({
+        title: "Campo obrigatório",
+        description: "Por favor, informe o lote.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.vencimento) {
+      toast({
+        title: "Vencimento inválido",
+        description: "Por favor, informe uma data de vencimento válida (dd/mm/aaaa).",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.dataEntrada) {
+      toast({
+        title: "Data de entrada inválida",
+        description: "Por favor, informe uma data de entrada válida (dd/mm/aaaa).",
         variant: "destructive",
       });
       return;
@@ -140,11 +179,11 @@ export function useProductEntryMutations() {
       lote: formData.lote,
       vencimento: formData.vencimento,
       data_entrada: formData.dataEntrada
+    }, {
+      onSuccess: () => {
+        resetForm();
+      }
     });
-
-    if (createEntryMutation.isSuccess) {
-      resetForm();
-    }
   };
 
   return {

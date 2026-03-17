@@ -9,10 +9,16 @@ interface LoteInfo {
   created_at: string;
 }
 
-export function useDispensationQueries(selectedProduct: string, patientSearch: string = '', productSearch: string = '') {
+export function useDispensationQueries(
+  selectedProduct: string, 
+  patientSearch: string = '', 
+  productSearch: string = '',
+  unidadeId?: string,
+  tenantId?: string
+) {
   // Buscar pacientes
   const pacientesQuery = useQuery({
-    queryKey: ['pacientes-global', patientSearch],
+    queryKey: ['pacientes-global', patientSearch, tenantId],
     queryFn: async () => {
       console.log('[Queries] Buscando pacientes com termo:', patientSearch);
       let query = supabase
@@ -24,7 +30,12 @@ export function useDispensationQueries(selectedProduct: string, patientSearch: s
         query = query.or(`nome.ilike.%${patientSearch}%,sus_cpf.ilike.%${patientSearch}%`);
       }
 
-      const { data, error } = await query.limit(50); // Limite menor para busca dinâmica
+      // Se tiver tenantId, garantir que filtra por ele (embora RLS deva cuidar disso)
+      if (tenantId) {
+        query = query.eq('tenant_id', tenantId);
+      }
+
+      const { data, error } = await query.limit(50);
       
       if (error) throw error;
       return data as Patient[];
@@ -34,18 +45,11 @@ export function useDispensationQueries(selectedProduct: string, patientSearch: s
 
   // Buscar produtos com estoque
   const produtosQuery = useQuery({
-    queryKey: ['produtos-estoque-global', productSearch],
+    queryKey: ['produtos-estoque-global', productSearch, unidadeId],
     queryFn: async () => {
-      // 1. Obter a unidade atual do usuário
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('unidade_id')
-        .eq('id', (await supabase.auth.getUser()).data.user?.id)
-        .single();
+      console.log(`[Queries] Buscando produtos para unidade: ${unidadeId || 'não informada'}`);
 
-      const unidadeId = profile?.unidade_id;
-
-      // 2. Buscar produtos
+      // 1. Buscar produtos
       let query = supabase
         .from('produtos')
         .select('*')
@@ -55,36 +59,46 @@ export function useDispensationQueries(selectedProduct: string, patientSearch: s
         query = query.or(`descricao.ilike.%${productSearch}%,codigo.ilike.%${productSearch}%`);
       }
 
-      const { data: produtosData, error } = await query.limit(50);
-      if (error) throw error;
+      const { data: produtosData, error: prodError } = await query.limit(50);
+      if (prodError) throw prodError;
 
-      // 3. Se tivermos unidadeId, buscar o estoque real desta unidade para cada produto
-      if (unidadeId && produtosData) {
-        const produtosComEstoqueReal = await Promise.all(produtosData.map(async (produto) => {
-          // Buscar soma de entradas nesta unidade
-          const { data: entradas } = await supabase
+      // 2. Se tivermos unidadeId, buscar o estoque real desta unidade em lote (Batch)
+      if (unidadeId && produtosData && produtosData.length > 0) {
+        const productIds = produtosData.map(p => p.id);
+
+        // Buscar todas as entradas e saídas destes produtos para esta unidade de uma vez
+        const [entradasRes, saidasRes] = await Promise.all([
+          supabase
             .from('entradas_produtos')
-            .select('quantidade')
-            .eq('produto_id', produto.id)
-            .eq('unidade_id', unidadeId);
-          
-          const totalEntradas = entradas?.reduce((sum, item) => sum + (item.quantidade || 0), 0) || 0;
-
-          // Buscar soma de saídas nesta unidade
-          const { data: dispensacoes } = await supabase
+            .select('produto_id, quantidade')
+            .in('produto_id', productIds)
+            .eq('unidade_id', unidadeId),
+          supabase
             .from('dispensacoes')
-            .select('quantidade')
-            .eq('produto_id', produto.id)
-            .eq('unidade_id', unidadeId);
-          
-          const totalSaidas = dispensacoes?.reduce((sum, item) => sum + (item.quantidade || 0), 0) || 0;
+            .select('produto_id, quantidade')
+            .in('produto_id', productIds)
+            .eq('unidade_id', unidadeId)
+        ]);
 
-          return {
-            ...produto,
-            estoque_atual: totalEntradas - totalSaidas
-          };
-        }));
-        return produtosComEstoqueReal as Product[];
+        const estoqueMap = new Map<string, number>();
+
+        // Somar entradas
+        entradasRes.data?.forEach(e => {
+          const atual = estoqueMap.get(e.produto_id) || 0;
+          estoqueMap.set(e.produto_id, atual + (e.quantidade || 0));
+        });
+
+        // Subtrair saídas
+        saidasRes.data?.forEach(s => {
+          const atual = estoqueMap.get(s.produto_id) || 0;
+          estoqueMap.set(s.produto_id, atual - (s.quantidade || 0));
+        });
+
+        // Montar a lista final com estoque calculado
+        return produtosData.map(produto => ({
+          ...produto,
+          estoque_atual: estoqueMap.get(produto.id) || 0
+        })) as Product[];
       }
 
       return produtosData as Product[];
@@ -94,19 +108,30 @@ export function useDispensationQueries(selectedProduct: string, patientSearch: s
 
   // Buscar lotes do produto selecionado
   const lotesQuery = useQuery({
-    queryKey: ['lotes-produto', selectedProduct],
+    queryKey: ['lotes-produto', selectedProduct, unidadeId],
     enabled: !!selectedProduct,
     queryFn: async () => {
       if (!selectedProduct) return [];
       
-      const { data, error } = await supabase
+      console.log(`[Queries] Buscando lotes para produto: ${selectedProduct} na unidade: ${unidadeId}`);
+      
+      let query = supabase
         .from('entradas_produtos')
         .select('lote, vencimento, created_at')
         .eq('produto_id', selectedProduct)
         .order('created_at', { ascending: true });
+
+      // Filtrar lotes por unidade para evitar mostrar lotes de outras unidades
+      if (unidadeId) {
+        query = query.eq('unidade_id', unidadeId);
+      }
+      
+      const { data, error } = await query;
       
       if (error) throw error;
       
+      console.log(`[Queries] Lotes encontrados: ${data?.length || 0}`);
+
       // Remover lotes duplicados mantendo o mais antigo
       const lotesUnicos = data.reduce((acc: LoteInfo[], current) => {
         const existingLote = acc.find(item => item.lote === current.lote);
@@ -122,9 +147,9 @@ export function useDispensationQueries(selectedProduct: string, patientSearch: s
 
   // Buscar dispensações recentes
   const dispensacoesQuery = useQuery({
-    queryKey: ['dispensacoes'],
+    queryKey: ['dispensacoes', unidadeId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('dispensacoes')
         .select(`
           *,
@@ -143,6 +168,12 @@ export function useDispensationQueries(selectedProduct: string, patientSearch: s
         `)
         .order('created_at', { ascending: false })
         .limit(10);
+
+      if (unidadeId) {
+        query = query.eq('unidade_id', unidadeId);
+      }
+      
+      const { data, error } = await query;
       
       if (error) throw error;
       return data as Dispensation[];

@@ -33,6 +33,7 @@ export function SmartDatePicker({
   id,
 }: SmartDatePickerProps) {
   const [inputValue, setInputValue] = React.useState("");
+  const [isInvalid, setIsInvalid] = React.useState(false);
 
   // Update input value when prop value changes
   React.useEffect(() => {
@@ -41,12 +42,14 @@ export function SmartDatePicker({
         const date = new Date(value + "T12:00:00"); // Avoid timezone issues
         if (isValid(date)) {
           setInputValue(format(date, "dd/MM/yyyy"));
+          setIsInvalid(false);
         }
       } catch (e) {
         console.error("Error parsing date prop:", e);
       }
-    } else {
+    } else if (inputValue.length !== 10) {
       setInputValue("");
+      setIsInvalid(false);
     }
   }, [value]);
 
@@ -64,9 +67,18 @@ export function SmartDatePicker({
       const parsedDate = parse(v, "dd/MM/yyyy", new Date());
       if (isValid(parsedDate)) {
         onChange(format(parsedDate, "yyyy-MM-dd"));
+        setIsInvalid(false);
+      } else {
+        // Se a data for inválida (ex: 31/06/2026), avisamos o pai
+        // Passando "" garante que a validação de campo obrigatório/inválido dispare
+        onChange("");
+        setIsInvalid(true);
       }
     } else if (v.length === 0) {
       onChange("");
+      setIsInvalid(false);
+    } else {
+      setIsInvalid(false);
     }
   };
 
@@ -74,6 +86,7 @@ export function SmartDatePicker({
     if (date) {
       onChange(format(date, "yyyy-MM-dd"));
       setInputValue(format(date, "dd/MM/yyyy"));
+      setIsInvalid(false);
     }
   };
 
@@ -88,7 +101,10 @@ export function SmartDatePicker({
         placeholder={placeholder}
         value={inputValue}
         onChange={handleInputChange}
-        className="pr-10 h-12 text-[16px] rounded-xl border-border bg-background"
+        className={cn(
+          "pr-10 h-12 text-[16px] rounded-xl border-border bg-background transition-colors",
+          isInvalid && "border-destructive ring-1 ring-destructive focus-visible:ring-destructive"
+        )}
         maxLength={10}
       />
       <Popover>

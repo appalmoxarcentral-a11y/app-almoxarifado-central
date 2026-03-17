@@ -48,6 +48,15 @@ export function ProductSelection({
     onProductChange(product.id);
   };
 
+  const formatVencimento = (vencimento: string) => {
+    try {
+      const date = new Date(vencimento + 'T12:00:00');
+      return format(date, 'dd/MM/yyyy', { locale: ptBR });
+    } catch (e) {
+      return vencimento;
+    }
+  };
+
   return (
     <Card className="lg:col-span-2">
       <CardHeader>
@@ -109,7 +118,7 @@ export function ProductSelection({
                       <div className="flex flex-col">
                         <span className="font-medium">{loteInfo.lote}</span>
                         <span className="text-xs text-gray-500">
-                          Vence: {format(new Date(loteInfo.vencimento), 'dd/MM/yyyy', { locale: ptBR })}
+                          Vence: {formatVencimento(loteInfo.vencimento)}
                         </span>
                       </div>
                     </SelectItem>
