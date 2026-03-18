@@ -30,7 +30,7 @@ export function PurchasePDFGenerator({ items, disabled, variant, className }: Pu
       <html>
       <head>
         <meta charset="UTF-8">
-        <title>Relatório de Compras - ${unidadeNome}</title>
+        <title>Pedidos - ${unidadeNome}</title>
         <style>
           body { 
             font-family: Arial, sans-serif; 
@@ -39,16 +39,17 @@ export function PurchasePDFGenerator({ items, disabled, variant, className }: Pu
             color: #333;
           }
           .header { 
-            text-align: center; 
-            margin-bottom: 30px; 
-            border-bottom: 2px solid #333;
-            padding-bottom: 15px;
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 20px;
+            border-bottom: 2px solid #2563eb;
+            padding-bottom: 10px;
           }
-          .header h1 { 
-            margin: 0; 
-            color: #333; 
-            font-size: 24px;
-            text-transform: uppercase;
+          .title { 
+            font-size: 24px; 
+            font-weight: bold; 
+            color: #1e40af;
           }
           .header p { 
             margin: 5px 0; 

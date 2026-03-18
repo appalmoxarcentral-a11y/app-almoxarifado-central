@@ -49,7 +49,7 @@ export function AppSidebar() {
     icon: History,
     permission: 'historicos'
   }, {
-    title: 'Relatório de Compras',
+    title: 'Pedidos',
     url: '/relatorio-compras',
     icon: ShoppingCart,
     permission: 'relatorio_compras'

@@ -109,7 +109,7 @@ export function PurchaseReport() {
         <div className="flex items-center gap-2">
           <ShoppingCart className={`${isMobile ? 'h-6 w-6' : 'h-8 w-8'} text-primary`} />
           <div>
-            <h1 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-bold`}>Relatório de Compras</h1>
+            <h1 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-bold`}>Pedidos</h1>
             <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-600`}>Gerencie as necessidades de reposição de produtos</p>
           </div>
         </div>
@@ -138,7 +138,7 @@ export function PurchaseReport() {
         </div>
       </div>
 
-      <div className="sticky top-[52px] z-40 bg-background/95 backdrop-blur-md pb-4 pt-2 -mx-4 px-4 shadow-md border-b md:top-[64px] md:-mx-6 md:px-6">
+      <div className="sticky top-[52px] z-50 bg-background/95 backdrop-blur-md pb-4 pt-2 -mx-4 px-4 shadow-md border-b md:top-[64px] md:-mx-6 md:px-6">
         <div className="space-y-4">
           <PurchaseFilters 
             filters={filters}
@@ -149,14 +149,14 @@ export function PurchaseReport() {
           <div className="flex flex-wrap items-center justify-center md:justify-end gap-2 w-full md:w-auto flex-1">
             {currentDraftId && (
               <div className="w-full md:w-auto flex justify-center md:justify-end mb-1 md:mb-0 md:mr-2">
-                <div className="px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-[10px] font-bold text-primary flex items-center gap-1.5">
+                <div className="px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-[10px] font-bold text-primary flex items-center gap-1.5 shadow-sm backdrop-blur-sm">
                   <Calendar className="h-3.5 w-3.5 shrink-0" />
                   <span className="truncate max-w-[150px] md:max-w-[200px]">{getCurrentDraft()?.nome_rascunho}</span>
                 </div>
               </div>
             )}
             <div className="grid grid-cols-3 md:flex gap-2 w-full md:w-auto">
-              <div className="col-span-1">
+              <div className="col-span-2">
                 <DraftManager
                   drafts={drafts}
                   currentDraftId={currentDraftId}
@@ -171,13 +171,13 @@ export function PurchaseReport() {
                   onCreateNew={createNewDraft}
                   getCurrentDraft={getCurrentDraft}
                   items={draftItems}
-                  className="w-full h-10 md:h-10"
+                  className="w-full h-11 md:h-10 font-bold shadow-sm"
                 />
               </div>
-              <div className="col-span-2 flex gap-2">
+              <div className="col-span-1">
                 <PurchasePDFGenerator 
                   items={itemsForPDF} 
-                  className="flex-1 h-10 md:h-10 bg-blue-600 hover:bg-blue-700 text-white font-bold"
+                  className="w-full h-11 md:h-10 bg-primary hover:bg-primary/90 text-white font-black shadow-lg rounded-xl transition-all active:scale-95"
                 />
               </div>
             </div>

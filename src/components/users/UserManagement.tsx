@@ -42,7 +42,7 @@ export function UserManagement() {
     { label: 'Entrada de Produtos', value: 'entrada_produtos' },
     { label: 'Dispensação', value: 'dispensacao' },
     { label: 'Históricos', value: 'historicos' },
-    { label: 'Relatório de Compras', value: 'relatorio_compras' },
+    { label: 'Pedidos', value: 'relatorio_compras' },
     { label: 'Gestão de Usuários', value: 'gestao_usuarios' },
   ];
 

@@ -45,8 +45,8 @@ export function Layout({ children }: LayoutProps) {
     { icon: Package, label: "Produtos", path: "/produtos", permission: "cadastro_produtos" },
     { icon: PackagePlus, label: "Entradas", path: "/entradas", permission: "entrada_produtos" },
     { icon: Pill, label: "Dispensação", path: "/dispensacao", permission: "dispensacao" },
-    { icon: History, label: "Histórico", path: "/historicos", permission: "historicos" },
-    { icon: ShoppingCart, label: "Compras", path: "/relatorio-compras", permission: "relatorio_compras" },
+    { icon: History, label: "Históricos", path: "/historicos", permission: "historicos" },
+    { icon: ShoppingCart, label: "Pedidos", path: "/relatorio-compras", permission: "relatorio_compras" },
     // Seção de Administração (Para Admin e Super Admin)
     ...((user?.tipo === 'ADMIN' || user?.tipo === 'SUPER_ADMIN') ? [
       { icon: Users, label: "Membros", path: "/usuarios", permission: "gestao_usuarios" },
