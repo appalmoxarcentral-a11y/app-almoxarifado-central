@@ -18,6 +18,5 @@ export interface PurchaseReportData {
 export interface PurchaseFilters {
   searchTerm: string;
   estoqueMinimo?: number;
-  comReposicao: boolean;
   tenantId?: string;
 }

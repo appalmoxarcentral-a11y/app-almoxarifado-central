@@ -172,6 +172,7 @@ export function PurchaseReport() {
                   getCurrentDraft={getCurrentDraft}
                   items={draftItems}
                   className="w-full h-11 md:h-10 font-bold shadow-sm"
+                  hasChanges={hasChanges}
                 />
               </div>
               <div className="col-span-1">

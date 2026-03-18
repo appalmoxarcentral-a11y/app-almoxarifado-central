@@ -52,6 +52,7 @@ interface DraftManagerProps {
   items: PurchaseDraftItem[];
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
   className?: string;
+  hasChanges?: boolean;
 }
 
 export function DraftManager({
@@ -69,7 +70,8 @@ export function DraftManager({
   getCurrentDraft,
   items,
   variant,
-  className
+  className,
+  hasChanges
 }: DraftManagerProps) {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [loadDialogOpen, setLoadDialogOpen] = useState(false);
@@ -184,7 +186,7 @@ export function DraftManager({
       
       <Button
         onClick={handleSave}
-        disabled={isSaving}
+        disabled={isSaving || (currentDraftId !== null && !hasChanges)}
         size="sm"
         className={cn(
           "transition-all active:scale-95 flex-1", 

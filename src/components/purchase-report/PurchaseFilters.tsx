@@ -26,10 +26,6 @@ export function PurchaseFilters({ filters, onFiltersChange, showOnlySearch, show
     onFiltersChange({ ...filters, estoqueMinimo });
   };
 
-  const handleComReposicaoChange = (checked: boolean) => {
-    onFiltersChange({ ...filters, comReposicao: checked });
-  };
-
   if (showOnlySearch) {
     return (
       <div className="flex flex-col md:flex-row items-end gap-4 w-full">
@@ -45,18 +41,6 @@ export function PurchaseFilters({ filters, onFiltersChange, showOnlySearch, show
               className="pl-10 h-10 bg-muted/20 border-muted-foreground/10 focus:border-primary"
             />
           </div>
-        </div>
-
-        <div className="flex items-center space-x-2 pb-2.5">
-          <Checkbox
-            id="comReposicao"
-            checked={filters.comReposicao}
-            onCheckedChange={handleComReposicaoChange}
-            className="h-5 w-5 border-muted-foreground/30 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-          />
-          <Label htmlFor="comReposicao" className="text-xs font-bold text-foreground whitespace-nowrap">
-            Apenas com reposição
-          </Label>
         </div>
       </div>
     );
@@ -88,7 +72,7 @@ export function PurchaseFilters({ filters, onFiltersChange, showOnlySearch, show
         </CardTitle>
       </CardHeader>
       <CardContent className={`${isMobile ? 'p-4 pt-0' : ''}`}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="search" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Buscar Produto</Label>
             <div className="relative">
@@ -114,18 +98,6 @@ export function PurchaseFilters({ filters, onFiltersChange, showOnlySearch, show
               onChange={(e) => handleEstoqueMinimoChange(e.target.value)}
               className="h-11 bg-muted/20 border-muted-foreground/10 focus:border-primary"
             />
-          </div>
-
-          <div className={`flex items-center space-x-2 ${isMobile ? 'pt-2' : 'pt-8'}`}>
-            <Checkbox
-              id="comReposicao"
-              checked={filters.comReposicao}
-              onCheckedChange={handleComReposicaoChange}
-              className="h-5 w-5 border-muted-foreground/30 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-            />
-            <Label htmlFor="comReposicao" className="text-sm font-medium text-foreground">
-              Apenas com reposição
-            </Label>
           </div>
         </div>
       </CardContent>

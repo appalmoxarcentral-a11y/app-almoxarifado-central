@@ -11,8 +11,7 @@ export function usePurchaseState() {
   const [hasAttemptedAutoLoad, setHasAttemptedAutoLoad] = useState(false);
   const [filters, setFilters] = useState<PurchaseFilters>({
     searchTerm: '',
-    estoqueMinimo: undefined,
-    comReposicao: false
+    estoqueMinimo: undefined
   });
 
   const persistence = usePurchaseDraftPersistence();
@@ -63,7 +62,7 @@ export function usePurchaseState() {
   }, []);
 
   const filteredItems = useMemo(() => {
-    return purchaseItems.filter(item => {
+    const filtered = purchaseItems.filter(item => {
       // Filtro por termo de busca
       if (filters.searchTerm) {
         const searchLower = filters.searchTerm.toLowerCase();
@@ -79,12 +78,19 @@ export function usePurchaseState() {
         if (item.estoque_atual > filters.estoqueMinimo) return false;
       }
 
-      // Filtro apenas com reposição - IGNORADO se houver busca por texto
-      if (filters.comReposicao && !filters.searchTerm) {
-        if (!item.quantidade_reposicao || item.quantidade_reposicao <= 0) return false;
-      }
-
       return true;
+    });
+
+    // Ordenação: Itens com reposição primeiro, depois ordem alfabética
+    return [...filtered].sort((a, b) => {
+      const hasRepoA = (a.quantidade_reposicao || 0) > 0;
+      const hasRepoB = (b.quantidade_reposicao || 0) > 0;
+
+      if (hasRepoA && !hasRepoB) return -1;
+      if (!hasRepoA && hasRepoB) return 1;
+
+      // Se ambos tiverem ou ambos não tiverem reposição, ordena por descrição
+      return a.descricao.localeCompare(b.descricao);
     });
   }, [purchaseItems, filters]);
 
