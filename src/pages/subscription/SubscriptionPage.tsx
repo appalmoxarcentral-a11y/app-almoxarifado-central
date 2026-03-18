@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 export function SubscriptionPage() {
-  const { user } = useAuth();
+  const { user, isImpersonating } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedPlan, setSelectedPlan] = React.useState<{ id: string; name: string; price: number } | null>(null);
@@ -23,6 +23,7 @@ export function SubscriptionPage() {
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
   const [showCelebration, setShowCelebration] = React.useState(false);
   const [planToEdit, setPlanToEdit] = React.useState<any>(null);
+  const [isSaving, setIsSaving] = React.useState(false);
   
   // Ref para armazenar o ID da última fatura paga conhecida ao abrir a página
   // Isso evita que a animação dispare ao dar refresh, mas permite disparar em tempo real
@@ -60,6 +61,8 @@ export function SubscriptionPage() {
           .from('subscriptions')
           .select('*')
           .eq('tenant_id', user.tenant_id)
+          .order('created_at', { ascending: false })
+          .limit(1)
           .maybeSingle();
         
         if (subError) throw subError;
@@ -179,31 +182,50 @@ export function SubscriptionPage() {
   };
 
   const savePlanChanges = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
     try {
-      const { error } = await supabase
+      console.log('[SubscriptionPage] Iniciando salvamento...', {
+        userId: user?.id,
+        planId: planToEdit.id,
+        newData: planToEdit
+      });
+      
+      const { data, error } = await supabase
         .from('plans')
         .update({
-          price: planToEdit.price,
-          max_users: planToEdit.max_users,
-          max_products: planToEdit.max_products === 0 ? null : planToEdit.max_products,
-          max_patients: planToEdit.max_patients === 0 ? null : planToEdit.max_patients,
+          price: Number(planToEdit.price),
+          max_users: Number(planToEdit.max_users),
+          max_products: planToEdit.max_products === 0 ? null : Number(planToEdit.max_products),
+          max_patients: planToEdit.max_patients === 0 ? null : Number(planToEdit.max_patients),
         })
-        .eq('id', planToEdit.id);
+        .eq('id', planToEdit.id)
+        .select();
 
       if (error) throw error;
 
+      if (!data || data.length === 0) {
+        console.error('[SubscriptionPage] Update retornou vazio. RLS barrou ou ID não existe.');
+        throw new Error("O banco de dados não permitiu a alteração. Certifique-se de que seu usuário tem a role 'super_admin' na tabela profiles.");
+      }
+
+      console.log('[SubscriptionPage] Sucesso!', data[0]);
       toast({ title: "Plano atualizado com sucesso!" });
       setIsEditModalOpen(false);
       
-      // Invalida todas as queries relacionadas para atualizar a UI sem reload bruto
-      await queryClient.invalidateQueries();
+      // Invalida especificamente as queries de planos e assinaturas
+      await queryClient.invalidateQueries({ queryKey: ['available-plans'] });
+      await queryClient.invalidateQueries({ queryKey: ['my-subscription'] });
       
     } catch (error: any) {
+      console.error('[SubscriptionPage] Erro fatal ao salvar:', error);
       toast({ 
         title: "Erro ao atualizar plano", 
         description: error.message,
         variant: "destructive" 
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -232,8 +254,8 @@ export function SubscriptionPage() {
   }
 
   const currentPlanName = currentSubscription?.plans?.name || '';
-  const isSuperAdmin = user?.tipo === 'SUPER_ADMIN';
-  const isAdmin = user?.tipo === 'ADMIN';
+  const isSuperAdmin = user?.tipo === 'SUPER_ADMIN' || isImpersonating;
+  const isAdmin = user?.tipo === 'ADMIN' || isSuperAdmin;
   const isSubscriptionBlocked = user?.subscription_blocked && !isSuperAdmin;
 
   return (
@@ -303,8 +325,10 @@ export function SubscriptionPage() {
               </div>
             </div>
             <DialogFooter className="gap-2 flex-col sm:flex-row pt-2">
-              <Button variant="outline" className="w-full sm:w-auto h-12 text-base font-bold" onClick={() => setIsEditModalOpen(false)}>Cancelar</Button>
-              <Button className="w-full sm:w-auto h-12 text-base font-bold" onClick={savePlanChanges}>Aplicar Alterações</Button>
+              <Button variant="outline" className="w-full sm:w-auto h-12 text-base font-bold" onClick={() => setIsEditModalOpen(false)} disabled={isSaving}>Cancelar</Button>
+              <Button className="w-full sm:w-auto h-12 text-base font-bold" onClick={savePlanChanges} disabled={isSaving}>
+                {isSaving ? 'Salvando...' : 'Aplicar Alterações'}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -437,8 +461,9 @@ export function SubscriptionPage() {
           const exceedsPatients = !!(usageStats && plan.max_patients && Number(usageStats.patients) > Number(plan.max_patients));
           const isIneligible = exceedsUsers || exceedsProducts || exceedsPatients;
 
-          // Se for o plano atual e NÃO houver fatura pendente, permitimos clicar para gerar uma nova
-          const canGenerateNewInvoiceForCurrent = isCurrent && !hasPendingInvoice;
+          // Se for o plano atual e NÃO houver fatura pendente, desativamos o botão pois ele já está em uso
+          const isPlanActiveAndInUse = isCurrent && currentSubscription?.status === 'active';
+          const canGenerateNewInvoiceForCurrent = isCurrent && !hasPendingInvoice && !isPlanActiveAndInUse;
 
           return (
             <Card key={plan.id} className={`group flex flex-col bg-card border-border transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 rounded-2xl md:rounded-[2rem] overflow-hidden ${isCurrent ? 'ring-2 md:ring-4 ring-primary border-transparent shadow-xl md:shadow-2xl' : 'shadow-lg border-2'}`}>
@@ -500,17 +525,17 @@ export function SubscriptionPage() {
               <CardFooter className="p-5 md:p-8 pt-0">
                 <Button 
                   className={`w-full h-12 md:h-16 text-sm md:text-lg font-black uppercase tracking-[0.05em] md:tracking-[0.1em] transition-all duration-300 rounded-xl md:rounded-2xl shadow-lg md:shadow-xl active:scale-[0.98] ${
-                    isCurrent && !canGenerateNewInvoiceForCurrent
-                      ? 'bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20' 
+                    isCurrent
+                      ? 'bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 cursor-not-allowed opacity-50' 
                       : isIneligible 
                         ? 'bg-muted text-muted-foreground cursor-not-allowed border-none' 
                         : 'bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-primary/20 active:shadow-none'
                   }`}
-                  disabled={(isCurrent && !canGenerateNewInvoiceForCurrent) || isIneligible || (!isAdmin && !isSuperAdmin)}
+                  disabled={isCurrent || isIneligible || (!isAdmin && !isSuperAdmin)}
                   onClick={() => handleSubscribe(plan.id, plan.name, plan.price)}
                 >
                   {isCurrent 
-                    ? (canGenerateNewInvoiceForCurrent ? 'Gerar Fatura' : 'Plano em Uso') 
+                    ? 'Plano Ativo' 
                     : isIneligible ? 'Limites Excedidos' : 'Ativar Plano'}
                 </Button>
               </CardFooter>

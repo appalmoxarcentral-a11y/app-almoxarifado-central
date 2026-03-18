@@ -1,0 +1,1 @@
+UPDATE public.plans SET name = 'Plano Premium Editado', price = 999 WHERE id = '00000000-0000-0000-0000-000000000001';

@@ -105,17 +105,121 @@ export function SubscriptionForm({ planName, planId, planPrice, subscriptionId, 
     return `${pix.substring(0, 15)}...${pix.substring(pix.length - 15)}`;
   };
 
+  const validateCPF = (cpf: string) => {
+    const cleanCPF = cpf.replace(/\D/g, '');
+    if (cleanCPF.length !== 11) return false;
+    if (/^(\d)\1+$/.test(cleanCPF)) return false;
+    
+    let sum = 0;
+    for (let i = 0; i < 9; i++) {
+      sum += parseInt(cleanCPF.charAt(i)) * (10 - i);
+    }
+    let rev = 11 - (sum % 11);
+    if (rev === 10 || rev === 11) rev = 0;
+    if (rev !== parseInt(cleanCPF.charAt(9))) return false;
+    
+    sum = 0;
+    for (let i = 0; i < 10; i++) {
+      sum += parseInt(cleanCPF.charAt(i)) * (11 - i);
+    }
+    rev = 11 - (sum % 11);
+    if (rev === 10 || rev === 11) rev = 0;
+    if (rev !== parseInt(cleanCPF.charAt(10))) return false;
+    
+    return true;
+  };
+
+  const validateCNPJ = (cnpj: string) => {
+    const cleanCNPJ = cnpj.replace(/\D/g, '');
+    if (cleanCNPJ.length !== 14) return false;
+    if (/^(\d)\1+$/.test(cleanCNPJ)) return false;
+
+    let size = cleanCNPJ.length - 2;
+    let numbers = cleanCNPJ.substring(0, size);
+    const digits = cleanCNPJ.substring(size);
+    let sum = 0;
+    let pos = size - 7;
+    for (let i = size; i >= 1; i--) {
+      sum += parseInt(numbers.charAt(size - i)) * pos--;
+      if (pos < 2) pos = 9;
+    }
+    let result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+    if (result !== parseInt(digits.charAt(0))) return false;
+
+    size = size + 1;
+    numbers = cleanCNPJ.substring(0, size);
+    sum = 0;
+    pos = size - 7;
+    for (let i = size; i >= 1; i--) {
+      sum += parseInt(numbers.charAt(size - i)) * pos--;
+      if (pos < 2) pos = 9;
+    }
+    result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+    if (result !== parseInt(digits.charAt(1))) return false;
+
+    return true;
+  };
+
+  const formatDocument = (value: string) => {
+    const cleanValue = value.replace(/\D/g, '');
+    if (cleanValue.length <= 11) {
+      return cleanValue
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    }
+    return cleanValue
+      .replace(/^(\d{2})(\d)/, '$1.$2')
+      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/\.(\d{3})(\d)/, '.$1/$2')
+      .replace(/(\d{4})(\d)/, '$1-$2');
+  };
+
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
     try {
       if (!user?.tenant_id) throw new Error("Tenant ID not found");
+
+      // Document Validation
+      const cleanDoc = data.document.replace(/\D/g, '');
+      if (cleanDoc.length === 11) {
+        if (!validateCPF(cleanDoc)) {
+          toast({
+            title: "CPF Inválido",
+            description: "Por favor, informe um CPF válido para prosseguir.",
+            variant: "destructive"
+          });
+          setIsLoading(false);
+          return;
+        }
+      } else if (cleanDoc.length === 14) {
+        if (!validateCNPJ(cleanDoc)) {
+          toast({
+            title: "CNPJ Inválido",
+            description: "Por favor, informe um CNPJ válido para prosseguir.",
+            variant: "destructive"
+          });
+          setIsLoading(false);
+          return;
+        }
+      } else {
+        toast({
+          title: "Documento Inválido",
+          description: "O documento deve ser um CPF (11 dígitos) ou CNPJ (14 dígitos).",
+          variant: "destructive"
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      const formattedDoc = formatDocument(cleanDoc);
 
       // 1. Update Tenant Details
       const { error: tenantError } = await supabase
         .from('tenants')
         .update({
           name: data.company_name,
-          document: data.document,
+          document: formattedDoc,
           phone: data.phone,
           address: data.address,
           city: data.city,
@@ -126,37 +230,76 @@ export function SubscriptionForm({ planName, planId, planPrice, subscriptionId, 
 
       if (tenantError) throw tenantError;
 
-      // 2. Update Profile Phone (if needed)
+      // 1.5 Prepare Dates for Subscription and Invoice
+      // Faturamento: Hoje (Data da adesão)
+      // Vencimento: Amanhã às 23:59
+      // Próximo Ciclo: 1 mês após o Vencimento às 23:59
+      const today = new Date();
+      
+      const nextCycleDate = new Date(today);
+      nextCycleDate.setDate(today.getDate() + 1);
+      nextCycleDate.setHours(23, 59, 0, 0);
+      
+      const paymentDateFuture = new Date(nextCycleDate);
+      paymentDateFuture.setMonth(paymentDateFuture.getMonth() + 1);
+
+      // 2. Update the plan_id and periods in the subscriptions table
+      console.log('[SubscriptionForm] Atualizando plano da assinatura...', { subscriptionId, planId, tenantId: user.tenant_id });
+      
+      const subQuery = supabase
+        .from('subscriptions')
+        .update({ 
+          plan_id: planId,
+          status: 'active',
+          current_period_start: today.toISOString(),
+          current_period_end: nextCycleDate.toISOString() // Renovação mostra o próximo vencimento
+        });
+
+      if (subscriptionId) {
+        subQuery.eq('id', subscriptionId);
+      } else {
+        subQuery.eq('tenant_id', user.tenant_id);
+      }
+
+      const { data: subData, error: subUpdateError } = await subQuery.select();
+
+      if (subUpdateError) {
+        console.error('[SubscriptionForm] Erro ao atualizar plano da assinatura:', subUpdateError);
+        throw subUpdateError;
+      }
+
+      if (!subData || subData.length === 0) {
+        console.warn('[SubscriptionForm] Nenhuma assinatura foi atualizada. Verifique permissões RLS ou se o ID existe.');
+        throw new Error("Não foi possível atualizar o plano ativo. O banco de dados recusou a alteração.");
+      }
+
+      console.log('[SubscriptionForm] Assinatura atualizada com sucesso:', subData[0]);
+
+      // 3. Update Profile Phone (if needed)
       await supabase
         .from('profiles')
         .update({ phone: data.phone })
         .eq('id', user.id);
 
-      // 2.5 Create Invoice (Waiting for first invoice)
-      // Normalizar para Meio-Dia (12:00) para evitar saltos de data entre UTC e Brasília
-      const today = new Date();
-      const currentDueDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0);
-      
-      const nextDueDate = new Date(currentDueDate);
-      nextDueDate.setMonth(nextDueDate.getMonth() + 1);
-
+      // 4. Create Invoice (Waiting for first invoice)
       const { data: invoice, error: invoiceError } = await supabase
         .from('subscription_invoices')
         .insert({
             tenant_id: user.tenant_id,
-            subscription_id: subscriptionId,
+            subscription_id: subscriptionId || subData[0].id,
             plan_id: planId,
             amount: planPrice,
             status: 'waiting',
-            created_at: currentDueDate.toISOString(),
-            due_date: nextDueDate.toISOString()
+            due_date: nextCycleDate.toISOString(),
+            next_cycle_date: paymentDateFuture.toISOString(),
+            created_at: today.toISOString()
         })
         .select()
         .single();
 
       if (invoiceError) throw invoiceError;
 
-      // 3. Construct n8n Payload
+      // 5. Construct n8n Payload
       console.log('[SubscriptionForm] Preparando payload n8n...');
       const n8nWebhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL;
       
@@ -175,7 +318,7 @@ export function SubscriptionForm({ planName, planId, planPrice, subscriptionId, 
         full_name: data.full_name,
         email: data.email,
         phone: data.phone,
-        document: data.document,
+        document: formattedDoc,
         company_name: data.company_name,
         address: data.address,
         city: data.city,
@@ -236,8 +379,9 @@ export function SubscriptionForm({ planName, planId, planPrice, subscriptionId, 
           }
 
           setPaymentResult({ pixCode, qrCodeUrl, pixId });
-          // Invalida a query correta com tenant_id para atualizar a tabela
+          // Invalida as queries necessárias para atualizar a interface
           await queryClient.invalidateQueries({ queryKey: ['my-invoices', user.tenant_id] });
+          await queryClient.invalidateQueries({ queryKey: ['my-subscription', user.tenant_id] });
           
           toast({
             title: "Pedido gerado com sucesso!",
@@ -327,7 +471,18 @@ export function SubscriptionForm({ planName, planId, planPrice, subscriptionId, 
 
             <div className="space-y-2">
               <Label htmlFor="document" className="text-slate-400 text-xs font-bold uppercase tracking-widest">CPF ou CNPJ</Label>
-              <Input id="document" className="bg-slate-950 border-slate-800 focus:border-emerald-500" {...register('document', { required: true })} />
+              <Input 
+                id="document" 
+                className="bg-slate-950 border-slate-800 focus:border-emerald-500" 
+                {...register('document', { 
+                  required: true,
+                  onChange: (e) => {
+                    const { value } = e.target;
+                    e.target.value = formatDocument(value);
+                  }
+                })} 
+                placeholder="000.000.000-00 ou 00.000.000/0000-00" 
+              />
             </div>
           </div>
 

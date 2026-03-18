@@ -1,0 +1,1 @@
+UPDATE public.plans SET price = 999, max_users = 999, max_products = 9999 WHERE id = '00000000-0000-0000-0000-000000000001';

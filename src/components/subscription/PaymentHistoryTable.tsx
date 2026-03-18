@@ -277,41 +277,73 @@ export function PaymentHistoryTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {invoices.map((invoice) => (
-              <TableRow key={invoice.id} className="border-slate-800 hover:bg-slate-800/30 transition-colors">
-                <TableCell className="text-slate-300 font-medium py-4">
-                  {new Date(invoice.created_at).toLocaleDateString('pt-BR')}
-                </TableCell>
-                <TableCell className="text-white font-bold py-4">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(invoice.amount))}
-                </TableCell>
-                <TableCell className="py-4">
-                  <Badge 
-                    className={`
-                      px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border-0
-                      ${invoice.status === 'paid' ? 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20' : ''}
-                      ${invoice.status === 'pending' ? 'bg-rose-500/10 text-rose-500 hover:bg-rose-500/20' : ''}
-                      ${invoice.status === 'waiting' ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' : ''}
-                      ${user?.tipo === 'SUPER_ADMIN' ? 'cursor-pointer' : 'cursor-default'}
-                      transition-all
-                    `}
-                    onClick={() => user?.tipo === 'SUPER_ADMIN' && handleToggleStatus(invoice.id, invoice.status)}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      {invoice.status === 'paid' ? 'Confirmado' : 
-                       invoice.status === 'pending' ? 'Pendente' : 
-                       invoice.status === 'waiting' ? 'Aguardando' : 
-                       invoice.status === 'failed' ? 'Falhou' : invoice.status}
-                      {user?.tipo === 'SUPER_ADMIN' && <RotateCw className="h-2.5 w-2.5 opacity-50" />}
-                    </div>
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-slate-500 py-4 italic">
-                    {invoice.due_date ? new Date(invoice.due_date).toLocaleDateString('pt-BR') : '-'}
-                </TableCell>
-                <TableCell className="text-slate-400 py-4 font-mono text-xs">
-                    {invoice.payment_date ? new Date(invoice.payment_date).toLocaleDateString('pt-BR') : '-'}
-                </TableCell>
+            {invoices.map((invoice, index) => {
+              // Lógica de encadeamento de datas sugerida pelo usuário:
+              // O Vencimento desta fatura deve ser o Próximo Ciclo da fatura anterior (se houver)
+              // O Próximo Ciclo desta fatura deve ser 1 mês após o Vencimento
+              
+              let displayDueDate = invoice.due_date;
+              let displayNextCycle = invoice.next_cycle_date;
+
+              // Se houver uma fatura anterior (mais antiga na lista, ou seja, index + 1)
+              const previousInvoice = invoices[index + 1];
+              if (previousInvoice && previousInvoice.next_cycle_date) {
+                displayDueDate = previousInvoice.next_cycle_date;
+              }
+
+              // Se o próximo ciclo estiver vazio ou for o caso de AGUARDANDO, calculamos 1 mês após o vencimento
+              if (!displayNextCycle && displayDueDate) {
+                const date = new Date(displayDueDate);
+                date.setMonth(date.getMonth() + 1);
+                displayNextCycle = date.toISOString();
+              } else if (displayDueDate && invoice.status === 'waiting') {
+                // Forçar 1 mês após o vencimento para faturas em aguardando para manter o padrão 18/04 -> 18/05
+                const date = new Date(displayDueDate);
+                date.setMonth(date.getMonth() + 1);
+                displayNextCycle = date.toISOString();
+              }
+
+              return (
+                <TableRow key={invoice.id} className="border-slate-800 hover:bg-slate-800/30 transition-colors">
+                  <TableCell className="text-white font-bold py-4">
+                      <div className="flex flex-col">
+                        <span>{displayDueDate ? new Date(displayDueDate).toLocaleDateString('pt-BR') : '-'}</span>
+                        <span className="text-[10px] text-slate-400">23:59</span>
+                      </div>
+                  </TableCell>
+                  <TableCell className="text-white font-bold py-4">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(invoice.amount))}
+                  </TableCell>
+                  <TableCell className="py-4">
+                    <Badge 
+                      className={`
+                        px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border-0
+                        ${invoice.status === 'paid' ? 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20' : ''}
+                        ${invoice.status === 'pending' || invoice.status === 'waiting' ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' : ''}
+                        ${user?.tipo === 'SUPER_ADMIN' ? 'cursor-pointer' : 'cursor-default'}
+                        transition-all
+                      `}
+                      onClick={() => user?.tipo === 'SUPER_ADMIN' && handleToggleStatus(invoice.id, invoice.status)}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        {invoice.status === 'paid' ? 'APROVADO' : 
+                         (invoice.status === 'pending' || invoice.status === 'waiting') ? 'AGUARDANDO' : 
+                         invoice.status === 'failed' ? 'Falhou' : invoice.status}
+                        {user?.tipo === 'SUPER_ADMIN' && <RotateCw className="h-2.5 w-2.5 opacity-50" />}
+                      </div>
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-white font-bold py-4">
+                      <div className="flex flex-col">
+                        <span>{displayNextCycle ? new Date(displayNextCycle).toLocaleDateString('pt-BR') : '-'}</span>
+                        <span className="text-[10px] text-slate-400">23:59</span>
+                      </div>
+                  </TableCell>
+                  <TableCell className="text-slate-400 py-4 font-mono text-xs">
+                      {invoice.status === 'paid' && invoice.payment_date 
+                        ? new Date(invoice.payment_date).toLocaleDateString('pt-BR') 
+                        : '-'}
+                  </TableCell>
                 <TableCell className="text-right py-4">
                   <div className="flex justify-end gap-2">
                     <Button 
@@ -359,8 +391,9 @@ export function PaymentHistoryTable() {
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
-          </TableBody>
+            );
+          })}
+        </TableBody>
         </Table>
       </div>
 
