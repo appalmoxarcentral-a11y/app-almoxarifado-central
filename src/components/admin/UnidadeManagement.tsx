@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Building2, Plus, Search, Edit, Trash2, MapPin, Phone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -19,6 +20,7 @@ interface Unidade {
   bairro: string;
   cidade: string;
   ativo: boolean;
+  usar_tipo_dispensacao: boolean;
 }
 
 export function UnidadeManagement() {
@@ -35,6 +37,7 @@ export function UnidadeManagement() {
   const [bairro, setBairro] = useState('');
   const [cidade, setCidade] = useState('');
   const [ativo, setAtivo] = useState(true);
+  const [usarTipoDispensacao, setUsarTipoDispensacao] = useState(false);
 
   const { data: unidades, isLoading } = useQuery({
     queryKey: ['unidades_saude'],
@@ -102,6 +105,7 @@ export function UnidadeManagement() {
     setBairro('');
     setCidade('');
     setAtivo(true);
+    setUsarTipoDispensacao(false);
     setEditingUnidade(null);
   };
 
@@ -113,6 +117,7 @@ export function UnidadeManagement() {
     setBairro(unidade.bairro || '');
     setCidade(unidade.cidade || '');
     setAtivo(unidade.ativo);
+    setUsarTipoDispensacao(unidade.usar_tipo_dispensacao || false);
     setIsDialogOpen(true);
   };
 
@@ -124,7 +129,8 @@ export function UnidadeManagement() {
       endereco,
       bairro,
       cidade,
-      ativo
+      ativo,
+      usar_tipo_dispensacao: usarTipoDispensacao
     });
   };
 
@@ -178,6 +184,24 @@ export function UnidadeManagement() {
                 <div className="space-y-2">
                   <Label htmlFor="cidade">Cidade</Label>
                   <Input id="cidade" value={cidade} onChange={e => setCidade(e.target.value)} />
+                </div>
+              </div>
+              <div className="flex items-center space-x-2 p-4 bg-muted/50 rounded-lg border border-border/50">
+                <Checkbox 
+                  id="usarTipoDispensacao" 
+                  checked={usarTipoDispensacao} 
+                  onCheckedChange={(checked) => setUsarTipoDispensacao(!!checked)}
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <Label 
+                    htmlFor="usarTipoDispensacao"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                  >
+                    Usar campo "Tipo Dispensação"
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Se ativado, esta unidade poderá selecionar o procedimento durante a dispensação.
+                  </p>
                 </div>
               </div>
               <DialogFooter>

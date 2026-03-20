@@ -14,6 +14,7 @@ interface CarrinhoItem {
 export function useDispensationMutations(
   selectedPatient: string,
   dataDispensa: string,
+  tipoDispensacao: string,
   onSuccess: () => void
 ) {
   const { user, hasPermission } = useAuth();
@@ -30,6 +31,29 @@ export function useDispensationMutations(
       if (!hasPermission('dispensacao')) {
         throw new Error('Sem permissão para realizar dispensações');
       }
+
+      // Se tiver tipoDispensacao, verificar se existe na tabela de procedimentos
+      if (tipoDispensacao && user?.tenant_id) {
+        const { data: existingProc } = await supabase
+          .from('procedimentos')
+          .select('id')
+          .eq('nome', tipoDispensacao)
+          .eq('tenant_id', user.tenant_id)
+          .maybeSingle();
+        
+        if (!existingProc) {
+          await supabase
+            .from('procedimentos')
+            .insert({
+              nome: tipoDispensacao,
+              tenant_id: user.tenant_id
+            });
+          
+          // Invalida a query de procedimentos para que o novo apareça na próxima vez
+          queryClient.invalidateQueries({ queryKey: ['procedimentos'] });
+        }
+      }
+
       const dispensationsToCreate = items.map(item => ({
         paciente_id: selectedPatient,
         produto_id: item.produto.id,
@@ -38,7 +62,8 @@ export function useDispensationMutations(
         data_dispensa: dataDispensa,
         usuario_id: user.id,
         tenant_id: user.tenant_id || '00000000-0000-0000-0000-000000000000',
-        unidade_id: user.unidade_id
+        unidade_id: user.unidade_id,
+        procedimento: tipoDispensacao || null
       }));
 
       const { error } = await supabase

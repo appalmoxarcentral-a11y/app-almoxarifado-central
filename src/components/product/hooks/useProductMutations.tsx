@@ -29,7 +29,8 @@ export function useProductMutations(onSuccess?: () => void) {
           descricao: data.descricao,
           codigo: data.codigo,
           unidade_medida: data.unidade_medida,
-          tenant_id: user?.tenant_id || '00000000-0000-0000-0000-000000000000'
+          tenant_id: user?.tenant_id || '00000000-0000-0000-0000-000000000000',
+          unidade_id: user?.unidade_id
         }])
         .select()
         .single();

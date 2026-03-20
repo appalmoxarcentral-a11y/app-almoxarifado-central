@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { User } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { User, BookOpen } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -14,8 +15,12 @@ interface PatientSelectionProps {
   setSelectedPatient: (value: string) => void;
   dataDispensa: string;
   setDataDispensa: (value: string) => void;
+  tipoDispensacao: string;
+  setTipoDispensacao: (value: string) => void;
   pacientes?: Patient[];
+  procedimentos?: any[];
   onSearchChange?: (value: string) => void;
+  onProcedureSearchChange?: (value: string) => void;
 }
 
 export function PatientSelection({
@@ -23,13 +28,22 @@ export function PatientSelection({
   setSelectedPatient,
   dataDispensa,
   setDataDispensa,
+  tipoDispensacao,
+  setTipoDispensacao,
   pacientes = [],
-  onSearchChange
+  procedimentos = [],
+  onSearchChange,
+  onProcedureSearchChange
 }: PatientSelectionProps) {
+  const { user } = useAuth();
   const pacienteSelecionado = pacientes.find(p => p.id === selectedPatient);
 
   const handlePatientSelect = (patient: Patient) => {
     setSelectedPatient(patient.id);
+  };
+
+  const handleProcedureSelect = (procedimento: any) => {
+    setTipoDispensacao(procedimento.nome);
   };
 
   return (
@@ -59,6 +73,38 @@ export function PatientSelection({
             className="h-12 text-[16px] rounded-xl border-border bg-background focus:ring-2 focus:ring-primary/20"
           />
         </div>
+
+        {(user?.usar_tipo_dispensacao || user?.permissoes?.usar_tipo_dispensacao) && (
+          <div className="space-y-2">
+            <Label htmlFor="tipoDispensacao" className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+              <BookOpen className="h-3.5 w-3.5" />
+              Tipo Dispensação *
+            </Label>
+            <div className="relative">
+              <SearchableSelect
+                items={procedimentos}
+                value={tipoDispensacao}
+                onSelect={handleProcedureSelect}
+                onSearchChange={(val) => {
+                  setTipoDispensacao(val);
+                  if (onProcedureSearchChange) onProcedureSearchChange(val);
+                }}
+                getItemValue={(proc) => proc.id}
+                getItemLabel={(proc) => proc.nome}
+                getItemSearchText={(proc) => proc.nome}
+                placeholder="Selecione ou digite um procedimento"
+                searchPlaceholder="Busque ou digite o procedimento..."
+                emptyMessage="Pressione Enter para usar este nome"
+                className="h-12 text-[16px] rounded-xl border-border bg-background focus:ring-2 focus:ring-primary/20"
+              />
+              {tipoDispensacao && !procedimentos.find(p => p.nome === tipoDispensacao) && (
+                <div className="absolute right-12 top-1/2 -translate-y-1/2">
+                  <span className="text-[10px] font-bold text-primary uppercase bg-primary/10 px-2 py-1 rounded-full">Novo</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {pacienteSelecionado && (
           <div className="bg-primary/10 p-4 rounded-xl border border-primary/20 shadow-sm transition-all animate-in fade-in slide-in-from-top-1">

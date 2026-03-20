@@ -109,15 +109,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Buscar nome da unidade se houver unidade_id
         let unidadeNome = undefined;
+        let usarTipoDispensacao = false;
         if (profile.unidade_id) {
-          const { data: unidadeData } = await supabase
-            .from('unidades_saude')
-            .select('nome')
-            .eq('id', profile.unidade_id)
-            .single();
-          
-          if (unidadeData) {
-            unidadeNome = unidadeData.nome;
+          try {
+            // Tenta buscar com o novo campo, mas falha graciosamente se a migration não foi rodada
+            const { data: unidadeData, error: unidadeError } = await supabase
+              .from('unidades_saude')
+              .select('nome, usar_tipo_dispensacao')
+              .eq('id', profile.unidade_id)
+              .maybeSingle();
+            
+            if (unidadeError) {
+              console.warn('[AuthContext] Erro ao buscar unidade com usar_tipo_dispensacao, tentando apenas nome:', unidadeError.message);
+              const { data: fallbackData } = await supabase
+                .from('unidades_saude')
+                .select('nome')
+                .eq('id', profile.unidade_id)
+                .maybeSingle();
+              
+              if (fallbackData) {
+                unidadeNome = fallbackData.nome;
+              }
+            } else if (unidadeData) {
+              unidadeNome = unidadeData.nome;
+              usarTipoDispensacao = !!unidadeData.usar_tipo_dispensacao;
+            }
+          } catch (e) {
+            console.error('[AuthContext] Falha crítica ao buscar unidade:', e);
           }
         }
 
@@ -141,6 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           tenant_id: tenantId || undefined,
           unidade_id: profile.unidade_id || undefined,
           unidade_nome: unidadeNome,
+          usar_tipo_dispensacao: usarTipoDispensacao,
           subscription_blocked: isBlocked
         };
         

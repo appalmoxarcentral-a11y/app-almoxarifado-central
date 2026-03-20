@@ -319,7 +319,8 @@ export function PaymentHistoryTable() {
                       className={`
                         px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border-0
                         ${invoice.status === 'paid' ? 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20' : ''}
-                        ${invoice.status === 'pending' || invoice.status === 'waiting' ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' : ''}
+                        ${invoice.status === 'pending' ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' : ''}
+                        ${invoice.status === 'waiting' ? 'bg-blue-500/10 text-blue-500 hover:bg-blue-500/20' : ''}
                         ${user?.tipo === 'SUPER_ADMIN' ? 'cursor-pointer' : 'cursor-default'}
                         transition-all
                       `}
@@ -327,7 +328,8 @@ export function PaymentHistoryTable() {
                     >
                       <div className="flex items-center gap-1.5">
                         {invoice.status === 'paid' ? 'APROVADO' : 
-                         (invoice.status === 'pending' || invoice.status === 'waiting') ? 'AGUARDANDO' : 
+                         invoice.status === 'pending' ? 'PENDENTE' : 
+                         invoice.status === 'waiting' ? 'AGUARDANDO' : 
                          invoice.status === 'failed' ? 'Falhou' : invoice.status}
                         {user?.tipo === 'SUPER_ADMIN' && <RotateCw className="h-2.5 w-2.5 opacity-50" />}
                       </div>

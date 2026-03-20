@@ -239,7 +239,8 @@ export function PatientForm() {
             telefone: formData.telefone,
             nascimento: formData.nascimento,
             idade: idade,
-            tenant_id: user?.tenant_id || '00000000-0000-0000-0000-000000000000'
+            tenant_id: user?.tenant_id || '00000000-0000-0000-0000-000000000000',
+            unidade_id: user?.unidade_id
           }]);
 
         if (error) {

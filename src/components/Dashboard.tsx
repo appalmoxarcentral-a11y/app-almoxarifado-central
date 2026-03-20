@@ -14,14 +14,20 @@ export function Dashboard() {
   const { user } = useAuth();
   const isSuperAdmin = user?.tipo === 'SUPER_ADMIN';
   const isSubscriptionBlocked = user?.subscription_blocked && !isSuperAdmin;
+  const unidadeId = user?.unidade_id;
 
   const { data: produtoStats } = useQuery({
-    queryKey: ['produto-stats'],
+    queryKey: ['produto-stats', unidadeId],
     queryFn: async () => {
-      const [totalRes, baixoRes] = await Promise.all([
-        supabase.from('produtos').select('*', { count: 'exact', head: true }),
-        supabase.from('produtos').select('*', { count: 'exact', head: true }).lte('estoque_atual', 10)
-      ]);
+      let totalQuery = supabase.from('produtos').select('*', { count: 'exact', head: true });
+      let baixoQuery = supabase.from('produtos').select('*', { count: 'exact', head: true }).lte('estoque_atual', 10);
+
+      if (unidadeId) {
+        // Para o alerta de estoque baixo, filtramos pela unidade
+        baixoQuery = baixoQuery.eq('unidade_id', unidadeId);
+      }
+
+      const [totalRes, baixoRes] = await Promise.all([totalQuery, baixoQuery]);
       
       if (totalRes.error) throw totalRes.error;
       if (baixoRes.error) throw baixoRes.error;
@@ -46,10 +52,15 @@ export function Dashboard() {
   });
 
   const { data: entradasMes } = useQuery({
-    queryKey: ['entradas-mes'],
+    queryKey: ['entradas-mes', unidadeId],
     queryFn: async () => {
+      if (!unidadeId) return { count: 0, total: 0 };
       const inicioMes = startOfMonth(new Date()).toISOString().split('T')[0];
-      const { data, error } = await supabase.from('entradas_produtos').select('quantidade').gte('data_entrada', inicioMes);
+      let query = supabase.from('entradas_produtos').select('quantidade').gte('data_entrada', inicioMes);
+      
+      query = query.eq('unidade_id', unidadeId);
+
+      const { data, error } = await query;
       if (error) throw error;
       const total = data.reduce((sum, entrada) => sum + entrada.quantidade, 0);
       return { count: data.length, total };
@@ -57,10 +68,15 @@ export function Dashboard() {
   });
 
   const { data: dispensacoesMes } = useQuery({
-    queryKey: ['dispensacoes-mes'],
+    queryKey: ['dispensacoes-mes', unidadeId],
     queryFn: async () => {
+      if (!unidadeId) return { count: 0, total: 0 };
       const inicioMes = startOfMonth(new Date()).toISOString().split('T')[0];
-      const { data, error } = await supabase.from('dispensacoes').select('quantidade').gte('data_dispensa', inicioMes);
+      let query = supabase.from('dispensacoes').select('quantidade').gte('data_dispensa', inicioMes);
+      
+      query = query.eq('unidade_id', unidadeId);
+
+      const { data, error } = await query;
       if (error) throw error;
       const total = data.reduce((sum, dispensacao) => sum + dispensacao.quantidade, 0);
       return { count: data.length, total };
@@ -68,38 +84,55 @@ export function Dashboard() {
   });
 
   const { data: produtosVencendo } = useQuery({
-    queryKey: ['produtos-vencendo'],
+    queryKey: ['produtos-vencendo', unidadeId],
     queryFn: async () => {
+      if (!unidadeId) return [];
       const proximosMes = new Date();
       proximosMes.setMonth(proximosMes.getMonth() + 1);
-      const { data, error } = await supabase
+      let query = supabase
         .from('entradas_produtos')
         .select(`vencimento, lote, quantidade, produtos:produto_id (descricao, codigo)`)
-        .lte('vencimento', proximosMes.toISOString().split('T')[0])
-        .order('vencimento')
-        .limit(5);
+        .lte('vencimento', proximosMes.toISOString().split('T')[0]);
+      
+      query = query.eq('unidade_id', unidadeId);
+
+      const { data, error } = await query.order('vencimento').limit(5);
       if (error) throw error;
       return data;
     }
   });
 
   const { data: produtosBaixoEstoque } = useQuery({
-    queryKey: ['produtos-baixo-estoque'],
+    queryKey: ['produtos-baixo-estoque', unidadeId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('produtos').select('*').lte('estoque_atual', 10).order('estoque_atual').limit(5);
+      if (!unidadeId) return [];
+      let query = supabase.from('produtos').select('*').lte('estoque_atual', 10);
+      
+      query = query.eq('unidade_id', unidadeId);
+
+      const { data, error } = await query.order('estoque_atual').limit(5);
       if (error) throw error;
       return data;
     }
   });
 
   const { data: movimentacoesRecentes } = useQuery({
-    queryKey: ['movimentacoes-recentes'],
+    queryKey: ['movimentacoes-recentes', unidadeId],
     queryFn: async () => {
+      if (!unidadeId) return [];
       const hoje = new Date().toISOString().split('T')[0];
+      
+      let entradasQuery = supabase.from('entradas_produtos').select(`*, produtos:produto_id (descricao)`).eq('data_entrada', hoje);
+      let dispensacoesQuery = supabase.from('dispensacoes').select(`*, produtos:produto_id (descricao), pacientes:paciente_id (nome)`).eq('data_dispensa', hoje);
+
+      entradasQuery = entradasQuery.eq('unidade_id', unidadeId);
+      dispensacoesQuery = dispensacoesQuery.eq('unidade_id', unidadeId);
+
       const [entradas, dispensacoes] = await Promise.all([
-        supabase.from('entradas_produtos').select(`*, produtos:produto_id (descricao)`).eq('data_entrada', hoje).order('created_at', { ascending: false }).limit(3),
-        supabase.from('dispensacoes').select(`*, produtos:produto_id (descricao), pacientes:paciente_id (nome)`).eq('data_dispensa', hoje).order('created_at', { ascending: false }).limit(3)
+        entradasQuery.order('created_at', { ascending: false }).limit(3),
+        dispensacoesQuery.order('created_at', { ascending: false }).limit(3)
       ]);
+
       if (entradas.error) throw entradas.error;
       if (dispensacoes.error) throw dispensacoes.error;
       return [

@@ -27,15 +27,18 @@ export function DispensationForm() {
   const [quantidade, setQuantidade] = useState('');
   const [selectedLote, setSelectedLote] = useState('');
   const [dataDispensa, setDataDispensa] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [tipoDispensacao, setTipoDispensacao] = useState('');
   const [carrinho, setCarrinho] = useState<CarrinhoItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [patientSearch, setPatientSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
+  const [procedureSearch, setProcedureSearch] = useState('');
   const isMobile = useIsMobile();
   const { user } = useAuth();
 
   const {
     pacientes,
+    procedimentos,
     produtos,
     lotes,
     dispensacoes,
@@ -44,6 +47,7 @@ export function DispensationForm() {
     selectedProduct, 
     patientSearch, 
     productSearch,
+    procedureSearch,
     user?.unidade_id,
     user?.tenant_id
   );
@@ -56,12 +60,14 @@ export function DispensationForm() {
     setQuantidade('');
     setSelectedLote('');
     setDataDispensa(format(new Date(), 'yyyy-MM-dd'));
+    setTipoDispensacao('');
     setCartOpen(false);
   };
 
   const { createDispensationMutation, deleteDispensationMutation } = useDispensationMutations(
     selectedPatient,
     dataDispensa,
+    tipoDispensacao,
     handleSuccessfulDispensation
   );
 
@@ -196,8 +202,12 @@ export function DispensationForm() {
           setSelectedPatient={setSelectedPatient}
           dataDispensa={dataDispensa}
           setDataDispensa={setDataDispensa}
+          tipoDispensacao={tipoDispensacao}
+          setTipoDispensacao={setTipoDispensacao}
           pacientes={pacientes}
+          procedimentos={procedimentos}
           onSearchChange={setPatientSearch}
+          onProcedureSearchChange={setProcedureSearch}
         />
 
         {/* Step 2: Products */}
@@ -269,8 +279,12 @@ export function DispensationForm() {
           setSelectedPatient={setSelectedPatient}
           dataDispensa={dataDispensa}
           setDataDispensa={setDataDispensa}
+          tipoDispensacao={tipoDispensacao}
+          setTipoDispensacao={setTipoDispensacao}
           pacientes={pacientes}
+          procedimentos={procedimentos}
           onSearchChange={setPatientSearch}
+          onProcedureSearchChange={setProcedureSearch}
         />
 
         <ProductCart

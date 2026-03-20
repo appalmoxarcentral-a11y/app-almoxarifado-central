@@ -36,9 +36,11 @@ export function PurchaseTable({ items, onQuantityChange }: PurchaseTableProps) {
   if (isMobile) {
     return (
       <div className="space-y-4">
-        <h3 className="text-lg font-bold uppercase tracking-wider text-muted-foreground px-1">
-          Lista de Produtos ({items.length})
-        </h3>
+        <div className="flex flex-col gap-1 px-1">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+            Produtos para Reposição ({items.length})
+          </h3>
+        </div>
         <div className="grid grid-cols-1 gap-4 pb-20">
           {items.map((item) => (
             <Card key={item.id} className="overflow-hidden border-muted-foreground/10 hover:border-primary/50 transition-all">
@@ -88,8 +90,10 @@ export function PurchaseTable({ items, onQuantityChange }: PurchaseTableProps) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Produtos para Reposição ({items.length})</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <div className="flex flex-col gap-1">
+          <CardTitle className="text-xl">Produtos para Reposição ({items.length})</CardTitle>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">

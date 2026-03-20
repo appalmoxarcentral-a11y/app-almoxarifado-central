@@ -9,6 +9,7 @@ export interface User {
   tenant_id?: string;
   unidade_id?: string;
   unidade_nome?: string;
+  usar_tipo_dispensacao?: boolean;
   subscription_blocked?: boolean;
 }
 
@@ -62,6 +63,7 @@ export interface UserPermissions {
   gerenciar_rascunhos_compras: boolean;
   pode_excluir?: boolean;
   acesso_global_pedidos?: boolean;
+  usar_tipo_dispensacao?: boolean;
 }
 
 export interface Patient {

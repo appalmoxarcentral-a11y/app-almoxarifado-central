@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Users, UserPlus, Edit, Trash2, UserX, UserCheck, ShieldAlert, Zap, Building2 } from 'lucide-react';
+import { Users, UserPlus, Edit, Trash2, UserX, UserCheck, ShieldAlert, Zap, Building2, BookOpen } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -199,6 +199,7 @@ export function UserManagement() {
       gerenciar_rascunhos_compras: false,
       pode_excluir: false,
       acesso_global_pedidos: false,
+      usar_tipo_dispensacao: false,
     });
     setEditingUser(null);
   };
@@ -379,6 +380,26 @@ export function UserManagement() {
                       </Label>
                       <p className="text-xs text-muted-foreground">
                         Visualizar e editar pedidos de todas as unidades.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2 border p-3 rounded-md bg-accent/50">
+                    <Checkbox
+                      id="usar_tipo_dispensacao"
+                      checked={permissoes.usar_tipo_dispensacao}
+                      onCheckedChange={(checked) => 
+                        handlePermissionChange('usar_tipo_dispensacao', checked as boolean)
+                      }
+                      disabled={tipo === 'ADMIN'}
+                    />
+                    <div className="grid gap-1.5 leading-none">
+                      <Label htmlFor="usar_tipo_dispensacao" className="flex items-center gap-2 cursor-pointer text-blue-500">
+                        <BookOpen className="h-4 w-4" />
+                        Usar campo "Tipo Dispensação"
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Permitir seleção de procedimento na dispensação.
                       </p>
                     </div>
                   </div>

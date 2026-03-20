@@ -171,6 +171,15 @@ export function SubscriptionPage() {
     return () => clearInterval(interval);
   }, [user?.tenant_id, isPollingReady, showCelebration, queryClient, toast]);
 
+  const latestPaidInvoice = React.useMemo(() => {
+    return invoices?.find(inv => inv.status === 'paid');
+  }, [invoices]);
+
+  const nextInvoice = React.useMemo(() => {
+    // A próxima fatura é a que estiver com status waiting ou pending
+    return invoices?.find(inv => inv.status === 'waiting' || inv.status === 'pending');
+  }, [invoices]);
+
   const handleSubscribe = (planId: string, planName: string, planPrice: number) => {
     setSelectedPlan({ id: planId, name: planName, price: planPrice });
     setIsModalOpen(true);
@@ -407,7 +416,12 @@ export function SubscriptionPage() {
                   </div>
                   <div className="flex flex-col border-l border-border pl-4 md:pl-10">
                     <span className="text-muted-foreground uppercase text-[9px] md:text-xs font-black tracking-widest mb-1">Renovação</span>
-                    <span className="text-foreground font-bold tracking-tight">{new Date(currentSubscription.current_period_end).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}</span>
+                    <span className="text-foreground font-bold tracking-tight">
+                      {latestPaidInvoice?.payment_date 
+                        ? new Date(latestPaidInvoice.payment_date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })
+                        : new Date(currentSubscription.current_period_end).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })
+                      }
+                    </span>
                   </div>
                 </div>
               </div>
@@ -566,6 +580,16 @@ export function SubscriptionPage() {
           </div>
           <Badge variant="outline" className="w-fit text-muted-foreground border-border px-3 py-1 text-[10px] md:text-sm font-black rounded-full bg-muted/20">Últimos 12 meses</Badge>
         </div>
+
+        {!hasPendingInvoice && nextInvoice && (
+          <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-2xl flex items-center gap-3 text-emerald-500 shadow-sm animate-in fade-in slide-in-from-left-4 duration-500">
+            <Check className="h-5 w-5" />
+            <p className="text-sm md:text-base font-bold">
+              Não há fatura pendente e a próxima fatura está para vencer em <span className="underline decoration-2 underline-offset-4">{new Date(nextInvoice.due_date).toLocaleDateString('pt-BR')} às 23:59</span>
+            </p>
+          </div>
+        )}
+
         <div className="overflow-hidden rounded-xl md:rounded-[2rem] border-2 border-border bg-card shadow-lg md:shadow-2xl w-full max-w-full overflow-x-auto">
           <PaymentHistoryTable />
         </div>

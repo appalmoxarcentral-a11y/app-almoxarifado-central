@@ -15,10 +15,37 @@ export function AdminDashboard() {
         console.error('Supabase RPC Error:', error);
         throw error;
       }
-      return data;
+      
+      // Filter unique tenants by ID just in case the RPC still returns duplicates
+      const uniqueTenants = data?.reduce((acc: any[], current: any) => {
+        const x = acc.find(item => item.id === current.id);
+        if (!x) {
+          return acc.concat([current]);
+        } else {
+          return acc;
+        }
+      }, []);
+      
+      return uniqueTenants;
     },
     retry: false
   });
+
+  const getStatusBadge = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'paid':
+      case 'active':
+        return <Badge className="bg-emerald-500 hover:bg-emerald-600">APROVADO</Badge>;
+      case 'pending':
+        return <Badge className="bg-amber-500 hover:bg-amber-600">PENDENTE</Badge>;
+      case 'waiting':
+        return <Badge className="bg-blue-500 hover:bg-blue-600">AGUARDANDO</Badge>;
+      case 'trialing':
+        return <Badge variant="secondary">Em Trial</Badge>;
+      default:
+        return <Badge variant="outline">{status || 'Inativo'}</Badge>;
+    }
+  };
 
   if (isLoading) return <div className="flex justify-center items-center h-screen">Carregando dashboard...</div>;
   
@@ -54,7 +81,7 @@ export function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-4xl font-bold text-green-600">
-                {tenants?.filter((t: any) => t.status === 'active').length || 0}
+                {tenants?.filter((t: any) => t.status?.toLowerCase() === 'active' || t.status?.toLowerCase() === 'paid' || t.status?.toLowerCase() === 'waiting').length || 0}
               </div>
             </CardContent>
           </Card>
@@ -98,9 +125,7 @@ export function AdminDashboard() {
                         : '-'}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={tenant.status === 'active' ? 'default' : 'secondary'}>
-                        {tenant.status === 'trialing' ? 'Trial' : tenant.status || 'Inativo'}
-                      </Badge>
+                      {getStatusBadge(tenant.status)}
                     </TableCell>
                     <TableCell>
                       {tenant.period_end 

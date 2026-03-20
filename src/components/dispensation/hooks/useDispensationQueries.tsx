@@ -13,6 +13,7 @@ export function useDispensationQueries(
   selectedProduct: string, 
   patientSearch: string = '', 
   productSearch: string = '',
+  procedureSearch: string = '',
   unidadeId?: string,
   tenantId?: string
 ) {
@@ -39,6 +40,30 @@ export function useDispensationQueries(
       
       if (error) throw error;
       return data as Patient[];
+    },
+    staleTime: 0,
+  });
+
+  // Buscar procedimentos
+  const procedimentosQuery = useQuery({
+    queryKey: ['procedimentos', procedureSearch, tenantId],
+    queryFn: async () => {
+      let query = supabase
+        .from('procedimentos')
+        .select('*')
+        .order('nome');
+      
+      if (procedureSearch) {
+        query = query.ilike('nome', `%${procedureSearch}%`);
+      }
+
+      if (tenantId) {
+        query = query.eq('tenant_id', tenantId);
+      }
+
+      const { data, error } = await query.limit(50);
+      if (error) throw error;
+      return data;
     },
     staleTime: 0,
   });
@@ -182,6 +207,7 @@ export function useDispensationQueries(
 
   return {
     pacientes: pacientesQuery.data,
+    procedimentos: procedimentosQuery.data,
     produtos: produtosQuery.data,
     lotes: lotesQuery.data,
     dispensacoes: dispensacoesQuery.data,

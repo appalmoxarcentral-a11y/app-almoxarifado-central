@@ -151,7 +151,15 @@ export function PurchaseReport() {
               <div className="w-full md:w-auto flex justify-center md:justify-end mb-1 md:mb-0 md:mr-2">
                 <div className="px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-[10px] font-bold text-primary flex items-center gap-1.5 shadow-sm backdrop-blur-sm">
                   <Calendar className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate max-w-[150px] md:max-w-[200px]">{getCurrentDraft()?.nome_rascunho}</span>
+                  <span className="truncate max-w-[250px] md:max-w-[400px] flex items-center gap-1.5">
+                    {currentDraft?.nome_rascunho}
+                    {currentDraft?.unidade_nome && (
+                      <>
+                        <span className="opacity-30">|</span>
+                        <span className="uppercase text-primary/80 tracking-tight">{currentDraft.unidade_nome}</span>
+                      </>
+                    )}
+                  </span>
                 </div>
               </div>
             )}
