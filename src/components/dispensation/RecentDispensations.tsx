@@ -56,6 +56,11 @@ export function RecentDispensations({ dispensacoes, isLoading, onDelete }: Recen
                       <Badge variant="outline" className="text-[10px] font-bold h-5">
                         Qtd: {dispensacao.quantidade} {dispensacao.produto?.unidade_medida}
                       </Badge>
+                      {dispensacao.is_parcial && (
+                        <Badge variant="outline" className="text-[10px] font-bold h-5 border-amber-500 text-amber-500 bg-amber-500/5">
+                          Parcial
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   

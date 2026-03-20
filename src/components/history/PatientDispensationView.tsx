@@ -5,7 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, Package, Calendar } from 'lucide-react';
+import { User, Package, Calendar, AlertTriangle, TrendingDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { format } from 'date-fns/format';
 import { ptBR } from 'date-fns/locale/pt-BR';
 import type { Dispensation } from '@/types';
@@ -102,7 +103,10 @@ export function PatientDispensationView({ searchTerm }: PatientDispensationViewP
         
         paciente.dispensacoes.forEach((dispensacao) => {
           produtosUnicos.add(dispensacao.produto_id);
-          totalQuantidade += dispensacao.quantidade;
+          // Apenas dispensações TOTAIS afetam a quantidade total subtraída
+          if (!dispensacao.is_parcial) {
+            totalQuantidade += dispensacao.quantidade;
+          }
         });
         
         paciente.total_produtos_diferentes = produtosUnicos.size;
@@ -170,10 +174,11 @@ export function PatientDispensationView({ searchTerm }: PatientDispensationViewP
                 <TableHeader>
                   <TableRow>
                     <TableHead className="min-w-[100px]">Data</TableHead>
+                    <TableHead className="min-w-[120px]">Tipo</TableHead>
                     <TableHead className="min-w-[150px]">Produto</TableHead>
                     <TableHead className="min-w-[80px]">Qtd</TableHead>
                     <TableHead className="min-w-[100px]">Lote</TableHead>
-                    <TableHead className="min-w-[100px]">Unidade</TableHead>
+                    <TableHead className="min-w-[100px]">Unid. Med.</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -182,11 +187,29 @@ export function PatientDispensationView({ searchTerm }: PatientDispensationViewP
                       <TableCell className="text-xs md:text-sm">
                         {format(new Date(dispensacao.data_dispensa), 'dd/MM/yy', { locale: ptBR })}
                       </TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant="secondary" 
+                          className={cn(
+                            "text-[10px]",
+                            dispensacao.is_parcial && "bg-amber-500 hover:bg-amber-600 text-white border-none"
+                          )}
+                        >
+                          {dispensacao.is_parcial ? (
+                            <><AlertTriangle className="h-3 w-3 mr-1" /> Parcial</>
+                          ) : (
+                            <><TrendingDown className="h-3 w-3 mr-1" /> Total</>
+                          )}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="text-xs md:text-sm max-w-[150px] truncate">
                         {dispensacao.produto?.descricao}
                       </TableCell>
-                      <TableCell className="text-xs md:text-sm font-semibold">
-                        {dispensacao.quantidade}
+                      <TableCell className={cn(
+                        "text-xs md:text-sm font-bold",
+                        dispensacao.is_parcial && "text-amber-600"
+                      )}>
+                        {dispensacao.is_parcial && "!"} {dispensacao.quantidade}
                       </TableCell>
                       <TableCell className="text-xs md:text-sm">
                         {dispensacao.lote}

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Package, Plus } from 'lucide-react';
+import { Package, Hash, Calculator, Plus, Search, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,11 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns/format';
 import { ptBR } from 'date-fns/locale/pt-BR';
-import type { Product } from '@/types';
+import { Product } from '@/types';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+
+import { useAuth } from '@/contexts/AuthContext';
 
 interface LoteInfo {
   lote: string;
@@ -24,6 +28,8 @@ interface ProductSelectionProps {
   setSelectedLote: (lote: string) => void;
   quantidade: string;
   setQuantidade: (quantidade: string) => void;
+  isParcial: boolean;
+  setIsParcial: (value: boolean) => void;
   produtos?: Product[];
   lotes?: LoteInfo[];
   onAddToCart: () => void;
@@ -37,11 +43,15 @@ export function ProductSelection({
   setSelectedLote,
   quantidade,
   setQuantidade,
+  isParcial,
+  setIsParcial,
   produtos = [],
   lotes,
   onAddToCart,
   onSearchChange
 }: ProductSelectionProps) {
+  const { user } = useAuth();
+  const showExtraFields = user?.usar_tipo_dispensacao || user?.permissoes?.usar_tipo_dispensacao;
   const produtoSelecionado = produtos.find(p => p.id === selectedProduct);
 
   const handleProductSelect = (product: Product) => {
@@ -67,8 +77,10 @@ export function ProductSelection({
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <div>
-            <Label htmlFor="produto">Produto *</Label>
+          <div className="space-y-2">
+            <Label htmlFor="produto" className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+              Produto *
+            </Label>
             <SearchableSelect
               items={produtos}
               value={selectedProduct}
@@ -80,6 +92,7 @@ export function ProductSelection({
               placeholder="Selecione um produto"
               searchPlaceholder="Digite nome ou código do produto..."
               emptyMessage="Nenhum produto encontrado"
+              className="h-12 text-[16px] rounded-xl border-border bg-background focus:ring-2 focus:ring-primary/20"
             />
           </div>
 
@@ -95,15 +108,17 @@ export function ProductSelection({
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="lote">Lote *</Label>
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+            <div className="md:col-span-6 space-y-2">
+              <Label htmlFor="lote" className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                Lote *
+              </Label>
               <Select 
                 value={selectedLote} 
                 onValueChange={setSelectedLote}
                 disabled={!selectedProduct}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-12 rounded-xl border-border bg-background focus:ring-2 focus:ring-primary/20">
                   <SelectValue 
                     placeholder={
                       !selectedProduct 
@@ -131,8 +146,11 @@ export function ProductSelection({
                 </p>
               )}
             </div>
-            <div>
-              <Label htmlFor="quantidade">Quantidade *</Label>
+            
+            <div className={cn("space-y-2", showExtraFields ? "md:col-span-3" : "md:col-span-6")}>
+              <Label htmlFor="quantidade" className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                Quantidade *
+              </Label>
               <Input
                 id="quantidade"
                 type="number"
@@ -141,17 +159,53 @@ export function ProductSelection({
                 value={quantidade}
                 onChange={(e) => setQuantidade(e.target.value)}
                 placeholder="0"
+                className="h-12 text-[16px] rounded-xl border-border bg-background focus:ring-2 focus:ring-primary/20"
               />
             </div>
+
+            {showExtraFields && (
+              <div className="md:col-span-3 space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  Tipo Entrega
+                </Label>
+                <button
+                  type="button"
+                  onClick={() => setIsParcial(!isParcial)}
+                  className={cn(
+                    "w-full h-12 rounded-xl border-2 transition-all duration-300 flex items-center justify-center gap-2 overflow-hidden relative group",
+                    isParcial 
+                      ? "border-amber-500 bg-amber-500/10 text-amber-500" 
+                      : "border-emerald-500 bg-emerald-500/10 text-emerald-500"
+                  )}
+                >
+                  <div className="flex items-center gap-2 font-bold uppercase tracking-widest text-[10px] animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    {isParcial ? (
+                      <>
+                        <AlertCircle className="h-4 w-4" />
+                        Parcial
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="h-4 w-4" />
+                        Total
+                      </>
+                    )}
+                  </div>
+                  
+                  {/* Shine effect */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-shimmer" />
+                </button>
+              </div>
+            )}
           </div>
 
           <Button
             type="button"
-            className="w-full"
+            className="w-full h-12 rounded-xl text-sm font-bold uppercase tracking-wider transition-all active:scale-[0.98]"
             onClick={onAddToCart}
             disabled={!selectedProduct || !quantidade || !selectedLote}
           >
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="h-5 w-5 mr-2" />
             Adicionar ao Carrinho
           </Button>
         </div>

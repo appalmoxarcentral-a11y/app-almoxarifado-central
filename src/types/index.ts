@@ -112,6 +112,8 @@ export interface Dispensation {
   data_dispensa: string;
   usuario_id: string;
   created_at: string;
+  procedimento?: string;
+  is_parcial?: boolean;
 }
 
 export interface DashboardStats {

@@ -9,6 +9,7 @@ import { format } from 'date-fns/format';
 import { startOfMonth } from 'date-fns/startOfMonth';
 import { ptBR } from 'date-fns/locale/pt-BR';
 import { useAuth } from '@/contexts/AuthContext';
+import { cn } from '@/lib/utils';
 
 export function Dashboard() {
   const { user } = useAuth();
@@ -72,13 +73,21 @@ export function Dashboard() {
     queryFn: async () => {
       if (!unidadeId) return { count: 0, total: 0 };
       const inicioMes = startOfMonth(new Date()).toISOString().split('T')[0];
-      let query = supabase.from('dispensacoes').select('quantidade').gte('data_dispensa', inicioMes);
+      let query = supabase
+        .from('dispensacoes')
+        .select('quantidade, is_parcial')
+        .gte('data_dispensa', inicioMes);
       
       query = query.eq('unidade_id', unidadeId);
 
       const { data, error } = await query;
       if (error) throw error;
-      const total = data.reduce((sum, dispensacao) => sum + dispensacao.quantidade, 0);
+      
+      // Filtra apenas as totais para a contagem de unidades subtraídas
+      const total = data
+        .filter(d => !d.is_parcial)
+        .reduce((sum, dispensacao) => sum + dispensacao.quantidade, 0);
+        
       return { count: data.length, total };
     }
   });
@@ -314,11 +323,22 @@ export function Dashboard() {
                     <p className="text-[10px] text-muted-foreground">Lote: {mov.lote}</p>
                   </div>
                   <div className="text-right">
-                    <Badge variant={mov.tipo === 'entrada' ? 'default' : 'secondary'}>
+                    <Badge 
+                      variant={mov.tipo === 'entrada' ? 'default' : 'secondary'}
+                      className={cn(
+                        mov.tipo === 'dispensacao' && mov.is_parcial && "bg-amber-500 hover:bg-amber-600 text-white border-none"
+                      )}
+                    >
                       {mov.tipo === 'entrada' ? (
                         <><TrendingUp className="h-3 w-3 mr-1" /> +{mov.quantidade}</>
                       ) : (
-                        <><TrendingDown className="h-3 w-3 mr-1" /> -{mov.quantidade}</>
+                        <>
+                          {mov.is_parcial ? (
+                            <><AlertTriangle className="h-3 w-3 mr-1" /> Parcial {mov.quantidade}</>
+                          ) : (
+                            <><TrendingDown className="h-3 w-3 mr-1" /> -{mov.quantidade}</>
+                          )}
+                        </>
                       )}
                     </Badge>
                     <p className="text-[10px] text-muted-foreground mt-1">

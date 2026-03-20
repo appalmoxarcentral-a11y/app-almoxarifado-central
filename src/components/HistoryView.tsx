@@ -23,9 +23,11 @@ export function HistoryView() {
     filtroPaciente: filters.filtroPaciente
   });
 
-  // Estatísticas
+  // Estatísticas (Apenas dispensações TOTAIS afetam o estoque)
   const totalEntradas = entradas?.reduce((sum, entrada) => sum + entrada.quantidade, 0) || 0;
-  const totalDispensacoes = dispensacoes?.reduce((sum, dispensacao) => sum + dispensacao.quantidade, 0) || 0;
+  const totalDispensacoes = dispensacoes
+    ?.filter(d => !d.is_parcial)
+    .reduce((sum, dispensacao) => sum + dispensacao.quantidade, 0) || 0;
 
   // Movimentações combinadas (apenas para visualização "Todas")
   const movimentacoes = [
@@ -43,7 +45,8 @@ export function HistoryView() {
       data: dispensacao.data_dispensa,
       descricao_produto: dispensacao.produto?.descricao || '',
       paciente: dispensacao.paciente?.nome || '',
-      tenant_name: dispensacao.tenant?.name || 'Unidade Desconhecida'
+      tenant_name: dispensacao.tenant?.name || 'Unidade Desconhecida',
+      is_parcial: dispensacao.is_parcial
     })) || [])
   ].sort((a, b) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime());
 

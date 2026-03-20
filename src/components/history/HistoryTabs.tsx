@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { format } from 'date-fns/format';
 import { ptBR } from 'date-fns/locale/pt-BR';
 import { useAuth } from '@/contexts/AuthContext';
@@ -25,6 +26,7 @@ interface MovimentacaoType {
   paciente: string | null;
   tenant_name?: string;
   created_at?: string;
+  is_parcial?: boolean;
 }
 
 interface HistoryTabsProps {
@@ -111,18 +113,35 @@ export function HistoryTabs({
                     </TableCell>
                   )}
                   <TableCell>
-                    <Badge variant={mov.tipo === 'entrada' ? 'default' : 'secondary'} className="text-xs">
+                    <Badge 
+                      variant={mov.tipo === 'entrada' ? 'default' : 'secondary'} 
+                      className={cn(
+                        "text-xs",
+                        mov.tipo === 'dispensacao' && mov.is_parcial && "bg-amber-500 hover:bg-amber-600 text-white border-none"
+                      )}
+                    >
                       {mov.tipo === 'entrada' ? (
                         <><TrendingUp className="h-3 w-3 mr-1" /> Entrada</>
                       ) : (
-                        <><TrendingDown className="h-3 w-3 mr-1" /> Dispensação</>
+                        <>
+                          {mov.is_parcial ? (
+                            <><AlertTriangle className="h-3 w-3 mr-1" /> Parcial</>
+                          ) : (
+                            <><TrendingDown className="h-3 w-3 mr-1" /> Dispensação</>
+                          )}
+                        </>
                       )}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-xs md:text-sm max-w-[150px] truncate">
                     {mov.descricao_produto}
                   </TableCell>
-                  <TableCell className="text-xs md:text-sm">{mov.quantidade}</TableCell>
+                  <TableCell className={cn(
+                    "text-xs md:text-sm font-medium",
+                    mov.tipo === 'dispensacao' && mov.is_parcial && "text-amber-600"
+                  )}>
+                    {mov.tipo === 'dispensacao' && mov.is_parcial && "!"} {mov.quantidade}
+                  </TableCell>
                   <TableCell className="text-xs md:text-sm">{mov.lote}</TableCell>
                   <TableCell className="text-xs md:text-sm max-w-[120px] truncate">
                     {mov.paciente || '-'}

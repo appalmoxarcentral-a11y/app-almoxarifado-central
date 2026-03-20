@@ -11,6 +11,7 @@ interface CarrinhoItem {
   produto: Product;
   quantidade: number;
   lote: string;
+  is_parcial: boolean;
 }
 
 interface ProductCartProps {

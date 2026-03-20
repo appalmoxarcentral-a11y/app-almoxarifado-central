@@ -18,6 +18,7 @@ interface CarrinhoItem {
   produto: Product;
   quantidade: number;
   lote: string;
+  is_parcial: boolean;
 }
 
 export function DispensationForm() {
@@ -28,6 +29,7 @@ export function DispensationForm() {
   const [selectedLote, setSelectedLote] = useState('');
   const [dataDispensa, setDataDispensa] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [tipoDispensacao, setTipoDispensacao] = useState('');
+  const [isParcial, setIsParcial] = useState(false);
   const [carrinho, setCarrinho] = useState<CarrinhoItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [patientSearch, setPatientSearch] = useState('');
@@ -124,7 +126,8 @@ export function DispensationForm() {
     const novoItem: CarrinhoItem = {
       produto,
       quantidade: qtd,
-      lote: selectedLote
+      lote: selectedLote,
+      is_parcial: isParcial
     };
 
     setCarrinho(prev => [...prev, novoItem]);
@@ -135,6 +138,7 @@ export function DispensationForm() {
     setQuantidade('');
     setSelectedLote('');
     setProductSearch('');
+    setIsParcial(false);
 
     toast({
       title: "Produto adicionado!",
@@ -218,6 +222,8 @@ export function DispensationForm() {
           setSelectedLote={setSelectedLote}
           quantidade={quantidade}
           setQuantidade={setQuantidade}
+          isParcial={isParcial}
+          setIsParcial={setIsParcial}
           produtos={produtos}
           lotes={lotes}
           onAddToCart={adicionarAoCarrinho}
@@ -302,6 +308,8 @@ export function DispensationForm() {
           setSelectedLote={setSelectedLote}
           quantidade={quantidade}
           setQuantidade={setQuantidade}
+          isParcial={isParcial}
+          setIsParcial={setIsParcial}
           produtos={produtos}
           lotes={lotes}
           onAddToCart={adicionarAoCarrinho}

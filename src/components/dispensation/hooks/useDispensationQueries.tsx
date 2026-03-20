@@ -46,7 +46,7 @@ export function useDispensationQueries(
 
   // Buscar procedimentos
   const procedimentosQuery = useQuery({
-    queryKey: ['procedimentos', procedureSearch, tenantId],
+    queryKey: ['procedimentos', procedureSearch],
     queryFn: async () => {
       let query = supabase
         .from('procedimentos')
@@ -57,13 +57,20 @@ export function useDispensationQueries(
         query = query.ilike('nome', `%${procedureSearch}%`);
       }
 
-      if (tenantId) {
-        query = query.eq('tenant_id', tenantId);
-      }
-
       const { data, error } = await query.limit(50);
       if (error) throw error;
-      return data;
+
+      // Garantir que a lista seja única por nome (case-sensitive)
+      const uniqueProcedures = data.reduce((acc: any[], current) => {
+        const x = acc.find(item => item.nome === current.nome);
+        if (!x) {
+          return acc.concat([current]);
+        } else {
+          return acc;
+        }
+      }, []);
+
+      return uniqueProcedures;
     },
     staleTime: 0,
   });
@@ -74,7 +81,21 @@ export function useDispensationQueries(
     queryFn: async () => {
       console.log(`[Queries] Buscando produtos para unidade: ${unidadeId || 'não informada'}`);
 
-      // 1. Buscar produtos
+      let productIds: string[] = [];
+
+      // 1. Se tivermos unidadeId, buscar IDs de produtos que tiveram entrada nesta unidade
+      if (unidadeId) {
+        const { data: entradasIds } = await supabase
+          .from('entradas_produtos')
+          .select('produto_id')
+          .eq('unidade_id', unidadeId);
+        
+        if (entradasIds) {
+          productIds = [...new Set(entradasIds.map(e => e.produto_id))];
+        }
+      }
+
+      // 2. Buscar detalhes dos produtos
       let query = supabase
         .from('produtos')
         .select('*')
@@ -82,26 +103,29 @@ export function useDispensationQueries(
       
       if (productSearch) {
         query = query.or(`descricao.ilike.%${productSearch}%,codigo.ilike.%${productSearch}%`);
+      } else if (productIds.length > 0) {
+        // Se não houver busca, mostrar apenas produtos que já tiveram entrada na unidade
+        query = query.in('id', productIds);
       }
 
-      const { data: produtosData, error: prodError } = await query.limit(50);
+      const { data: produtosData, error: prodError } = await query.limit(100);
       if (prodError) throw prodError;
 
-      // 2. Se tivermos unidadeId, buscar o estoque real desta unidade em lote (Batch)
+      // 3. Se tivermos unidadeId, buscar o estoque real desta unidade em lote (Batch)
       if (unidadeId && produtosData && produtosData.length > 0) {
-        const productIds = produtosData.map(p => p.id);
+        const currentProductIds = produtosData.map(p => p.id);
 
         // Buscar todas as entradas e saídas destes produtos para esta unidade de uma vez
         const [entradasRes, saidasRes] = await Promise.all([
           supabase
             .from('entradas_produtos')
             .select('produto_id, quantidade')
-            .in('produto_id', productIds)
+            .in('produto_id', currentProductIds)
             .eq('unidade_id', unidadeId),
           supabase
             .from('dispensacoes')
-            .select('produto_id, quantidade')
-            .in('produto_id', productIds)
+            .select('produto_id, quantidade, is_parcial')
+            .in('produto_id', currentProductIds)
             .eq('unidade_id', unidadeId)
         ]);
 
@@ -113,20 +137,24 @@ export function useDispensationQueries(
           estoqueMap.set(e.produto_id, atual + (e.quantidade || 0));
         });
 
-        // Subtrair saídas
+        // Subtrair apenas saídas TOTAIS (ignorar parciais)
         saidasRes.data?.forEach(s => {
-          const atual = estoqueMap.get(s.produto_id) || 0;
-          estoqueMap.set(s.produto_id, atual - (s.quantidade || 0));
+          if (!s.is_parcial) {
+            const atual = estoqueMap.get(s.produto_id) || 0;
+            estoqueMap.set(s.produto_id, atual - (s.quantidade || 0));
+          }
         });
 
-        // Montar a lista final com estoque calculado
-        return produtosData.map(produto => ({
-          ...produto,
-          estoque_atual: estoqueMap.get(produto.id) || 0
-        })) as Product[];
+        // Montar a lista final com estoque calculado e filtrar apenas os que possuem estoque > 0
+        return produtosData
+          .map(produto => ({
+            ...produto,
+            estoque_atual: estoqueMap.get(produto.id) || 0
+          }))
+          .filter(produto => (produto.estoque_atual || 0) > 0) as Product[];
       }
 
-      return produtosData as Product[];
+      return (produtosData as Product[]).filter(p => (p.estoque_atual || 0) > 0);
     },
     staleTime: 0,
   });

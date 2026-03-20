@@ -396,10 +396,10 @@ export function UserManagement() {
                     <div className="grid gap-1.5 leading-none">
                       <Label htmlFor="usar_tipo_dispensacao" className="flex items-center gap-2 cursor-pointer text-blue-500">
                         <BookOpen className="h-4 w-4" />
-                        Usar campo "Tipo Dispensação"
+                        Mostrar "PROCEDIMENTO - TOTAL/PARCIAL"
                       </Label>
                       <p className="text-xs text-muted-foreground">
-                        Permitir seleção de procedimento na dispensação.
+                        Permitir seleção de procedimento e tipo de entrega na dispensação.
                       </p>
                     </div>
                   </div>

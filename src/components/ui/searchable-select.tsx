@@ -30,6 +30,11 @@ interface SearchableSelectProps<T> {
   disabled?: boolean
   className?: string
   onSearchChange?: (value: string) => void
+  emptyAction?: {
+    label: string
+    onClick: (searchValue: string) => void
+    icon?: React.ReactNode
+  }
 }
 
 export function SearchableSelect<T>({
@@ -45,6 +50,7 @@ export function SearchableSelect<T>({
   disabled = false,
   className,
   onSearchChange,
+  emptyAction,
 }: SearchableSelectProps<T>) {
   const [open, setOpen] = React.useState(false)
   const [searchValue, setSearchValue] = React.useState("")
@@ -121,7 +127,27 @@ export function SearchableSelect<T>({
             />
           </div>
           <CommandList>
-            <CommandEmpty>{emptyMessage}</CommandEmpty>
+            <CommandEmpty>
+              <div className="py-6 text-center text-sm">
+                <p className="text-muted-foreground">{emptyMessage}</p>
+                {emptyAction && searchValue && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="mt-4 text-primary hover:text-primary hover:bg-primary/10 font-bold"
+                    onClick={() => {
+                      emptyAction.onClick(searchValue)
+                      setOpen(false)
+                      setSearchValue("")
+                    }}
+                  >
+                    {emptyAction.icon}
+                    <span className="ml-2">{emptyAction.label} "{searchValue}"</span>
+                  </Button>
+                )}
+              </div>
+            </CommandEmpty>
             <CommandGroup>
               {filteredItems.map((item, index) => {
                 const itemValue = getItemValue(item)

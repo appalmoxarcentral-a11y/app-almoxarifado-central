@@ -4,7 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { TrendingDown } from 'lucide-react';
+import { TrendingDown, AlertTriangle } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Dispensation } from '@/types';
@@ -92,14 +93,29 @@ export function ProductDispensationView({
                 {format(new Date(dispensacao.data_dispensa), 'dd/MM/yy', { locale: ptBR })}
               </TableCell>
               <TableCell>
-                <Badge variant="secondary" className="text-xs">
-                  <TrendingDown className="h-3 w-3 mr-1" /> Dispensação
+                <Badge 
+                  variant="secondary" 
+                  className={cn(
+                    "text-xs",
+                    dispensacao.is_parcial && "bg-amber-500 hover:bg-amber-600 text-white border-none"
+                  )}
+                >
+                  {dispensacao.is_parcial ? (
+                    <><AlertTriangle className="h-3 w-3 mr-1" /> Parcial</>
+                  ) : (
+                    <><TrendingDown className="h-3 w-3 mr-1" /> Dispensação</>
+                  )}
                 </Badge>
               </TableCell>
               <TableCell className="text-xs md:text-sm max-w-[150px] truncate">
                 {dispensacao.produto?.descricao}
               </TableCell>
-              <TableCell className="text-xs md:text-sm">{dispensacao.quantidade}</TableCell>
+              <TableCell className={cn(
+                "text-xs md:text-sm font-medium",
+                dispensacao.is_parcial && "text-amber-600"
+              )}>
+                {dispensacao.is_parcial && "!"} {dispensacao.quantidade}
+              </TableCell>
               <TableCell className="text-xs md:text-sm">{dispensacao.lote}</TableCell>
               <TableCell className="text-xs md:text-sm max-w-[120px] truncate">
                 {dispensacao.paciente?.nome || '-'}
