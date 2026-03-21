@@ -93,7 +93,7 @@ export function usePurchaseDraftPersistence() {
 
   // Criar novo rascunho
   const createDraftMutation = useMutation({
-    mutationFn: async ({ nome_rascunho, dados_produtos }: CreateDraftRequest) => {
+    mutationFn: async ({ nome_rascunho, dados_produtos, unidade_id }: CreateDraftRequest & { unidade_id?: string }) => {
       if (!user?.id) {
         throw new Error('Usuário não logado');
       }
@@ -103,6 +103,8 @@ export function usePurchaseDraftPersistence() {
 
       console.log('📝 Criando novo rascunho:', nome_rascunho);
 
+      const targetUnidadeId = unidade_id || (user as any).unidade_id;
+
       const { data, error } = await supabase
         .from('rascunhos_compras')
         .insert({
@@ -110,6 +112,7 @@ export function usePurchaseDraftPersistence() {
           nome_rascunho,
           dados_produtos: dados_produtos as any,
           ativo: true,
+          unidade_id: targetUnidadeId,
           tenant_id: user.tenant_id || '00000000-0000-0000-0000-000000000000'
         })
         .select()
@@ -143,7 +146,7 @@ export function usePurchaseDraftPersistence() {
 
   // Atualizar rascunho existente
   const updateDraftMutation = useMutation({
-    mutationFn: async ({ id, nome_rascunho, dados_produtos }: UpdateDraftRequest) => {
+    mutationFn: async ({ id, nome_rascunho, dados_produtos, unidade_id }: UpdateDraftRequest & { unidade_id?: string }) => {
       if (!user?.id) {
         throw new Error('Usuário não logado');
       }
@@ -158,6 +161,9 @@ export function usePurchaseDraftPersistence() {
       const updateData: any = { dados_produtos: dados_produtos as any };
       if (nome_rascunho) {
         updateData.nome_rascunho = nome_rascunho;
+      }
+      if (unidade_id) {
+        updateData.unidade_id = unidade_id;
       }
 
       // Verificar se o usuário pode editar este rascunho
@@ -278,7 +284,7 @@ export function usePurchaseDraftPersistence() {
     }
   };
 
-  const saveDraft = (nome: string, items: PurchaseDraftItem[]) => {
+  const saveDraft = (nome: string, items: PurchaseDraftItem[], unidade_id?: string) => {
     // Permitir salvar para ambos os tipos de usuários
     if (!canManageDrafts && !canAccessReports) {
       console.error('Usuário sem permissão para gerenciar rascunhos');
@@ -287,54 +293,75 @@ export function usePurchaseDraftPersistence() {
     
     if (currentDraftId) {
       // Se já temos um ID, estamos editando um rascunho existente
-      updateDraftMutation.mutate({
+      // Garantir que não sobrescrevemos a unidade_id se ela for passada (caso de edição global)
+      const updatePayload: any = {
         id: currentDraftId,
         nome_rascunho: nome,
         dados_produtos: items
-      });
+      };
+
+      if (unidade_id) {
+        updatePayload.unidade_id = unidade_id;
+      }
+
+      updateDraftMutation.mutate(updatePayload);
     } else {
       // Se o ID é nulo, é um NOVO rascunho (mesmo que baseado em outro)
       if (canManageDrafts) {
         createDraftMutation.mutate({
           nome_rascunho: nome,
-          dados_produtos: items
-        });
+          dados_produtos: items,
+          unidade_id: unidade_id
+        } as any);
       }
     }
   };
 
   const authorizeDraft = useMutation({
     mutationFn: async (draftId: string) => {
+      console.log('🛡️ Tentando autorizar rascunho:', draftId);
       if (!user?.id || !hasPermission('acesso_global_pedidos')) {
+        console.error('❌ Permissão negada para autorizar');
         throw new Error('Sem permissão para autorizar pedidos');
       }
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('rascunhos_compras')
         .update({ 
           status: 'autorizado',
           autorizado_por_id: user.id,
           data_autorizacao: new Date().toISOString()
         })
-        .eq('id', draftId);
+        .eq('id', draftId)
+        .select();
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erro Supabase ao autorizar:', error);
+        throw error;
+      }
+      console.log('✅ Autorização concluída com sucesso:', data);
     },
     onSuccess: () => {
       toast({ title: "Pedido Autorizado!", description: "A unidade já pode retirar os produtos." });
-      queryClient.invalidateQueries({ queryKey: ['purchase-drafts'] });
+      queryClient.invalidateQueries({ queryKey: ['rascunhos-compras-todos'] });
     },
     onError: (err: any) => {
+      console.error('❌ Erro na mutation authorizeDraft:', err);
       toast({ title: "Erro ao autorizar", description: err.message, variant: "destructive" });
     }
   });
 
   const confirmDelivery = useMutation({
-    mutationFn: async (draftId: string) => {
+    mutationFn: async (draft: RascunhoCompra) => {
       if (!user?.id || !hasPermission('acesso_global_pedidos')) {
         throw new Error('Sem permissão para confirmar entrega');
       }
 
+      console.log('📦 Confirmando entrega via Trigger do Banco de Dados para:', draft.id);
+
+      // A atualização de estoque agora é feita via TRIGGER no banco de dados (processar_entrega_pedido)
+      // para garantir atomicidade e evitar problemas de RLS no frontend.
+      // Nós apenas atualizamos o status para 'entregue'.
       const { error } = await supabase
         .from('rascunhos_compras')
         .update({ 
@@ -342,14 +369,26 @@ export function usePurchaseDraftPersistence() {
           entregue_por_id: user.id,
           data_entrega: new Date().toISOString()
         })
-        .eq('id', draftId);
+        .eq('id', draft.id);
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erro ao atualizar status do rascunho:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({ title: "Entrega Confirmada!", description: "O estoque da unidade foi atualizado automaticamente." });
-      queryClient.invalidateQueries({ queryKey: ['purchase-drafts'] });
+      
+      // Invalidar caches para refletir as mudanças em todo o sistema
+      queryClient.invalidateQueries({ queryKey: ['rascunhos-compras-todos'] });
       queryClient.invalidateQueries({ queryKey: ['purchase-products'] });
+      
+      // Invalida estatísticas do dashboard e históricos
+      queryClient.invalidateQueries({ queryKey: ['produto-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['entradas-mes'] });
+      queryClient.invalidateQueries({ queryKey: ['movimentacoes-recentes'] });
+      queryClient.invalidateQueries({ queryKey: ['historico-entradas'] });
+      queryClient.invalidateQueries({ queryKey: ['historico-dispensacoes'] });
     },
     onError: (err: any) => {
       toast({ title: "Erro ao confirmar entrega", description: err.message, variant: "destructive" });

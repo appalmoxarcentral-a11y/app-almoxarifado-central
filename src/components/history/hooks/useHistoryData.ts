@@ -20,12 +20,14 @@ export function useHistoryData({
   const { data: entradas, isLoading: isLoadingEntradas } = useQuery({
     queryKey: ['historico-entradas', filtroDataInicial, filtroDataFinal, filtroProduto],
     queryFn: async () => {
-      // 1. Obter a unidade atual do usuário logado
+      // 1. Obter a unidade e permissões do usuário logado
       const { data: profile } = await supabase
         .from('profiles')
-        .select('unidade_id')
+        .select('unidade_id, permissions')
         .eq('id', (await supabase.auth.getUser()).data.user?.id)
         .single();
+
+      const hasGlobalAccess = profile?.permissions && (profile.permissions as any).acesso_global_pedidos === true;
 
       let query = supabase
         .from('entradas_produtos')
@@ -42,7 +44,8 @@ export function useHistoryData({
         `)
         .order('created_at', { ascending: false });
 
-      if (profile?.unidade_id) {
+      // Só filtra por unidade se não tiver acesso global
+      if (profile?.unidade_id && !hasGlobalAccess) {
         query = query.eq('unidade_id', profile.unidade_id);
       }
 
@@ -66,12 +69,14 @@ export function useHistoryData({
   const { data: dispensacoes, isLoading: isLoadingDispensacoes } = useQuery({
     queryKey: ['historico-dispensacoes', filtroDataInicial, filtroDataFinal, filtroProduto, filtroPaciente],
     queryFn: async () => {
-      // 1. Obter a unidade atual do usuário logado
+      // 1. Obter a unidade e permissões do usuário logado
       const { data: profile } = await supabase
         .from('profiles')
-        .select('unidade_id')
+        .select('unidade_id, permissions')
         .eq('id', (await supabase.auth.getUser()).data.user?.id)
         .single();
+
+      const hasGlobalAccess = profile?.permissions && (profile.permissions as any).acesso_global_pedidos === true;
 
       let query = supabase
         .from('dispensacoes')
@@ -92,7 +97,8 @@ export function useHistoryData({
         `)
         .order('created_at', { ascending: false });
 
-      if (profile?.unidade_id) {
+      // Só filtra por unidade se não tiver acesso global
+      if (profile?.unidade_id && !hasGlobalAccess) {
         query = query.eq('unidade_id', profile.unidade_id);
       }
 

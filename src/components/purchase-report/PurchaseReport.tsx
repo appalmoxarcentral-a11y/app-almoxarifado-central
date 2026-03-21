@@ -1,9 +1,10 @@
 
 import React, { useEffect, useState } from 'react';
-import { ShoppingCart, Calendar, Package, ShieldCheck } from 'lucide-react';
+import { ShoppingCart, Calendar, Package, ShieldCheck, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { PurchaseFilters } from './PurchaseFilters';
 import { PurchaseTable } from './PurchaseTable';
 import { PurchasePDFGenerator } from './PurchasePDFGenerator';
@@ -12,6 +13,7 @@ import { usePurchaseData } from './hooks/usePurchaseData';
 import { usePurchaseState } from './hooks/usePurchaseState';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { PaymentCelebration } from '../subscription/PaymentCelebration';
 import { addDays, isAfter, format } from 'date-fns';
@@ -19,6 +21,7 @@ import { addDays, isAfter, format } from 'date-fns';
 export function PurchaseReport() {
   const isMobile = useIsMobile();
   const { user, hasPermission } = useAuth();
+  const queryClient = useQueryClient();
   const {
     purchaseItems,
     filteredItems,
@@ -26,6 +29,10 @@ export function PurchaseReport() {
     filters,
     setFilters,
     updatePurchaseQuantity,
+    setTargetUnidade,
+    targetUnidadeId,
+    manualUnidadeId,
+    manualUnidadeNome,
     // Draft management
     drafts,
     currentDraftId,
@@ -45,6 +52,21 @@ export function PurchaseReport() {
     hasChanges
   } = usePurchaseState();
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries();
+    setTimeout(() => setIsRefreshing(false), 1000);
+  };
+
+  const handleCreateNewPedido = (unidadeId?: string) => {
+    if (unidadeId) {
+      setTargetUnidade(unidadeId);
+    }
+    createNewDraft();
+  };
+
   const currentDraft = getCurrentDraft();
   const canAuthorize = hasPermission('acesso_global_pedidos');
 
@@ -56,7 +78,7 @@ export function PurchaseReport() {
 
   const handleConfirmDelivery = () => {
     if (currentDraft?.id) {
-      confirmDelivery.mutate(currentDraft.id);
+      confirmDelivery.mutate(currentDraft);
     }
   };
 
@@ -109,7 +131,21 @@ export function PurchaseReport() {
         <div className="flex items-center gap-2">
           <ShoppingCart className={`${isMobile ? 'h-6 w-6' : 'h-8 w-8'} text-primary`} />
           <div>
-            <h1 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-bold`}>Pedidos</h1>
+            <div className="flex items-center gap-2">
+              <h1 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-bold`}>Pedidos</h1>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleRefresh}
+                className={cn(
+                  "h-8 w-8 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all",
+                  isRefreshing && "animate-spin text-primary"
+                )}
+                title="Atualizar dados"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
             <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-600`}>Gerencie as necessidades de reposição de produtos</p>
           </div>
         </div>
@@ -147,16 +183,18 @@ export function PurchaseReport() {
           />
 
           <div className="flex flex-wrap items-center justify-center md:justify-end gap-2 w-full md:w-auto flex-1">
-            {currentDraftId && (
+            {(currentDraftId || manualUnidadeId) && (
               <div className="w-full md:w-auto flex justify-center md:justify-end mb-1 md:mb-0 md:mr-2">
                 <div className="px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-[10px] font-bold text-primary flex items-center gap-1.5 shadow-sm backdrop-blur-sm">
                   <Calendar className="h-3.5 w-3.5 shrink-0" />
                   <span className="truncate max-w-[250px] md:max-w-[400px] flex items-center gap-1.5">
-                    {currentDraft?.nome_rascunho}
-                    {currentDraft?.unidade_nome && (
+                    {currentDraftId ? currentDraft?.nome_rascunho : 'Novo Pedido'}
+                    {(currentDraft?.unidade_nome || manualUnidadeNome) && (
                       <>
                         <span className="opacity-30">|</span>
-                        <span className="uppercase text-primary/80 tracking-tight">{currentDraft.unidade_nome}</span>
+                        <span className="uppercase text-primary/80 tracking-tight">
+                          {currentDraft?.unidade_nome || manualUnidadeNome}
+                        </span>
                       </>
                     )}
                   </span>
@@ -176,16 +214,19 @@ export function PurchaseReport() {
                   onLoadDraft={loadDraft}
                   onLoadDraftAsBase={loadDraftAsBase}
                   onDeleteDraft={deleteDraft}
-                  onCreateNew={createNewDraft}
+                  onCreateNew={handleCreateNewPedido}
                   getCurrentDraft={getCurrentDraft}
                   items={draftItems}
                   className="w-full h-11 md:h-10 font-bold shadow-sm"
                   hasChanges={hasChanges}
+                  onSetTargetUnidade={setTargetUnidade}
+                  targetUnidadeId={targetUnidadeId}
                 />
               </div>
               <div className="col-span-1">
                 <PurchasePDFGenerator 
                   items={itemsForPDF} 
+                  unidadeNome={currentDraft?.unidade_nome || manualUnidadeNome}
                   className="w-full h-11 md:h-10 bg-primary hover:bg-primary/90 text-white font-black shadow-lg rounded-xl transition-all active:scale-95"
                 />
               </div>

@@ -36,6 +36,10 @@ import {
 } from '@/components/ui/select';
 import type { RascunhoCompra, PurchaseDraftItem } from '@/types/purchase-draft';
 
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+
 interface DraftManagerProps {
   drafts: RascunhoCompra[];
   currentDraftId: string | null;
@@ -43,16 +47,18 @@ interface DraftManagerProps {
   isSaving: boolean;
   canEditDraft: (draft: RascunhoCompra) => boolean;
   canDeleteDraft: (draft: RascunhoCompra) => boolean;
-  onSaveDraft: (nome: string, items: PurchaseDraftItem[]) => void;
+  onSaveDraft: (nome: string, items: PurchaseDraftItem[], unidade_id?: string) => void;
   onLoadDraft: (draft: RascunhoCompra) => PurchaseDraftItem[];
   onLoadDraftAsBase: (draft: RascunhoCompra) => PurchaseDraftItem[];
   onDeleteDraft: (draftId: string) => void;
-  onCreateNew: () => void;
+  onCreateNew: (unidadeId?: string) => void;
   getCurrentDraft: () => RascunhoCompra & { unidade_nome?: string } | undefined;
   items: PurchaseDraftItem[];
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
   className?: string;
   hasChanges?: boolean;
+  onSetTargetUnidade?: (unidadeId: string) => void;
+  targetUnidadeId?: string | null;
 }
 
 export function DraftManager({
@@ -71,13 +77,33 @@ export function DraftManager({
   items,
   variant,
   className,
-  hasChanges
+  hasChanges,
+  onSetTargetUnidade,
+  targetUnidadeId
 }: DraftManagerProps) {
+  const { hasPermission } = useAuth();
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [loadDialogOpen, setLoadDialogOpen] = useState(false);
   const [createStepDialogOpen, setCreateStepDialogOpen] = useState(false);
-  const [creationMode, setCreationMode] = useState<'type' | 'base'>('type');
+  const [creationMode, setCreationMode] = useState<'unit' | 'type' | 'base'>('type');
+  const [selectedUnitId, setSelectedUnitId] = useState<string>('');
   const [draftName, setDraftName] = useState('');
+
+  const canSelectUnit = hasPermission('acesso_global_pedidos');
+
+  const { data: unidades } = useQuery({
+    queryKey: ['unidades_saude_active'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('unidades_saude')
+        .select('id, nome')
+        .eq('ativo', true)
+        .order('nome');
+      if (error) throw error;
+      return data;
+    },
+    enabled: loadDialogOpen || createStepDialogOpen
+  });
   
   // Filtros
   const [filterMonth, setFilterMonth] = useState<string>('all');
@@ -137,7 +163,7 @@ export function DraftManager({
 
   const handleSaveNew = () => {
     if (draftName.trim()) {
-      onSaveDraft(draftName.trim(), items);
+      onSaveDraft(draftName.trim(), items, targetUnidadeId || undefined);
       setDraftName('');
       setSaveDialogOpen(false);
     }
@@ -150,12 +176,24 @@ export function DraftManager({
 
   const handleCreateNew = () => {
     setLoadDialogOpen(false);
-    setCreationMode('type');
+    if (canSelectUnit) {
+      setCreationMode('unit');
+    } else {
+      setCreationMode('type');
+    }
     setCreateStepDialogOpen(true);
   };
 
+  const handleUnitSelected = (unitId: string) => {
+    setSelectedUnitId(unitId);
+    if (onSetTargetUnidade) {
+      onSetTargetUnidade(unitId);
+    }
+    setCreationMode('type');
+  };
+
   const handleStartFromScratch = () => {
-    onCreateNew();
+    onCreateNew(selectedUnitId || undefined);
     setCreateStepDialogOpen(false);
     setDraftName(monthOptions[0].value);
     setSaveDialogOpen(true);
@@ -171,6 +209,10 @@ export function DraftManager({
     setDraftName(monthOptions[0].value);
     setSaveDialogOpen(true);
   };
+
+  const baseDrafts = selectedUnitId 
+    ? drafts.filter(d => d.unidade_id === selectedUnitId)
+    : drafts;
 
   const getItemsWithQuantity = (draftItems: PurchaseDraftItem[]) => {
     return draftItems.filter(item => item.quantidade_reposicao && item.quantidade_reposicao > 0).length;
@@ -251,11 +293,11 @@ export function DraftManager({
 
             <Button 
               onClick={handleCreateNew}
-              className="w-full justify-start"
+              className="w-full justify-start h-12"
               variant="outline"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Criar Novo Relatório
+              Novo Pedido
             </Button>
 
             {isLoading ? (
@@ -348,13 +390,37 @@ export function DraftManager({
       <Dialog open={createStepDialogOpen} onOpenChange={setCreateStepDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Novo Pedido de Compras</DialogTitle>
+            <DialogTitle>Novo Pedido</DialogTitle>
             <DialogDescription>
-              Como deseja iniciar este novo pedido?
+              {creationMode === 'unit' ? 'Selecione para qual unidade deseja criar o pedido.' : 'Como deseja iniciar este novo pedido?'}
             </DialogDescription>
           </DialogHeader>
 
-          {creationMode === 'type' ? (
+          {creationMode === 'unit' ? (
+            <div className="space-y-4 py-4">
+              <div className="max-h-80 overflow-y-auto space-y-2 pr-2">
+                {unidades?.map((unidade) => (
+                  <Button
+                    key={unidade.id}
+                    variant="outline"
+                    className="w-full justify-between h-auto p-4 text-left hover:border-primary group transition-all"
+                    onClick={() => handleUnitSelected(unidade.id)}
+                  >
+                    <div className="flex flex-col gap-1">
+                      <div className="font-bold text-foreground group-hover:text-primary">{unidade.nome}</div>
+                      <div className="text-xs text-muted-foreground">Clique para selecionar esta unidade</div>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary shrink-0 transition-transform group-hover:translate-x-1" />
+                  </Button>
+                ))}
+                {(!unidades || unidades.length === 0) && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Nenhuma unidade de saúde encontrada.
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : creationMode === 'type' ? (
             <div className="grid grid-cols-1 gap-4 py-4">
               <Button 
                 variant="outline" 
@@ -372,7 +438,7 @@ export function DraftManager({
                 variant="outline" 
                 className="h-24 flex flex-col items-center justify-center gap-2 hover:border-primary hover:bg-primary/5"
                 onClick={handleBaseOnExisting}
-                disabled={drafts.length === 0}
+                disabled={baseDrafts.length === 0}
               >
                 <Copy className="h-8 w-8 text-muted-foreground" />
                 <div className="text-center">
@@ -380,6 +446,16 @@ export function DraftManager({
                   <div className="text-xs text-muted-foreground">Copia as quantidades de um pedido anterior</div>
                 </div>
               </Button>
+              {canSelectUnit && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="mt-2 text-primary hover:underline"
+                  onClick={() => setCreationMode('unit')}
+                >
+                  Alterar Unidade Selecionada
+                </Button>
+              )}
             </div>
           ) : (
             <div className="space-y-4 py-4">
@@ -396,7 +472,7 @@ export function DraftManager({
               </div>
               
               <div className="max-h-64 overflow-y-auto space-y-2 pr-2">
-                {drafts.map((draft) => (
+                {baseDrafts.map((draft) => (
                   <Button
                     key={draft.id}
                     variant="outline"

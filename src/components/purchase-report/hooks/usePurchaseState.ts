@@ -1,5 +1,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import type { PurchaseItem, PurchaseFilters } from '@/types/purchase';
 import type { PurchaseDraftItem } from '@/types/purchase-draft';
 import { usePurchaseDraftPersistence } from './usePurchaseDraftPersistence';
@@ -14,31 +16,55 @@ export function usePurchaseState() {
     estoqueMinimo: undefined
   });
 
+  const [sortTrigger, setSortTrigger] = useState(0);
+  const [sortedIds, setSortedIds] = useState<string[]>([]);
+
+  const [manualUnidadeId, setManualUnidadeId] = useState<string | null>(null);
   const persistence = usePurchaseDraftPersistence();
 
   const currentDraft = persistence.getCurrentDraft();
-  const targetUnidadeId = currentDraft?.unidade_id;
+  const targetUnidadeId = manualUnidadeId || currentDraft?.unidade_id;
+
+  // Buscar nome da unidade manual se necessário
+  const { data: manualUnidadeNome } = useQuery({
+    queryKey: ['unidade-manual-nome', manualUnidadeId],
+    queryFn: async () => {
+      if (!manualUnidadeId) return null;
+      console.log('🔍 Buscando nome da unidade manual:', manualUnidadeId);
+      const { data, error } = await supabase
+        .from('unidades_saude')
+        .select('nome')
+        .eq('id', manualUnidadeId)
+        .single();
+      if (error) {
+        console.error('❌ Erro ao buscar nome da unidade:', error);
+        return null;
+      }
+      return data.nome;
+    },
+    enabled: !!manualUnidadeId
+  });
   
   const { 
     produtos: initialProducts, 
     isLoading: isProductsLoading 
   } = usePurchaseData(targetUnidadeId);
 
-  // Sincronizar purchaseItems com initialProducts (que tem o estoque da unidade correta)
+  // Sincronizar purchaseItems com initialProducts
   useEffect(() => {
     if (!isProductsLoading && initialProducts.length > 0) {
       setPurchaseItems(prevItems => {
-        // Se já temos itens (possivelmente com quantidades de reposição), 
-        // apenas atualizamos o estoque_atual vindo da unidade correta
         if (prevItems.length > 0) {
           console.log(`🔄 Atualizando estoque para unidade: ${targetUnidadeId || 'local'}`);
-          return prevItems.map(item => {
+          const updatedItems = prevItems.map(item => {
             const updated = initialProducts.find(p => p.id === item.id);
             return updated ? { ...item, estoque_atual: updated.estoque_atual } : item;
           });
+          setSortTrigger(prev => prev + 1);
+          return updatedItems;
         }
-        // Se está vazio (primeiro carregamento), inicializamos tudo
         console.log(`🆕 Inicializando produtos para unidade: ${targetUnidadeId || 'local'}`);
+        setSortTrigger(prev => prev + 1);
         return initialProducts.map(p => ({ ...p, quantidade_reposicao: undefined }));
       });
     }
@@ -59,40 +85,48 @@ export function usePurchaseState() {
       ...produto,
       quantidade_reposicao: undefined
     })));
+    setSortTrigger(prev => prev + 1);
   }, []);
 
-  const filteredItems = useMemo(() => {
+  // Atualiza a ordem dos IDs apenas quando necessário
+  useEffect(() => {
+    console.log('⚖️ Re-calculando ORDEM da lista de pedidos');
     const filtered = purchaseItems.filter(item => {
-      // Filtro por termo de busca
       if (filters.searchTerm) {
         const searchLower = filters.searchTerm.toLowerCase();
-        const matchesSearch = 
-          item.descricao.toLowerCase().includes(searchLower) ||
-          item.codigo.toLowerCase().includes(searchLower);
-        
-        if (!matchesSearch) return false;
+        return item.descricao.toLowerCase().includes(searchLower) ||
+               item.codigo.toLowerCase().includes(searchLower);
       }
-
-      // Filtro por estoque mínimo
       if (filters.estoqueMinimo !== undefined) {
         if (item.estoque_atual > filters.estoqueMinimo) return false;
       }
-
       return true;
     });
 
-    // Ordenação: Itens com reposição primeiro, depois ordem alfabética
-    return [...filtered].sort((a, b) => {
-      const hasRepoA = (a.quantidade_reposicao || 0) > 0;
-      const hasRepoB = (b.quantidade_reposicao || 0) > 0;
+    const sorted = [...filtered].sort((a, b) => {
+      // Hierarquia: Com Estoque (1) > Com Reposição (2) > Sem Estoque (3)
+      const getTier = (item: PurchaseItem) => {
+        if (item.estoque_atual > 0) return 1;
+        if ((item.quantidade_reposicao || 0) > 0) return 2;
+        return 3;
+      };
 
-      if (hasRepoA && !hasRepoB) return -1;
-      if (!hasRepoA && hasRepoB) return 1;
+      const tierA = getTier(a);
+      const tierB = getTier(b);
 
-      // Se ambos tiverem ou ambos não tiverem reposição, ordena por descrição
+      if (tierA !== tierB) return tierA - tierB;
       return a.descricao.localeCompare(b.descricao);
     });
-  }, [purchaseItems, filters]);
+
+    setSortedIds(sorted.map(item => item.id));
+  }, [sortTrigger, filters.searchTerm, filters.estoqueMinimo, purchaseItems.length === 0]); 
+
+  // Itens filtrados e ordenados mantendo a ordem estável durante a digitação
+  const filteredItems = useMemo(() => {
+    return sortedIds
+      .map(id => purchaseItems.find(item => item.id === id))
+      .filter(Boolean) as PurchaseItem[];
+  }, [sortedIds, purchaseItems]);
 
   const itemsForPDF = useMemo(() => {
     return purchaseItems.filter(item => 
@@ -110,8 +144,8 @@ export function usePurchaseState() {
   
   const hasChanges = currentStateString !== lastSavedState && persistence.currentDraftId !== null;
 
-  const saveDraft = useCallback((nome: string) => {
-    const draftItems: PurchaseDraftItem[] = purchaseItems.map(item => ({
+  const saveDraft = useCallback((nome: string, items?: PurchaseDraftItem[], unidade_id?: string) => {
+    const finalItems = items || purchaseItems.map(item => ({
       id: item.id,
       codigo: item.codigo,
       descricao: item.descricao,
@@ -120,23 +154,22 @@ export function usePurchaseState() {
       quantidade_reposicao: item.quantidade_reposicao
     }));
     
-    persistence.saveDraft(nome, draftItems);
+    const finalUnidadeId =  unidade_id || targetUnidadeId;
+    
+    persistence.saveDraft(nome, finalItems, finalUnidadeId || undefined);
     setLastSavedState(currentStateString);
-  }, [purchaseItems, persistence.saveDraft, currentStateString]);
+    
+    // Forçar re-ordenação APÓS salvar
+    setSortTrigger(prev => prev + 1);
+  }, [purchaseItems, persistence.saveDraft, currentStateString, targetUnidadeId]);
 
   const loadDraft = useCallback((draft: any) => {
     const loadedItems = persistence.loadDraft(draft);
     
-    // IMPORTANTE: Ao carregar um rascunho, ignoramos o estoque_atual salvo no JSON
-    // e mantemos o estoque_atual que já está no estado (calculado em tempo real pela unidade)
     setPurchaseItems(prevItems => {
       return prevItems.map(currentItem => {
-        // Encontrar o item correspondente no rascunho carregado
         const draftItem = loadedItems.find(d => d.id === currentItem.id);
-        
         if (draftItem) {
-          // Mantemos os dados do rascunho (quantidade_reposicao), 
-          // mas preservamos o estoque_atual real da unidade (currentItem.estoque_atual)
           return {
             ...currentItem,
             quantidade_reposicao: draftItem.quantidade_reposicao
@@ -146,7 +179,6 @@ export function usePurchaseState() {
       });
     });
     
-    // Atualizar estado salvo para detecção de mudanças (usando o ID e a quantidade)
     const newStateString = JSON.stringify(
       loadedItems.map(item => ({ 
         id: item.id, 
@@ -154,30 +186,13 @@ export function usePurchaseState() {
       }))
     );
     setLastSavedState(newStateString);
+    setSortTrigger(prev => prev + 1); // Re-ordena ao carregar
     
     return loadedItems;
   }, [persistence.loadDraft]);
 
-  // Auto-save a cada 30 segundos quando há mudanças
-  useEffect(() => {
-    // Auto-save when there are changes, with or without currentDraftId
-    if (itemsForPDF.length === 0) return;
-
-    const timer = setTimeout(() => {
-      const draftItems: PurchaseDraftItem[] = purchaseItems.map(item => ({
-        id: item.id,
-        codigo: item.codigo,
-        descricao: item.descricao,
-        unidade_medida: item.unidade_medida,
-        estoque_atual: item.estoque_atual,
-        quantidade_reposicao: item.quantidade_reposicao
-      }));
-      
-      persistence.autoSave(draftItems);
-    }, 30000); // 30 segundos
-
-    return () => clearTimeout(timer);
-  }, [purchaseItems, persistence.autoSave, itemsForPDF.length]);
+  // REMOVIDO auto-save a cada 30 segundos conforme solicitado pelo usuário
+  // "não salve ao digitar e sim ao clicar no botão salvar"
 
   // Carregar rascunho mais recente apenas na montagem inicial
   useEffect(() => {
@@ -192,11 +207,10 @@ export function usePurchaseState() {
   }, [persistence.drafts, persistence.currentDraftId, purchaseItems.length, loadDraft, hasAttemptedAutoLoad]);
 
   const loadDraftAsBase = useCallback((draft: any) => {
-    setHasAttemptedAutoLoad(true); // Marca como carregado para evitar auto-load posterior
+    setHasAttemptedAutoLoad(true);
     const loadedItems = persistence.loadDraft(draft);
-    persistence.createNewDraft(); // Reseta currentDraftId para nulo
+    persistence.createNewDraft();
     
-    // Mesma lógica do loadDraft: preservar estoque real atual
     setPurchaseItems(prevItems => {
       return prevItems.map(currentItem => {
         const draftItem = loadedItems.find(d => d.id === currentItem.id);
@@ -210,22 +224,33 @@ export function usePurchaseState() {
       });
     });
     
-    setLastSavedState(''); // Reseta para detectar mudanças
+    setLastSavedState('');
+    setSortTrigger(prev => prev + 1);
     return loadedItems;
   }, [persistence.loadDraft, persistence.createNewDraft]);
 
   const createNewDraft = useCallback(() => {
-    setHasAttemptedAutoLoad(true); // Marca como carregado para evitar auto-load posterior
+    setHasAttemptedAutoLoad(true);
     persistence.createNewDraft();
     setPurchaseItems(items => items.map(item => ({
       ...item,
       quantidade_reposicao: undefined
     })));
     setLastSavedState('');
+    setSortTrigger(prev => prev + 1);
   }, [persistence.createNewDraft]);
+
+  const setTargetUnidade = useCallback((unidadeId: string) => {
+    setManualUnidadeId(unidadeId);
+  }, []);
+
+  const saveDraftWrapper = useCallback((nome: string, items: PurchaseDraftItem[], unidade_id?: string) => {
+    saveDraft(nome, items, unidade_id);
+  }, [saveDraft]);
 
   const loadDraftWrapper = useCallback((draft: any) => {
     setHasAttemptedAutoLoad(true); // Marca como carregado
+    setManualUnidadeId(null); // Reseta unidade manual ao carregar rascunho existente
     return loadDraft(draft);
   }, [loadDraft]);
 
@@ -237,11 +262,14 @@ export function usePurchaseState() {
     setFilters,
     updatePurchaseQuantity,
     initializePurchaseItems,
+    setTargetUnidade,
+    targetUnidadeId,
+    manualUnidadeNome,
     // Draft management
     ...persistence,
     createNewDraft,
     loadDraftAsBase,
-    saveDraft,
+    saveDraft: saveDraftWrapper,
     loadDraft: loadDraftWrapper,
     getCurrentDraft: useCallback(() => {
       const draft = persistence.getCurrentDraft();

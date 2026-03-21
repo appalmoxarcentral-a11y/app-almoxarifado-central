@@ -11,18 +11,19 @@ import type { PurchaseItem } from '@/types/purchase';
 
 interface PurchasePDFGeneratorProps {
   items: PurchaseItem[];
+  unidadeNome?: string;
   disabled?: boolean;
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
   className?: string;
 }
 
-export function PurchasePDFGenerator({ items, disabled, variant, className }: PurchasePDFGeneratorProps) {
+export function PurchasePDFGenerator({ items, unidadeNome: propUnidadeNome, disabled, variant, className }: PurchasePDFGeneratorProps) {
   const { user } = useAuth();
   const isMobile = useIsMobile();
 
   const generatePDF = () => {
-    // Definir nome da unidade
-    const unidadeNome = user?.unidade_nome || 'SMSA';
+    // Definir nome da unidade (prioriza a prop que vem do pedido selecionado)
+    const unidadeNome = propUnidadeNome || user?.unidade_nome || 'SMSA';
     
     // Criar conteúdo HTML para impressão
     const printContent = `
@@ -30,7 +31,7 @@ export function PurchasePDFGenerator({ items, disabled, variant, className }: Pu
       <html>
       <head>
         <meta charset="UTF-8">
-        <title>Pedidos - ${unidadeNome}</title>
+        <title>PEDIDO - ${unidadeNome}</title>
         <style>
           body { 
             font-family: Arial, sans-serif; 
@@ -50,6 +51,7 @@ export function PurchasePDFGenerator({ items, disabled, variant, className }: Pu
             font-size: 24px; 
             font-weight: bold; 
             color: #1e40af;
+            text-transform: uppercase;
           }
           .header p { 
             margin: 5px 0; 
@@ -105,7 +107,7 @@ export function PurchasePDFGenerator({ items, disabled, variant, className }: Pu
       </head>
       <body>
         <div class="header">
-          <h1>${unidadeNome} - RELATÓRIO DE COMPRAS</h1>
+          <h1 class="title">${unidadeNome} - PEDIDO</h1>
           <p>Registro de Necessidades de Reposição</p>
         </div>
         
@@ -128,7 +130,7 @@ export function PurchasePDFGenerator({ items, disabled, variant, className }: Pu
               <th style="width: 45%">Descrição do Produto</th>
               <th style="width: 10%" class="text-center">Unidade</th>
               <th style="width: 15%" class="text-center">Estoque Atual</th>
-              <th style="width: 15%" class="text-center">Qtd. para Compra</th>
+              <th style="width: 15%" class="text-center">Qtd. Pedida</th>
             </tr>
           </thead>
           <tbody>
@@ -147,15 +149,15 @@ export function PurchasePDFGenerator({ items, disabled, variant, className }: Pu
         <div class="footer">
           <p><strong>Observações:</strong></p>
           <ul>
-            <li>Este relatório foi gerado automaticamente pelo sistema de farmácia da SMSA.</li>
-            <li>Conferir disponibilidade e preços antes da efetivação da compra.</li>
-            <li>Manter comprovantes de compra para controle de estoque.</li>
+            <li>Este documento foi gerado automaticamente pelo sistema de farmácia da SMSA.</li>
+            <li>Conferir disponibilidade e lote/validade no ato da entrega física.</li>
+            <li>Este pedido serve como comprovante de movimentação interna de estoque.</li>
           </ul>
         </div>
 
         <div class="signature">
           <div class="signature-line"></div>
-          <p><strong>${user?.nome || 'Responsável'}</strong></p>
+          <p><strong>${user?.nome || 'Responsável pela Solicitação'}</strong></p>
         </div>
       </body>
       </html>
