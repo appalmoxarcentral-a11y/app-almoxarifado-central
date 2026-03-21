@@ -111,41 +111,22 @@ export function useDispensationQueries(
       const { data: produtosData, error: prodError } = await query.limit(100);
       if (prodError) throw prodError;
 
-      // 3. Se tivermos unidadeId, buscar o estoque real desta unidade em lote (Batch)
+      // 3. Se tivermos unidadeId, buscar o estoque real desta unidade na tabela consolidada
       if (unidadeId && produtosData && produtosData.length > 0) {
         const currentProductIds = produtosData.map(p => p.id);
 
-        // Buscar todas as entradas e saídas destes produtos para esta unidade de uma vez
-        const [entradasRes, saidasRes] = await Promise.all([
-          supabase
-            .from('entradas_produtos')
-            .select('produto_id, quantidade')
-            .in('produto_id', currentProductIds)
-            .eq('unidade_id', unidadeId),
-          supabase
-            .from('dispensacoes')
-            .select('produto_id, quantidade, is_parcial')
-            .in('produto_id', currentProductIds)
-            .eq('unidade_id', unidadeId)
-        ]);
+        const { data: estoqueData } = await supabase
+          .from('produtos_estoque')
+          .select('produto_id, estoque_atual')
+          .in('produto_id', currentProductIds)
+          .eq('unidade_id', unidadeId);
 
         const estoqueMap = new Map<string, number>();
-
-        // Somar entradas
-        entradasRes.data?.forEach(e => {
-          const atual = estoqueMap.get(e.produto_id) || 0;
-          estoqueMap.set(e.produto_id, atual + (e.quantidade || 0));
+        estoqueData?.forEach(e => {
+          estoqueMap.set(e.produto_id, e.estoque_atual);
         });
 
-        // Subtrair apenas saídas TOTAIS (ignorar parciais)
-        saidasRes.data?.forEach(s => {
-          if (!s.is_parcial) {
-            const atual = estoqueMap.get(s.produto_id) || 0;
-            estoqueMap.set(s.produto_id, atual - (s.quantidade || 0));
-          }
-        });
-
-        // Montar a lista final com estoque calculado e filtrar apenas os que possuem estoque > 0
+        // Montar a lista final com estoque e filtrar apenas os que possuem estoque > 0
         return produtosData
           .map(produto => ({
             ...produto,

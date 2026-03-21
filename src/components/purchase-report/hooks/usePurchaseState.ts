@@ -279,6 +279,8 @@ export function usePurchaseState() {
     }, [persistence.getCurrentDraft]),
     authorizeDraft: persistence.authorizeDraft,
     confirmDelivery: persistence.confirmDelivery,
+    stockError: persistence.stockError,
+    clearStockError: persistence.clearStockError,
     draftItems: purchaseItems.map(item => ({
       id: item.id,
       codigo: item.codigo,

@@ -44,8 +44,8 @@ export function useHistoryData({
         `)
         .order('created_at', { ascending: false });
 
-      // Só filtra por unidade se não tiver acesso global
-      if (profile?.unidade_id && !hasGlobalAccess) {
+      // Filtra pela unidade do usuário logado para manter o histórico específico
+      if (profile?.unidade_id) {
         query = query.eq('unidade_id', profile.unidade_id);
       }
 
@@ -97,8 +97,8 @@ export function useHistoryData({
         `)
         .order('created_at', { ascending: false });
 
-      // Só filtra por unidade se não tiver acesso global
-      if (profile?.unidade_id && !hasGlobalAccess) {
+      // Filtra pela unidade do usuário logado para manter o histórico específico
+      if (profile?.unidade_id) {
         query = query.eq('unidade_id', profile.unidade_id);
       }
 

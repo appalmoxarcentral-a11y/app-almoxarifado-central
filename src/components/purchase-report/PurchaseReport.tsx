@@ -13,7 +13,18 @@ import { usePurchaseData } from './hooks/usePurchaseData';
 import { usePurchaseState } from './hooks/usePurchaseState';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from "@/integrations/supabase/client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { AlertCircle } from 'lucide-react';
 
 import { PaymentCelebration } from '../subscription/PaymentCelebration';
 import { addDays, isAfter, format } from 'date-fns';
@@ -49,7 +60,9 @@ export function PurchaseReport() {
     draftItems,
     authorizeDraft,
     confirmDelivery,
-    hasChanges
+    hasChanges,
+    stockError,
+    clearStockError
   } = usePurchaseState();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -69,6 +82,18 @@ export function PurchaseReport() {
 
   const currentDraft = getCurrentDraft();
   const canAuthorize = hasPermission('acesso_global_pedidos');
+  
+  // A unidade de origem é quem fornece o estoque
+  const originUnidadeId = currentDraft?.unidade_origem_id || user?.unidade_id;
+  const { data: originUnidade } = useQuery({
+    queryKey: ['unidade-origem-info', originUnidadeId],
+    queryFn: async () => {
+      if (!originUnidadeId) return null;
+      const { data } = await supabase.from('unidades_saude').select('nome').eq('id', originUnidadeId).single();
+      return data;
+    },
+    enabled: !!originUnidadeId
+  });
 
   const handleAuthorize = () => {
     if (currentDraft?.id) {
@@ -303,6 +328,38 @@ export function PurchaseReport() {
         items={filteredItems}
         onQuantityChange={updatePurchaseQuantity}
       />
+
+      <AlertDialog open={!!stockError} onOpenChange={(open) => !open && clearStockError()}>
+        <AlertDialogContent className="max-w-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              {stockError?.title}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3 pt-2">
+              <p className="font-medium text-foreground">
+                Os seguintes itens não possuem saldo suficiente na unidade <span className="font-bold text-destructive underline">{originUnidade?.nome || 'de origem'}</span> para completar esta operação:
+              </p>
+              <ul className="space-y-1.5 max-h-60 overflow-y-auto pr-2">
+                {stockError?.items.map((item, index) => (
+                  <li key={index} className="text-sm bg-destructive/5 p-2 rounded-md border border-destructive/10 flex items-start gap-2">
+                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-destructive shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-muted-foreground pt-2 border-t">
+                Por favor, ajuste as quantidades de reposição para que correspondam ao saldo disponível ou providencie a entrada destes itens antes de prosseguir.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={clearStockError} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Entendido, vou ajustar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

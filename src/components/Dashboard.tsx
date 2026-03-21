@@ -19,24 +19,31 @@ export function Dashboard() {
   const hasGlobalAccess = hasPermission('acesso_global_pedidos');
 
   const { data: produtoStats } = useQuery({
-    queryKey: ['produto-stats', unidadeId, hasGlobalAccess],
+    queryKey: ['produto-stats', unidadeId],
     queryFn: async () => {
-      let totalQuery = supabase.from('produtos').select('*', { count: 'exact', head: true });
-      let baixoQuery = supabase.from('produtos').select('*', { count: 'exact', head: true }).lte('estoque_atual', 10);
+      // Conta total de produtos cadastrados no sistema (catálogo global)
+      const { count: total, error: totalErr } = await supabase
+        .from('produtos')
+        .select('*', { count: 'exact', head: true });
 
-      // Se não tiver acesso global, filtra pela unidade do usuário
-      if (unidadeId && !hasGlobalAccess) {
+      if (totalErr) throw totalErr;
+
+      // Conta produtos com estoque baixo na unidade atual
+      let baixoQuery = supabase
+        .from('produtos_estoque')
+        .select('*', { count: 'exact', head: true })
+        .lte('estoque_atual', 10);
+
+      if (unidadeId) {
         baixoQuery = baixoQuery.eq('unidade_id', unidadeId);
       }
 
-      const [totalRes, baixoRes] = await Promise.all([totalQuery, baixoQuery]);
-      
-      if (totalRes.error) throw totalRes.error;
-      if (baixoRes.error) throw baixoRes.error;
+      const { count: baixoEstoque, error: baixoErr } = await baixoQuery;
+      if (baixoErr) throw baixoErr;
       
       return { 
-        total: totalRes.count || 0, 
-        baixoEstoque: baixoRes.count || 0 
+        total: total || 0, 
+        baixoEstoque: baixoEstoque || 0 
       };
     }
   });
@@ -54,12 +61,12 @@ export function Dashboard() {
   });
 
   const { data: entradasMes } = useQuery({
-    queryKey: ['entradas-mes', unidadeId, hasGlobalAccess],
+    queryKey: ['entradas-mes', unidadeId],
     queryFn: async () => {
       const inicioMes = startOfMonth(new Date()).toISOString().split('T')[0];
       let query = supabase.from('entradas_produtos').select('quantidade').gte('data_entrada', inicioMes);
       
-      if (unidadeId && !hasGlobalAccess) {
+      if (unidadeId) {
         query = query.eq('unidade_id', unidadeId);
       }
 
@@ -71,7 +78,7 @@ export function Dashboard() {
   });
 
   const { data: dispensacoesMes } = useQuery({
-    queryKey: ['dispensacoes-mes', unidadeId, hasGlobalAccess],
+    queryKey: ['dispensacoes-mes', unidadeId],
     queryFn: async () => {
       const inicioMes = startOfMonth(new Date()).toISOString().split('T')[0];
       let query = supabase
@@ -79,7 +86,7 @@ export function Dashboard() {
         .select('quantidade, is_parcial')
         .gte('data_dispensa', inicioMes);
       
-      if (unidadeId && !hasGlobalAccess) {
+      if (unidadeId) {
         query = query.eq('unidade_id', unidadeId);
       }
 
@@ -96,7 +103,7 @@ export function Dashboard() {
   });
 
   const { data: produtosVencendo } = useQuery({
-    queryKey: ['produtos-vencendo', unidadeId, hasGlobalAccess],
+    queryKey: ['produtos-vencendo', unidadeId],
     queryFn: async () => {
       const proximosMes = new Date();
       proximosMes.setMonth(proximosMes.getMonth() + 1);
@@ -105,7 +112,7 @@ export function Dashboard() {
         .select(`vencimento, lote, quantidade, produtos:produto_id (descricao, codigo)`)
         .lte('vencimento', proximosMes.toISOString().split('T')[0]);
       
-      if (unidadeId && !hasGlobalAccess) {
+      if (unidadeId) {
         query = query.eq('unidade_id', unidadeId);
       }
 
@@ -116,29 +123,40 @@ export function Dashboard() {
   });
 
   const { data: produtosBaixoEstoque } = useQuery({
-    queryKey: ['produtos-baixo-estoque', unidadeId, hasGlobalAccess],
+    queryKey: ['produtos-baixo-estoque', unidadeId],
     queryFn: async () => {
-      let query = supabase.from('produtos').select('*').lte('estoque_atual', 10);
+      let query = supabase
+        .from('produtos_estoque')
+        .select('estoque_atual, produtos:produto_id (descricao, codigo, unidade_medida)')
+        .lte('estoque_atual', 10);
       
-      if (unidadeId && !hasGlobalAccess) {
+      if (unidadeId) {
         query = query.eq('unidade_id', unidadeId);
       }
 
       const { data, error } = await query.order('estoque_atual').limit(5);
       if (error) throw error;
-      return data;
+      
+      // Mapear para o formato esperado pelo componente
+      return data.map(item => ({
+        id: item.produtos?.codigo, // Usando código como ID para a lista
+        descricao: item.produtos?.descricao,
+        codigo: item.produtos?.codigo,
+        estoque_atual: item.estoque_atual,
+        unidade_medida: item.produtos?.unidade_medida
+      }));
     }
   });
 
   const { data: movimentacoesRecentes } = useQuery({
-    queryKey: ['movimentacoes-recentes', unidadeId, hasGlobalAccess],
+    queryKey: ['movimentacoes-recentes', unidadeId],
     queryFn: async () => {
       const hoje = new Date().toISOString().split('T')[0];
       
       let entradasQuery = supabase.from('entradas_produtos').select(`*, produtos:produto_id (descricao)`).eq('data_entrada', hoje);
       let dispensacoesQuery = supabase.from('dispensacoes').select(`*, produtos:produto_id (descricao), pacientes:paciente_id (nome)`).eq('data_dispensa', hoje);
 
-      if (unidadeId && !hasGlobalAccess) {
+      if (unidadeId) {
         entradasQuery = entradasQuery.eq('unidade_id', unidadeId);
         dispensacoesQuery = dispensacoesQuery.eq('unidade_id', unidadeId);
       }

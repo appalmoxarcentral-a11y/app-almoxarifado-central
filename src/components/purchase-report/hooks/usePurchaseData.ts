@@ -37,30 +37,17 @@ export function usePurchaseData(overrideUnidadeId?: string) {
 
       if (prodError) throw prodError;
 
-      // 3. Buscar todos os estoques da unidade de uma vez (mais eficiente)
-      const [entradasRes, saidasRes] = await Promise.all([
-        supabase
-          .from('entradas_produtos')
-          .select('produto_id, quantidade')
-          .eq('unidade_id', unidadeId),
-        supabase
-          .from('dispensacoes')
-          .select('produto_id, quantidade')
-          .eq('unidade_id', unidadeId)
-      ]);
+      // 3. Buscar todos os estoques da unidade de uma vez na tabela consolidada
+      const { data: estoqueData, error: estoqueErr } = await supabase
+        .from('produtos_estoque')
+        .select('produto_id, estoque_atual')
+        .eq('unidade_id', unidadeId);
+
+      if (estoqueErr) throw estoqueErr;
 
       const estoqueMap = new Map<string, number>();
-
-      // Somar entradas
-      entradasRes.data?.forEach(e => {
-        const atual = estoqueMap.get(e.produto_id) || 0;
-        estoqueMap.set(e.produto_id, atual + (e.quantidade || 0));
-      });
-
-      // Subtrair saídas
-      saidasRes.data?.forEach(s => {
-        const atual = estoqueMap.get(s.produto_id) || 0;
-        estoqueMap.set(s.produto_id, atual - (s.quantidade || 0));
+      estoqueData?.forEach(e => {
+        estoqueMap.set(e.produto_id, e.estoque_atual);
       });
 
       // 4. Montar a lista final

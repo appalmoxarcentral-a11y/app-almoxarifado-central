@@ -39,7 +39,7 @@ export function useProductMutations(onSuccess?: () => void) {
         console.error('Erro ao criar produto:', error);
         
         // Verificar se é erro de duplicata de código
-        if (error.code === '23505' && (error.message.includes('produtos_codigo_key') || error.message.includes('produtos_codigo_unique'))) {
+        if (error.code === '23505' && (error.message.includes('codigo') || error.message.includes('unique'))) {
           throw new Error(`Código já cadastrado: ${data.codigo}`);
         }
         
@@ -95,7 +95,7 @@ export function useProductMutations(onSuccess?: () => void) {
         console.error('Erro ao atualizar produto:', error);
         
         // Verificar se é erro de duplicata de código
-        if (error.code === '23505' && (error.message.includes('produtos_codigo_key') || error.message.includes('produtos_codigo_unique'))) {
+        if (error.code === '23505' && (error.message.includes('codigo') || error.message.includes('unique'))) {
           throw new Error(`Código já cadastrado: ${data.codigo}`);
         }
         

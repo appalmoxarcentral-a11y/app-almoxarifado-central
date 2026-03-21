@@ -330,7 +330,9 @@ export function DraftManager({
                       </div>
                       <div className="text-sm text-muted-foreground">
                         <div className="flex items-center gap-2 mb-1">
-                          <span>{draft.criado_por?.nome || 'Usuário'} - {draft.unidade_nome || 'Unidade desconhecida'}</span>
+                          <span className="font-semibold text-primary/70">{draft.unidade_origem_nome || 'Almoxarifado'}</span>
+                          <ChevronRight className="h-3 w-3" />
+                          <span>{draft.unidade_nome || 'Unidade destino'}</span>
                         </div>
                         {getItemsWithQuantity(draft.dados_produtos)} produtos com quantidade • {' '}
                         {formatDistanceToNow(new Date(draft.data_atualizacao), { 

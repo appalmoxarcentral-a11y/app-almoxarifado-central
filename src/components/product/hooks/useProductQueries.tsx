@@ -82,30 +82,19 @@ export const useProductQueries = () => {
         setTotalProducts(count);
       }
       
-      // 2. Calcular estoque real por unidade para cada produto da página atual
+      // 2. Buscar estoque real por unidade na tabela de estoque consolidado
       const mappedProducts = await Promise.all((data || []).map(async (p) => {
         let estoqueCalculado = 0;
 
         if (unidadeId) {
-          // Buscar soma de entradas nesta unidade
-          const { data: entradas } = await supabase
-            .from('entradas_produtos')
-            .select('quantidade')
+          const { data: estoqueData } = await supabase
+            .from('produtos_estoque')
+            .select('estoque_atual')
             .eq('produto_id', p.id)
-            .eq('unidade_id', unidadeId);
+            .eq('unidade_id', unidadeId)
+            .maybeSingle();
           
-          const totalEntradas = entradas?.reduce((sum, item) => sum + (item.quantidade || 0), 0) || 0;
-
-          // Buscar soma de saídas nesta unidade
-          const { data: dispensacoes } = await supabase
-            .from('dispensacoes')
-            .select('quantidade')
-            .eq('produto_id', p.id)
-            .eq('unidade_id', unidadeId);
-          
-          const totalSaidas = dispensacoes?.reduce((sum, item) => sum + (item.quantidade || 0), 0) || 0;
-
-          estoqueCalculado = totalEntradas - totalSaidas;
+          estoqueCalculado = estoqueData?.estoque_atual || 0;
         }
 
         return {

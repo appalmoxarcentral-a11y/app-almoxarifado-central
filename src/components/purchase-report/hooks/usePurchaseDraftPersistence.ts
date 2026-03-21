@@ -11,12 +11,67 @@ export function usePurchaseDraftPersistence() {
   const { toast } = useToast();
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [stockError, setStockError] = useState<{ title: string; items: string[] } | null>(null);
 
   const isManagement = user?.tipo === 'ADMIN' || user?.tipo === 'SUPER_ADMIN';
+  const hasGlobalAccess = user?.tipo === 'SUPER_ADMIN' || 
+                         user?.tipo === 'ADMIN' || 
+                         hasPermission('acesso_global_pedidos');
 
   // Check permissions - allow both types of users to manage drafts
   const canManageDrafts = hasPermission('gerenciar_rascunhos_compras') || hasPermission('relatorio_compras');
   const canAccessReports = hasPermission('relatorio_compras');
+
+  // Função para validar estoque antes de salvar ou confirmar
+  const validateStockAvailability = async (dados_produtos: PurchaseDraftItem[], unidadeOrigemId?: string) => {
+    // Só valida se o usuário for do Almoxarifado (acesso global)
+    if (!hasGlobalAccess) return;
+
+    const originId = unidadeOrigemId || (user as any).unidade_id;
+    if (!originId) return;
+
+    const itemsToDeliver = dados_produtos.filter(item => (item.quantidade_reposicao || 0) > 0);
+    
+    if (itemsToDeliver.length > 0) {
+      console.log(`📦 Calculando estoque real para ${itemsToDeliver.length} itens na unidade: ${originId}`);
+      
+      const faltantes: string[] = [];
+
+      for (const item of itemsToDeliver) {
+        // 1. Buscar produto pelo código para obter o ID correto (catálogo compartilhado)
+        const { data: produto } = await supabase
+          .from('produtos')
+          .select('id, descricao')
+          .eq('codigo', item.codigo)
+          .limit(1)
+          .single();
+
+        if (!produto) continue;
+
+        // 2. Buscar estoque real desta unidade na tabela de estoque por unidade
+        const { data: estoqueData } = await supabase
+          .from('produtos_estoque')
+          .select('estoque_atual')
+          .eq('produto_id', produto.id)
+          .eq('unidade_id', originId)
+          .maybeSingle();
+
+        const estoqueReal = estoqueData?.estoque_atual || 0;
+
+        console.log(`🔍 Produto: ${produto.descricao} | Estoque Real: ${estoqueReal}`);
+
+        if (estoqueReal < (item.quantidade_reposicao || 0)) {
+          faltantes.push(`${produto.descricao} (Disponível: ${estoqueReal}, Necessário: ${item.quantidade_reposicao})`);
+        }
+      }
+
+      if (faltantes.length > 0) {
+        const errorTitle = `Estoque insuficiente na sua unidade`;
+        setStockError({ title: errorTitle, items: faltantes });
+        throw new Error('STOCK_ERROR');
+      }
+    }
+  };
 
   // Buscar todos os rascunhos ativos (Pedidos)
   const { data: drafts = [], isLoading, refetch } = useQuery({
@@ -40,10 +95,6 @@ export function usePurchaseDraftPersistence() {
       // 1. Super Admin e Admin vêem tudo do município
       // 2. Usuário Comum com 'acesso_global_pedidos' vê tudo do município
       // 3. Usuário Comum sem permissão vê apenas o da sua unidade_id
-      const hasGlobalAccess = user?.tipo === 'SUPER_ADMIN' || 
-                             user?.tipo === 'ADMIN' || 
-                             hasPermission('acesso_global_pedidos');
-
       if (!hasGlobalAccess && (user as any)?.unidade_id) {
         query = query.eq('unidade_id', (user as any).unidade_id);
       }
@@ -85,7 +136,8 @@ export function usePurchaseDraftPersistence() {
           nome: 'Usuário desconhecido',
           email: ''
         },
-        unidade_nome: unitsMap.get((item as any).unidade_id) || 'Unidade não informada'
+        unidade_nome: unitsMap.get((item as any).unidade_id) || 'Unidade não informada',
+        unidade_origem_nome: unitsMap.get((item as any).unidade_origem_id) || 'Almoxarifado'
       })) as RascunhoCompra[];
     },
     enabled: !!user?.id && (canManageDrafts || canAccessReports),
@@ -104,6 +156,10 @@ export function usePurchaseDraftPersistence() {
       console.log('📝 Criando novo rascunho:', nome_rascunho);
 
       const targetUnidadeId = unidade_id || (user as any).unidade_id;
+      const unidadeOrigemId = (user as any).unidade_id; // Unidade atual do usuário logado
+
+      // Validar estoque se for usuário global
+      await validateStockAvailability(dados_produtos, unidadeOrigemId);
 
       const { data, error } = await supabase
         .from('rascunhos_compras')
@@ -112,7 +168,9 @@ export function usePurchaseDraftPersistence() {
           nome_rascunho,
           dados_produtos: dados_produtos as any,
           ativo: true,
+          status: 'rascunho',
           unidade_id: targetUnidadeId,
+          unidade_origem_id: unidadeOrigemId,
           tenant_id: user.tenant_id || '00000000-0000-0000-0000-000000000000'
         })
         .select()
@@ -134,11 +192,12 @@ export function usePurchaseDraftPersistence() {
         description: "Seu rascunho foi salvo com sucesso.",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('❌ Erro ao salvar rascunho:', error);
+      if (error.message === 'STOCK_ERROR') return;
       toast({
         title: "Erro ao salvar",
-        description: "Não foi possível salvar o rascunho. Tente novamente.",
+        description: error.message || "Não foi possível salvar o rascunho. Tente novamente.",
         variant: "destructive",
       });
     },
@@ -146,7 +205,7 @@ export function usePurchaseDraftPersistence() {
 
   // Atualizar rascunho existente
   const updateDraftMutation = useMutation({
-    mutationFn: async ({ id, nome_rascunho, dados_produtos, unidade_id }: UpdateDraftRequest & { unidade_id?: string }) => {
+    mutationFn: async ({ id, nome_rascunho, dados_produtos, status, entregue_por_id, data_entrega, unidade_id }: any) => {
       if (!user?.id) {
         throw new Error('Usuário não logado');
       }
@@ -158,7 +217,21 @@ export function usePurchaseDraftPersistence() {
 
       console.log('✏️ Atualizando rascunho:', id);
 
-      const updateData: any = { dados_produtos: dados_produtos as any };
+      // A unidade de origem SEMPRE será a unidade atual do usuário que está gerenciando/autorizando
+      // se ele tiver acesso global, pois é de lá que o estoque será deduzido.
+      const originId = (user as any).unidade_id;
+
+      if (!originId) {
+        throw new Error('Unidade atual do usuário não identificada.');
+      }
+
+      // Validar estoque na unidade atual do usuário (origem)
+      await validateStockAvailability(dados_produtos, originId);
+
+      const updateData: any = { 
+        dados_produtos: dados_produtos as any,
+        unidade_origem_id: originId // Atualiza para a unidade atual do usuário
+      };
       if (nome_rascunho) {
         updateData.nome_rascunho = nome_rascunho;
       }
@@ -197,11 +270,12 @@ export function usePurchaseDraftPersistence() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rascunhos-compras-todos'] });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('❌ Erro ao atualizar rascunho:', error);
+      if (error.message === 'STOCK_ERROR') return;
       toast({
         title: "Erro ao atualizar",
-        description: "Não foi possível atualizar o rascunho.",
+        description: error.message || "Não foi possível atualizar o rascunho.",
         variant: "destructive",
       });
     },
@@ -330,7 +404,8 @@ export function usePurchaseDraftPersistence() {
         .update({ 
           status: 'autorizado',
           autorizado_por_id: user.id,
-          data_autorizacao: new Date().toISOString()
+          data_autorizacao: new Date().toISOString(),
+          unidade_origem_id: (user as any).unidade_id // Registra a unidade que autorizou
         })
         .eq('id', draftId)
         .select();
@@ -357,17 +432,29 @@ export function usePurchaseDraftPersistence() {
         throw new Error('Sem permissão para confirmar entrega');
       }
 
-      console.log('📦 Confirmando entrega via Trigger do Banco de Dados para:', draft.id);
+      // A unidade de origem SEMPRE será a unidade atual do usuário que está entregando,
+      // pois é de lá que o estoque será deduzido fisicamente no momento da entrega.
+      const unidadeOrigemId = (user as any).unidade_id;
+      
+      if (!unidadeOrigemId) {
+        throw new Error('Sua unidade atual não foi identificada.');
+      }
+
+      console.log('📦 Validando estoque na sua unidade atual:', unidadeOrigemId);
+
+      // Validar estoque
+      await validateStockAvailability(draft.dados_produtos, unidadeOrigemId);
+
+      console.log('✅ Estoque validado. Confirmando entrega via Trigger...');
 
       // A atualização de estoque agora é feita via TRIGGER no banco de dados (processar_entrega_pedido)
-      // para garantir atomicidade e evitar problemas de RLS no frontend.
-      // Nós apenas atualizamos o status para 'entregue'.
       const { error } = await supabase
         .from('rascunhos_compras')
         .update({ 
           status: 'entregue',
           entregue_por_id: user.id,
-          data_entrega: new Date().toISOString()
+          data_entrega: new Date().toISOString(),
+          unidade_origem_id: unidadeOrigemId // Garante que a origem no banco seja a unidade atual de quem entregou
         })
         .eq('id', draft.id);
       
@@ -386,11 +473,15 @@ export function usePurchaseDraftPersistence() {
       // Invalida estatísticas do dashboard e históricos
       queryClient.invalidateQueries({ queryKey: ['produto-stats'] });
       queryClient.invalidateQueries({ queryKey: ['entradas-mes'] });
+      queryClient.invalidateQueries({ queryKey: ['dispensacoes-mes'] });
       queryClient.invalidateQueries({ queryKey: ['movimentacoes-recentes'] });
       queryClient.invalidateQueries({ queryKey: ['historico-entradas'] });
       queryClient.invalidateQueries({ queryKey: ['historico-dispensacoes'] });
+      queryClient.invalidateQueries({ queryKey: ['produtos-vencendo'] });
+      queryClient.invalidateQueries({ queryKey: ['produtos-baixo-estoque'] });
     },
     onError: (err: any) => {
+      if (err.message === 'STOCK_ERROR') return;
       toast({ title: "Erro ao confirmar entrega", description: err.message, variant: "destructive" });
     }
   });
@@ -410,14 +501,11 @@ export function usePurchaseDraftPersistence() {
       return;
     }
     
-    // Verificar permissão antes de executar
-    const draft = drafts.find(d => d.id === draftId);
-    const canDelete = draft && (draft.usuario_id === user?.id || isManagement || canAccessReports);
-    
-    if (!canDelete) {
+    // Verificar permissão antes de executar: APENAS usuários com Acesso Global podem excluir pedidos
+    if (!hasGlobalAccess) {
       toast({
         title: "Sem permissão",
-        description: "Você não tem permissão para excluir este rascunho.",
+        description: "Apenas usuários com 'Acesso Global a Pedidos' podem excluir pedidos.",
         variant: "destructive",
       });
       return;
@@ -438,7 +526,7 @@ export function usePurchaseDraftPersistence() {
 
   // Função para verificar se pode excluir um rascunho
   const canDeleteDraft = (draft: RascunhoCompra): boolean => {
-    return draft.usuario_id === user?.id || isManagement || canAccessReports;
+    return hasGlobalAccess;
   };
 
   return {
@@ -457,6 +545,8 @@ export function usePurchaseDraftPersistence() {
     getCurrentDraft,
     authorizeDraft,
     confirmDelivery,
+    stockError,
+    clearStockError: () => setStockError(null),
     isSaving: createDraftMutation.isPending || updateDraftMutation.isPending || deleteDraftMutation.isPending || authorizeDraft.isPending || confirmDelivery.isPending
   };
 }
