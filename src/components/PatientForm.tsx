@@ -5,12 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Save, UserPlus, Trash2, Edit, X, Search, MapPin, Phone, Calendar as CalendarIcon } from "lucide-react";
+import { Users, Save, UserPlus, Trash2, Edit, X, Search, MapPin, Phone, Calendar as CalendarIcon, Briefcase } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Patient } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { PermissionCheck } from "@/components/auth/PermissionCheck";
 import { SmartDatePicker } from "@/components/ui/smart-date-picker";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export function PatientForm() {
   const { toast } = useToast();
@@ -28,6 +29,8 @@ export function PatientForm() {
     bairro: '',
     telefone: '',
     nascimento: '',
+    is_health_worker: false,
+    sector: '',
   });
 
   const calculateAge = (birthDate: string) => {
@@ -66,12 +69,12 @@ export function PatientForm() {
     return numbersOnly;
   };
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: string | boolean) => {
     let formattedValue = value;
     
-    if (field === 'telefone') {
+    if (field === 'telefone' && typeof value === 'string') {
       formattedValue = formatPhone(value);
-    } else if (field === 'sus_cpf') {
+    } else if (field === 'sus_cpf' && typeof value === 'string') {
       formattedValue = validateSusCpf(value);
     }
     
@@ -156,6 +159,8 @@ export function PatientForm() {
       bairro: patient.bairro,
       telefone: patient.telefone,
       nascimento: patient.nascimento,
+      is_health_worker: patient.is_health_worker || false,
+      sector: patient.sector || '',
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -169,6 +174,8 @@ export function PatientForm() {
       bairro: '',
       telefone: '',
       nascimento: '',
+      is_health_worker: false,
+      sector: '',
     });
   };
 
@@ -206,7 +213,9 @@ export function PatientForm() {
             bairro: formData.bairro,
             telefone: formData.telefone,
             nascimento: formData.nascimento,
-            idade: idade
+            idade: idade,
+            is_health_worker: formData.is_health_worker,
+            sector: formData.is_health_worker ? formData.sector : null
           })
           .eq('id', editingPatient.id);
 
@@ -239,6 +248,8 @@ export function PatientForm() {
             telefone: formData.telefone,
             nascimento: formData.nascimento,
             idade: idade,
+            is_health_worker: formData.is_health_worker,
+            sector: formData.is_health_worker ? formData.sector : null,
             tenant_id: user?.tenant_id || '00000000-0000-0000-0000-000000000000',
             unidade_id: user?.unidade_id
           }]);
@@ -268,6 +279,8 @@ export function PatientForm() {
         bairro: '',
         telefone: '',
         nascimento: '',
+        is_health_worker: false,
+        sector: '',
       });
 
       // Recarregar lista
@@ -460,6 +473,33 @@ export function PatientForm() {
                   <p className="text-[10px] font-black uppercase tracking-widest text-primary">Idade: {idade} anos</p>
                 )}
               </div>
+
+              <div className="space-y-4 md:col-span-2 p-4 bg-primary/5 rounded-xl border border-primary/10">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="is_health_worker" 
+                    checked={formData.is_health_worker}
+                    onCheckedChange={(checked) => handleInputChange('is_health_worker', checked as boolean)}
+                  />
+                  <Label htmlFor="is_health_worker" className="text-sm font-bold cursor-pointer">
+                    Paciente é Servidor da Saúde?
+                  </Label>
+                </div>
+                
+                {formData.is_health_worker && (
+                  <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <Label htmlFor="sector" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Setor de Lotação *</Label>
+                    <Input
+                      id="sector"
+                      value={formData.sector}
+                      onChange={(e) => handleInputChange('sector', e.target.value)}
+                      placeholder="Ex: Almoxarifado, Recepção, Enfermagem..."
+                      className="h-12 text-[16px] rounded-xl border-border bg-background"
+                      required={formData.is_health_worker}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-border/50">
@@ -474,7 +514,7 @@ export function PatientForm() {
                   type="button" 
                   variant="ghost" 
                   onClick={() => setFormData({
-                    nome: '', sus_cpf: '', endereco: '', bairro: '', telefone: '', nascimento: ''
+                    nome: '', sus_cpf: '', endereco: '', bairro: '', telefone: '', nascimento: '', is_health_worker: false, sector: ''
                   })}
                   className="flex-1 sm:flex-none h-12 md:h-14 px-6 rounded-xl font-bold text-muted-foreground hover:text-foreground"
                 >
@@ -546,6 +586,12 @@ export function PatientForm() {
                     <div className="flex flex-wrap gap-x-3 gap-y-1">
                       <span className="text-xs font-bold text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-md">SUS: {patient.sus_cpf}</span>
                       <span className="text-xs font-bold text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-md">{patient.idade} anos</span>
+                      {patient.is_health_worker && (
+                        <Badge variant="secondary" className="text-[10px] font-black uppercase tracking-widest bg-blue-100 text-blue-700 hover:bg-blue-200 border-none flex items-center gap-1">
+                          <Briefcase className="h-3 w-3" />
+                          Servidor: {patient.sector}
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                       <MapPin className="h-3 w-3" />

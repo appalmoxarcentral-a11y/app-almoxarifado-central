@@ -168,11 +168,14 @@ export type Database = {
           endereco: string
           id: string
           idade: number
+          is_health_worker: boolean | null
+          sector: string | null
           nascimento: string
           nome: string
           sus_cpf: string
           telefone: string
           tenant_id: string
+          unidade_id: string | null
         }
         Insert: {
           bairro: string
@@ -180,11 +183,14 @@ export type Database = {
           endereco: string
           id?: string
           idade?: number
+          is_health_worker?: boolean | null
+          sector?: string | null
           nascimento: string
           nome: string
           sus_cpf: string
           telefone: string
           tenant_id?: string
+          unidade_id?: string | null
         }
         Update: {
           bairro?: string
@@ -192,11 +198,14 @@ export type Database = {
           endereco?: string
           id?: string
           idade?: number
+          is_health_worker?: boolean | null
+          sector?: string | null
           nascimento?: string
           nome?: string
           sus_cpf?: string
           telefone?: string
           tenant_id?: string
+          unidade_id?: string | null
         }
         Relationships: []
       }

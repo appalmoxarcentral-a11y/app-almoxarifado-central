@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, Package, Calendar, AlertTriangle, TrendingDown } from 'lucide-react';
+import { User, Package, Calendar, AlertTriangle, TrendingDown, Briefcase } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns/format';
 import { ptBR } from 'date-fns/locale/pt-BR';
@@ -24,6 +24,8 @@ interface PatientWithDispensations {
   telefone: string;
   nascimento: string;
   idade: number;
+  is_health_worker?: boolean;
+  sector?: string;
   dispensacoes: Dispensation[];
   total_produtos_diferentes: number;
   total_quantidade_dispensada: number;
@@ -45,7 +47,9 @@ export function PatientDispensationView({ searchTerm }: PatientDispensationViewP
             bairro,
             telefone,
             nascimento,
-            idade
+            idade,
+            is_health_worker,
+            sector
           ),
           produto:produto_id (
             descricao,
@@ -86,6 +90,8 @@ export function PatientDispensationView({ searchTerm }: PatientDispensationViewP
             telefone: paciente.telefone,
             nascimento: paciente.nascimento,
             idade: paciente.idade,
+            is_health_worker: (paciente as any).is_health_worker,
+            sector: (paciente as any).sector,
             dispensacoes: [],
             total_produtos_diferentes: 0,
             total_quantidade_dispensada: 0
@@ -134,12 +140,20 @@ export function PatientDispensationView({ searchTerm }: PatientDispensationViewP
       {pacientesComDispensacoes.map((paciente) => (
         <Card key={paciente.id}>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5 text-blue-600" />
-              <div>
-                <div className="text-lg font-semibold">{paciente.nome}</div>
-                <div className="text-sm text-gray-600">SUS/CPF: {paciente.sus_cpf}</div>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <User className="h-5 w-5 text-blue-600" />
+                <div>
+                  <div className="text-lg font-semibold">{paciente.nome}</div>
+                  <div className="text-sm text-gray-600">SUS/CPF: {paciente.sus_cpf}</div>
+                </div>
               </div>
+              {paciente.is_health_worker && (
+                <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-none flex items-center gap-1">
+                  <Briefcase className="h-4 w-4" />
+                  Servidor da Saúde: {paciente.sector}
+                </Badge>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>

@@ -76,6 +76,8 @@ export interface Patient {
   nascimento: string;
   idade: number;
   created_at: string;
+  is_health_worker?: boolean;
+  sector?: string;
 }
 
 export interface Product {
