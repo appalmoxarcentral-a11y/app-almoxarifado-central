@@ -49,9 +49,8 @@ export function Layout({ children }: LayoutProps) {
     { icon: ShoppingCart, label: "Pedidos", path: "/relatorio-compras", permission: "relatorio_compras" },
     // Seção de Administração (Para Admin e Super Admin)
     ...((user?.tipo === 'ADMIN' || user?.tipo === 'SUPER_ADMIN') ? [
-      { icon: Users, label: "Membros", path: "/usuarios", permission: "gestao_usuarios" },
-      { icon: UserCog, label: "Gestão Equipe", path: "/admin/usuarios", permission: "gestao_usuarios" },
-      { icon: Building2, label: "Gestão Unidades", path: "/admin/unidades", permission: "gestao_usuarios" },
+      { icon: Users, label: "Equipe", path: "/admin/usuarios", permission: "gestao_usuarios" },
+      { icon: Building2, label: "Unidades", path: "/admin/unidades", permission: "gestao_usuarios" },
     ] : []),
     // Apenas Admin do Tenant pode ver Assinatura (Super Admin também pode para gerenciar)
     ...((user?.tipo === 'ADMIN' || user?.tipo === 'SUPER_ADMIN') && user?.tenant_id ? [{ icon: CreditCard, label: "Assinatura", path: "/assinatura", permission: null }] : []),
@@ -126,42 +125,42 @@ export function Layout({ children }: LayoutProps) {
           </header>
           
           {/* Main content - add bottom padding on mobile for nav */}
-          <main className={`flex-1 w-full max-w-full p-4 lg:p-6 ${isMobile ? 'pb-24' : ''}`}>
+          <main className={`flex-1 w-full max-w-full p-0 sm:p-4 lg:p-6 ${isMobile ? 'pb-32' : ''} overflow-x-hidden`}>
             {children}
           </main>
 
           {/* Mobile Bottom Navigation */}
           {isMobile && (
-            <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border safe-area-bottom shadow-[0_-4px_12px_rgba(0,0,0,0.05)] w-full max-w-full">
+            <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border safe-area-bottom shadow-[0_-8px_20px_rgba(0,0,0,0.08)] w-full max-w-full">
               <div className="overflow-hidden cursor-grab active:cursor-grabbing w-full" ref={emblaRef}>
                 <div className="flex touch-pan-x select-none embla__container">
                   {visibleNavItems.map((item) => (
                     <button
                       key={item.path}
                       onClick={() => navigate(item.path)}
-                      className={`flex flex-col items-center justify-center gap-1 py-3 px-1 min-w-[72px] flex-shrink-0 transition-all duration-200 relative group ${
+                      className={`flex flex-col items-center justify-center gap-1.5 py-4 px-2 min-w-[85px] flex-shrink-0 transition-all duration-300 relative group ${
                         isActive(item.path)
                           ? 'text-primary'
                           : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
-                      <div className={`p-1.5 rounded-xl transition-all duration-300 ${
+                      <div className={`p-2.5 rounded-2xl transition-all duration-500 ${
                         isActive(item.path) 
-                          ? 'bg-primary/10 shadow-sm' 
+                          ? 'bg-primary/10 shadow-[0_0_15px_rgba(0,0,0,0.05)] ring-1 ring-primary/20 scale-110' 
                           : 'group-active:scale-90 group-active:bg-muted'
                       }`}>
-                        <item.icon className={`h-5 w-5 transition-transform duration-300 ${
-                          isActive(item.path) ? 'stroke-[2.5] scale-110' : ''
+                        <item.icon className={`h-6 w-6 transition-all duration-500 ${
+                          isActive(item.path) ? 'stroke-[2.5] text-primary' : 'stroke-[2]'
                         }`} />
                       </div>
-                      <span className={`text-[9px] font-bold tracking-tight transition-all duration-300 ${
-                        isActive(item.path) ? 'opacity-100' : 'opacity-80'
+                      <span className={`text-[10px] font-black tracking-tight transition-all duration-500 uppercase ${
+                        isActive(item.path) ? 'opacity-100 scale-105' : 'opacity-60'
                       }`}>
                         {item.label}
                       </span>
                       
                       {isActive(item.path) && (
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-primary rounded-full" />
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-10 h-1 bg-primary rounded-full shadow-[0_0_8px_rgba(0,0,0,0.2)]" />
                       )}
                     </button>
                   ))}

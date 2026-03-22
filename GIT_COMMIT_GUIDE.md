@@ -34,6 +34,12 @@ Envie suas alterações locais para o repositório remoto (branch main):
 git push origin main
 ```
 
+> **Nota sobre Autenticação:**
+> Após executar `git push origin main`, pode surgir a janela **"GitHub — Select an account"**.
+> - Isso ocorre porque o Git Credential Manager detecta múltiplas contas autenticadas no sistema e solicita escolher qual identidade usar para este repositório.
+> - **Ação:** Selecione a conta que tem acesso ao repositório e clique em **Continue**.
+> - **Para evitar o prompt no futuro:** Você pode definir uma conta padrão com o comando `gh auth login` (se tiver o GitHub CLI instalado) ou remover as contas extras no Gerenciador de Credenciais do Windows.
+
 ---
 
 ### Dicas de Segurança (Boas Práticas)
