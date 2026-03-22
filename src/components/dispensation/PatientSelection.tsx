@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { User, BookOpen, Plus } from 'lucide-react';
+import { User, BookOpen, Plus, CheckCircle2, AlertCircle, Briefcase } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -12,15 +12,20 @@ import { Calendar as CalendarIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 import type { Patient } from '@/types';
 
 interface PatientSelectionProps {
   selectedPatient: string;
-  setSelectedPatient: (value: string) => void;
+  selectedPatientLabel?: string;
+  setSelectedPatient: (value: string, patient?: Patient) => void;
   dataDispensa: string;
   setDataDispensa: (value: string) => void;
   tipoDispensacao: string;
-  setTipoDispensacao: (value: string) => void;
+  selectedProcedureLabel?: string;
+  setTipoDispensacao: (value: string, procedure?: any) => void;
+  isServidor: boolean;
+  setIsServidor: (value: boolean) => void;
   pacientes?: Patient[];
   procedimentos?: any[];
   onSearchChange?: (value: string) => void;
@@ -29,11 +34,15 @@ interface PatientSelectionProps {
 
 export function PatientSelection({
   selectedPatient,
+  selectedPatientLabel,
   setSelectedPatient,
   dataDispensa,
   setDataDispensa,
   tipoDispensacao,
+  selectedProcedureLabel,
   setTipoDispensacao,
+  isServidor,
+  setIsServidor,
   pacientes = [],
   procedimentos = [],
   onSearchChange,
@@ -42,25 +51,30 @@ export function PatientSelection({
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isAddingProcedure, setIsAddingProcedure] = React.useState(false);
+  const [localProcedureSearch, setLocalProcedureSearch] = React.useState('');
   const pacienteSelecionado = pacientes.find(p => p.id === selectedPatient);
 
   const handlePatientSelect = (patient: Patient) => {
-    setSelectedPatient(patient.id);
+    setSelectedPatient(patient.id, patient);
   };
 
   const handleProcedureSelect = (procedimento: any) => {
-    setTipoDispensacao(procedimento.nome);
+    setTipoDispensacao(procedimento.nome, procedimento);
+    setLocalProcedureSearch("");
   };
 
   const handleAddProcedure = async (overrideName?: string) => {
-    const nomeToSave = overrideName || tipoDispensacao;
+    const nomeToSave = overrideName || localProcedureSearch;
     if (!nomeToSave) return;
 
     setIsAddingProcedure(true);
     try {
       const { error } = await supabase
         .from('procedimentos')
-        .insert({ nome: nomeToSave });
+        .insert({ 
+          nome: nomeToSave,
+          tenant_id: user?.tenant_id
+        });
 
       if (error) {
         if (error.code === '23505') { // Unique violation
@@ -75,9 +89,10 @@ export function PatientSelection({
       } else {
         toast({
           title: "Procedimento salvo",
-          description: "O novo procedimento foi adicionado globalmente.",
+          description: "O novo procedimento foi adicionado.",
         });
         queryClient.invalidateQueries({ queryKey: ['procedimentos'] });
+        setTipoDispensacao(nomeToSave, { nome: nomeToSave });
       }
     } catch (error: any) {
       console.error('Erro ao salvar procedimento:', error);
@@ -100,30 +115,93 @@ export function PatientSelection({
           <div className="p-2 bg-primary/10 rounded-lg">
             <User className="h-5 w-5 text-primary" />
           </div>
-          1. Selecionar Paciente
+          1. Selecionar Paciente/Receptor
         </CardTitle>
       </CardHeader>
       <CardContent className="p-5 md:p-8 md:pt-0 relative space-y-6">
+        {user?.habilitar_receptor && (
+          <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+              Tipo de Dispensação
+            </Label>
+            <div className="flex p-1 bg-muted/50 rounded-xl gap-1">
+              <button
+                type="button"
+                onClick={() => setIsServidor(true)}
+                className={cn(
+                  "flex-1 h-10 rounded-lg font-bold text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+                  isServidor ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"
+                )}
+              >
+                <Briefcase className="h-4 w-4" />
+                Servidor
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsServidor(false)}
+                className={cn(
+                  "flex-1 h-10 rounded-lg font-bold text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+                  !isServidor ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"
+                )}
+              >
+                <User className="h-4 w-4" />
+                Comum
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="space-y-2">
           <Label htmlFor="paciente" className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
             <User className="h-3.5 w-3.5" />
-            Paciente *
+            Paciente/Receptor *
           </Label>
           <SearchableModal
             items={pacientes}
             value={selectedPatient}
+            selectedItemLabel={selectedPatientLabel}
             onSelect={handlePatientSelect}
             onSearchChange={onSearchChange}
             getItemValue={(patient) => patient.id}
             getItemLabel={(patient) => `${patient.nome} - ${patient.sus_cpf}`}
             getItemSearchText={(patient) => `${patient.nome} ${patient.sus_cpf}`}
-            placeholder="Selecione um paciente"
-            searchPlaceholder="Digite nome ou SUS/CPF do paciente..."
-            emptyMessage="Nenhum paciente encontrado"
-            title="Selecionar Paciente"
+            placeholder="Selecione um paciente ou receptor"
+            searchPlaceholder="Digite nome ou SUS/CPF..."
+            emptyMessage={isServidor ? "Receptor ainda não cadastrado, por favor, cadastre o mesmo ou ative a caixa \"Paciente receptor\" em seu cadastro original" : "Nenhum paciente encontrado"}
+            title="Selecionar Paciente/Receptor"
             className="h-12 text-[16px] rounded-xl border-border bg-background focus:ring-2 focus:ring-primary/20"
           />
         </div>
+
+        {pacienteSelecionado && (
+          <div className={cn(
+            "p-4 rounded-xl border shadow-sm transition-all animate-in fade-in slide-in-from-top-1",
+            isServidor 
+              ? "bg-primary/20 border-primary/30" 
+              : "bg-primary/10 border-primary/20"
+          )}>
+            <div className="flex items-center gap-2 text-primary">
+              <User className="h-5 w-5" />
+              <span className="font-semibold">
+                {isServidor ? "Receptor (Servidor)" : "Paciente Selecionado"}
+              </span>
+            </div>
+            <p className="text-foreground/90 mt-1 font-medium text-lg">
+              {pacienteSelecionado.nome}
+            </p>
+            {isServidor && pacienteSelecionado.sector && (
+              <div className="flex items-center gap-2 mt-2 p-2 bg-background/50 rounded-lg border border-primary/20">
+                <Briefcase className="h-3.5 w-3.5 text-primary" />
+                <span className="text-sm font-bold text-primary uppercase tracking-wider">
+                  Setor: {pacienteSelecionado.sector}
+                </span>
+              </div>
+            )}
+            <p className="text-muted-foreground text-sm mt-1">
+              SUS/CPF: {pacienteSelecionado.sus_cpf}
+            </p>
+          </div>
+        )}
 
         {(user?.usar_tipo_dispensacao || user?.permissoes?.usar_tipo_dispensacao) && (
           <div className="space-y-2">
@@ -136,9 +214,10 @@ export function PatientSelection({
                 <SearchableModal
                   items={procedimentos}
                   value={tipoDispensacao}
+                  selectedItemLabel={selectedProcedureLabel}
                   onSelect={handleProcedureSelect}
                   onSearchChange={(val) => {
-                    setTipoDispensacao(val);
+                    setLocalProcedureSearch(val);
                     if (onProcedureSearchChange) onProcedureSearchChange(val);
                   }}
                   getItemValue={(proc) => proc.nome}
@@ -152,7 +231,6 @@ export function PatientSelection({
                     label: "Adicionar",
                     isLoading: isAddingProcedure,
                     onClick: (val) => {
-                      setTipoDispensacao(val);
                       handleAddProcedure(val);
                     },
                     icon: <Plus className="h-4 w-4" />
@@ -161,21 +239,6 @@ export function PatientSelection({
                 />
               </div>
             </div>
-          </div>
-        )}
-
-        {pacienteSelecionado && (
-          <div className="bg-primary/10 p-4 rounded-xl border border-primary/20 shadow-sm transition-all animate-in fade-in slide-in-from-top-1">
-            <div className="flex items-center gap-2 text-primary">
-              <User className="h-5 w-5" />
-              <span className="font-semibold">Paciente Selecionado</span>
-            </div>
-            <p className="text-foreground/90 mt-1 font-medium text-lg">
-              {pacienteSelecionado.nome}
-            </p>
-            <p className="text-muted-foreground text-sm">
-              SUS/CPF: {pacienteSelecionado.sus_cpf}
-            </p>
           </div>
         )}
 

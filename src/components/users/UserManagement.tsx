@@ -387,8 +387,8 @@ export function UserManagement() {
                         },
                         { 
                           id: 'usar_tipo_dispensacao', 
-                          label: 'Procedimento na Dispensação', 
-                          desc: 'Habilita seleção de entrega total/parcial',
+                          label: 'Mostrar "PROCEDIMENTO - TOTAL/PARCIAL"', 
+                          desc: 'Habilita seleção de entrega total/parcial e procedimento',
                           icon: BookOpen,
                           color: 'text-emerald-500',
                           bg: 'bg-emerald-500/5'

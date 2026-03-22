@@ -27,12 +27,18 @@ export default function ManagementPage() {
 
   // Queries
   const { data: setores, isLoading: loadingSetores } = useQuery({
-    queryKey: ['setores-admin'],
+    queryKey: ['setores-admin', user?.tenant_id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('setores')
         .select('*')
         .order('nome');
+      
+      if (user?.tenant_id) {
+        query = query.eq('tenant_id', user.tenant_id);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
@@ -40,12 +46,14 @@ export default function ManagementPage() {
   });
 
   const { data: procedimentos, isLoading: loadingProcedimentos } = useQuery({
-    queryKey: ['procedimentos-admin'],
+    queryKey: ['procedimentos-admin', user?.tenant_id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('procedimentos')
         .select('*')
         .order('nome');
+      
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
@@ -86,10 +94,10 @@ export default function ManagementPage() {
           ativo: true
         };
       } else {
-        payload = { nome: newValue.trim() };
-        if (table === 'setores' && user?.tenant_id) {
-          payload.tenant_id = user.tenant_id;
-        }
+        payload = { 
+          nome: newValue.trim(),
+          tenant_id: user?.tenant_id 
+        };
       }
       
       const { error } = await supabase.from(table).insert([payload]);

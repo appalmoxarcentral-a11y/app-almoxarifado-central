@@ -10,6 +10,7 @@ export interface User {
   unidade_id?: string;
   unidade_nome?: string;
   usar_tipo_dispensacao?: boolean;
+  habilitar_receptor?: boolean;
   subscription_blocked?: boolean;
 }
 
@@ -116,6 +117,7 @@ export interface Dispensation {
   created_at: string;
   procedimento?: string;
   is_parcial?: boolean;
+  is_servidor?: boolean;
 }
 
 export interface DashboardStats {

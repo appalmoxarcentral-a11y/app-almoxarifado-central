@@ -22,6 +22,7 @@ import {
 interface SearchableModalProps<T> {
   items: T[]
   value?: string
+  selectedItemLabel?: string
   onSelect: (item: T) => void
   getItemValue: (item: T) => string
   getItemLabel: (item: T) => string
@@ -44,6 +45,7 @@ interface SearchableModalProps<T> {
 export function SearchableModal<T>({
   items,
   value,
+  selectedItemLabel,
   onSelect,
   getItemValue,
   getItemLabel,
@@ -70,6 +72,7 @@ export function SearchableModal<T>({
   }, [items, searchValue, getItemSearchText, onSearchChange])
 
   const selectedItem = items.find(item => getItemValue(item) === value)
+  const displayLabel = selectedItem ? getItemLabel(selectedItem) : (selectedItemLabel || placeholder)
 
   const handleSelect = (item: T) => {
     onSelect(item)
@@ -94,13 +97,13 @@ export function SearchableModal<T>({
           aria-expanded={open}
           className={cn(
             "w-full justify-between min-h-[40px] h-auto text-left font-normal",
-            !selectedItem && "text-muted-foreground",
+            (!selectedItem && !selectedItemLabel) && "text-muted-foreground",
             className
           )}
           disabled={disabled}
         >
           <span className="truncate">
-            {selectedItem ? getItemLabel(selectedItem) : placeholder}
+            {displayLabel}
           </span>
           <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -133,7 +136,7 @@ export function SearchableModal<T>({
               </Button>
             )}
           </div>
-          <CommandList className="max-h-[200px] sm:max-h-[300px] overflow-y-auto p-1 sm:p-2 custom-scrollbar">
+          <CommandList className="max-h-[40vh] sm:max-h-[300px] overflow-y-auto p-1 sm:p-2 custom-scrollbar">
             <CommandEmpty>
               <div className="py-6 sm:py-8 text-center px-4">
                 <p className="text-muted-foreground font-medium mb-3 sm:mb-4 text-sm sm:text-base">{emptyMessage}</p>
@@ -173,7 +176,7 @@ export function SearchableModal<T>({
                     value={itemValue}
                     onSelect={() => handleSelect(item)}
                     className={cn(
-                      "flex items-center gap-2 sm:gap-3 p-2 sm:p-3 mb-0.5 sm:mb-1 rounded-lg sm:rounded-xl cursor-pointer transition-all text-sm sm:text-base",
+                      "flex items-center gap-2 sm:gap-3 p-1.5 sm:p-3 mb-0 sm:mb-1 rounded-lg sm:rounded-xl cursor-pointer transition-all text-sm sm:text-base",
                       isSelected ? "bg-primary/10 text-primary font-bold border border-primary/20" : "hover:bg-muted/50"
                     )}
                   >

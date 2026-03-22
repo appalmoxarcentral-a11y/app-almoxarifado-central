@@ -46,7 +46,9 @@ export function HistoryView() {
       descricao_produto: dispensacao.produto?.descricao || '',
       paciente: dispensacao.paciente?.nome || '',
       tenant_name: dispensacao.tenant?.name || 'Unidade Desconhecida',
-      is_parcial: dispensacao.is_parcial
+      is_parcial: dispensacao.is_parcial,
+      is_servidor: dispensacao.is_servidor,
+      paciente_setor: dispensacao.paciente?.sector || ''
     })) || [])
   ].sort((a, b) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime());
 

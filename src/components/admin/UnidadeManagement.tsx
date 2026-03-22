@@ -21,6 +21,7 @@ interface Unidade {
   cidade: string;
   ativo: boolean;
   usar_tipo_dispensacao: boolean;
+  habilitar_receptor: boolean;
 }
 
 export function UnidadeManagement() {
@@ -38,6 +39,7 @@ export function UnidadeManagement() {
   const [cidade, setCidade] = useState('');
   const [ativo, setAtivo] = useState(true);
   const [usarTipoDispensacao, setUsarTipoDispensacao] = useState(false);
+  const [habilitarReceptor, setHabilitarReceptor] = useState(false);
 
   const { data: unidades, isLoading } = useQuery({
     queryKey: ['unidades_saude'],
@@ -106,6 +108,7 @@ export function UnidadeManagement() {
     setCidade('');
     setAtivo(true);
     setUsarTipoDispensacao(false);
+    setHabilitarReceptor(false);
     setEditingUnidade(null);
   };
 
@@ -118,6 +121,7 @@ export function UnidadeManagement() {
     setCidade(unidade.cidade || '');
     setAtivo(unidade.ativo);
     setUsarTipoDispensacao(unidade.usar_tipo_dispensacao || false);
+    setHabilitarReceptor(unidade.habilitar_receptor || false);
     setIsDialogOpen(true);
   };
 
@@ -130,7 +134,8 @@ export function UnidadeManagement() {
       bairro,
       cidade,
       ativo,
-      usar_tipo_dispensacao: usarTipoDispensacao
+      usar_tipo_dispensacao: usarTipoDispensacao,
+      habilitar_receptor: habilitarReceptor
     });
   };
 
@@ -201,6 +206,25 @@ export function UnidadeManagement() {
                   </Label>
                   <p className="text-xs text-muted-foreground">
                     Se ativado, esta unidade poderá selecionar o procedimento durante a dispensação.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2 p-4 bg-muted/50 rounded-lg border border-border/50">
+                <Checkbox 
+                  id="habilitarReceptor" 
+                  checked={habilitarReceptor} 
+                  onCheckedChange={(checked) => setHabilitarReceptor(!!checked)}
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <Label 
+                    htmlFor="habilitarReceptor"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                  >
+                    Habilitar campo "Paciente/Receptor"
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Se ativado, esta unidade poderá distinguir entre dispensação para paciente comum ou receptor (servidor).
                   </p>
                 </div>
               </div>

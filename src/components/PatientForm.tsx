@@ -25,9 +25,11 @@ export function PatientForm() {
   const [sectorSearch, setSectorSearch] = useState('');
   const [isSearching, setIsSearching] = useState(false);
 
-  const { setores = [] } = useDispensationQueries(
-    '', '', '', '', sectorSearch, user?.unidade_id, user?.tenant_id
-  );
+  const { setores = [] } = useDispensationQueries({
+    sectorSearch, 
+    unidadeId: user?.unidade_id, 
+    tenantId: user?.tenant_id
+  });
   const [patients, setPatients] = useState<Patient[]>([]);
   const [totalPatients, setTotalPatients] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
@@ -60,7 +62,7 @@ export function PatientForm() {
   };
 
   const handleAddSector = async (nome: string) => {
-    if (!nome.trim() || !user?.tenant_id || !isAdmin) return;
+    if (!nome.trim() || !user?.tenant_id) return;
     
     setIsAddingSector(true);
     try {
@@ -246,7 +248,7 @@ export function PatientForm() {
       const idade = calculateAge(formData.nascimento);
       
       if (editingPatient) {
-        // Atualizar paciente existente
+        // Atualizar paciente/receptor existente
         const { error } = await supabase
           .from('pacientes')
           .update({
@@ -263,7 +265,7 @@ export function PatientForm() {
           .eq('id', editingPatient.id);
 
         if (error) {
-          console.error('Erro ao atualizar paciente:', error);
+          console.error('Erro ao atualizar paciente/receptor:', error);
           
           // Verificar se é erro de duplicata de SUS/CPF
           if (error.code === '23505' && error.message.includes('pacientes_sus_cpf_unique')) {
@@ -274,13 +276,13 @@ export function PatientForm() {
         }
         
         toast({
-          title: "Paciente atualizado com sucesso!",
+          title: "Cadastro atualizado com sucesso!",
           description: `Os dados de ${formData.nome} foram atualizados.`,
         });
         
         setEditingPatient(null);
       } else {
-        // Criar novo paciente
+        // Criar novo paciente/receptor
         const { error } = await supabase
           .from('pacientes')
           .insert([{
@@ -298,7 +300,7 @@ export function PatientForm() {
           }]);
 
         if (error) {
-          console.error('Erro ao cadastrar paciente:', error);
+          console.error('Erro ao cadastrar paciente/receptor:', error);
           
           // Verificar se é erro de duplicata de SUS/CPF
           if (error.code === '23505' && error.message.includes('pacientes_sus_cpf_unique')) {
@@ -309,7 +311,7 @@ export function PatientForm() {
         }
         
         toast({
-          title: "Paciente cadastrado com sucesso!",
+          title: "Cadastro realizado com sucesso!",
           description: `${formData.nome} foi adicionado ao sistema.`,
         });
       }
@@ -332,13 +334,13 @@ export function PatientForm() {
     } catch (error) {
       console.error('Erro no handleSubmit:', error);
       
-      let errorTitle = editingPatient ? "Erro ao atualizar paciente" : "Erro ao cadastrar paciente";
+      let errorTitle = editingPatient ? "Erro ao atualizar cadastro" : "Erro ao realizar cadastro";
       let errorDescription = "Erro desconhecido";
       
       if (error instanceof Error) {
         if (error.message === 'SUS já cadastrado') {
           errorTitle = "SUS já cadastrado";
-          errorDescription = "Um paciente com este SUS/CPF já existe no sistema.";
+          errorDescription = "Este SUS/CPF já existe no sistema.";
         } else {
           errorDescription = error.message;
         }
@@ -364,7 +366,7 @@ export function PatientForm() {
       return;
     }
 
-    if (!confirm(`Tem certeza que deseja excluir o paciente ${nome}?`)) return;
+    if (!confirm(`Tem certeza que deseja excluir o registro de ${nome}?`)) return;
 
     try {
       const { error } = await supabase
@@ -375,14 +377,14 @@ export function PatientForm() {
       if (error) throw error;
 
       toast({
-        title: "Paciente excluído",
+        title: "Registro excluído",
         description: `${nome} foi removido do sistema.`,
       });
 
       await loadPatients(searchTerm);
     } catch (error) {
       toast({
-        title: "Erro ao excluir paciente",
+        title: "Erro ao excluir",
         description: error instanceof Error ? error.message : "Erro desconhecido",
         variant: "destructive",
       });
@@ -401,8 +403,8 @@ export function PatientForm() {
             <Users className="h-6 w-6 md:h-10 md:w-10 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-5xl font-black tracking-tight text-foreground leading-tight">Pacientes</h1>
-            <p className="text-muted-foreground text-sm md:text-xl mt-0.5 md:mt-2 font-medium">Gerencie o cadastro de usuários da SMSA</p>
+            <h1 className="text-2xl md:text-5xl font-black tracking-tight text-foreground leading-tight">Pacientes/Receptores</h1>
+            <p className="text-muted-foreground text-sm md:text-xl mt-0.5 md:mt-2 font-medium">Gerencie o cadastro de pacientes e receptores da SMSA</p>
           </div>
         </div>
       </div>
@@ -415,12 +417,12 @@ export function PatientForm() {
             <div className="p-2 bg-primary/10 rounded-lg">
               {editingPatient ? <Edit className="h-5 w-5 text-primary" /> : <UserPlus className="h-5 w-5 text-primary" />}
             </div>
-            {editingPatient ? 'Editar Paciente' : 'Novo Paciente'}
+            {editingPatient ? 'Editar Paciente/Receptor' : 'Novo Paciente/Receptor'}
           </CardTitle>
           <CardDescription className="text-xs md:text-base font-medium mt-2">
             {editingPatient 
-              ? 'Atualize os dados do paciente selecionado'
-              : 'Preencha os dados obrigatórios para cadastrar um novo paciente'
+              ? 'Atualize os dados do paciente ou receptor selecionado'
+              : 'Preencha os dados obrigatórios para cadastrar um novo paciente ou receptor'
             }
           </CardDescription>
         </CardHeader>
@@ -527,7 +529,7 @@ export function PatientForm() {
                     onCheckedChange={(checked) => handleInputChange('is_health_worker', checked as boolean)}
                   />
                   <Label htmlFor="is_health_worker" className="text-sm font-bold cursor-pointer">
-                    Paciente é Servidor da Saúde?
+                    Paciente receptor
                   </Label>
                 </div>
                 
@@ -584,7 +586,7 @@ export function PatientForm() {
                   <Save className="h-5 w-5 mr-2" />
                   {loading 
                     ? (editingPatient ? 'Atualizando...' : 'Salvando...') 
-                    : (editingPatient ? 'Atualizar Cadastro' : 'Salvar Paciente')
+                    : (editingPatient ? 'Atualizar Cadastro' : 'Salvar Paciente/Receptor')
                   }
                 </Button>
               </PermissionCheck>
@@ -599,7 +601,7 @@ export function PatientForm() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div className="space-y-1">
               <CardTitle className="text-xl md:text-2xl font-black tracking-tight">
-                {searchTerm ? `Pacientes Encontrados (${patients.length})` : `Pacientes Cadastrados (${totalPatients})`}
+                {searchTerm ? `Pacientes/Receptores Encontrados (${patients.length})` : `Pacientes/Receptores Cadastrados (${totalPatients})`}
               </CardTitle>
               <CardDescription className="text-xs md:text-sm font-medium">
                 {searchTerm ? "Resultados da busca no sistema" : "Últimos registros da SMSA"}
@@ -626,7 +628,7 @@ export function PatientForm() {
             ) : patients.length === 0 ? (
               <div className="py-12 text-center">
                 <p className="text-muted-foreground font-medium italic">
-                  {searchTerm ? "Nenhum paciente encontrado." : "Nenhum paciente cadastrado."}
+                  {searchTerm ? "Nenhum paciente/receptor encontrado." : "Nenhum paciente/receptor cadastrado."}
                 </p>
               </div>
             ) : (

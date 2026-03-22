@@ -84,7 +84,42 @@ export function StockOnlyTable() {
         </h3>
       </div>
       
-      <div className="overflow-x-auto">
+      <div className="md:hidden space-y-4">
+        {produtosEmEstoque?.map((produto) => (
+          <div key={produto.id} className="border rounded-lg p-4 bg-card space-y-3">
+            <div className="flex justify-between items-start">
+              <span className="text-xs font-mono text-muted-foreground">{produto.codigo}</span>
+              <Badge 
+                variant={produto.estoque_atual <= 10 ? 'destructive' : produto.estoque_atual <= 50 ? 'secondary' : 'default'}
+                className="text-[10px]"
+              >
+                {produto.estoque_atual <= 10 ? 'Estoque Baixo' : 
+                 produto.estoque_atual <= 50 ? 'Estoque Médio' : 'Estoque OK'}
+              </Badge>
+            </div>
+            
+            <div>
+              <p className="text-sm font-bold uppercase">{produto.descricao}</p>
+              <div className="flex justify-between items-end mt-2">
+                <div className="text-xs text-muted-foreground">
+                  Unidade: <span className="font-medium text-foreground">{produto.unidade_medida}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs text-muted-foreground block">Estoque Atual</span>
+                  <span className="text-lg font-bold text-blue-600">{produto.estoque_atual}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+        {(!produtosEmEstoque || produtosEmEstoque.length === 0) && (
+          <div className="text-center py-8 text-gray-500 border rounded-lg">
+            Nenhum produto em estoque encontrado
+          </div>
+        )}
+      </div>
+
+      <div className="hidden md:block overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>

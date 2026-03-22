@@ -9,81 +9,110 @@ interface LoteInfo {
   created_at: string;
 }
 
-export function useDispensationQueries(
-  selectedProduct: string, 
-  patientSearch: string = '', 
-  productSearch: string = '',
-  procedureSearch: string = '',
-  sectorSearch: string = '',
-  unidadeId?: string,
-  tenantId?: string
-) {
+interface UseDispensationQueriesProps {
+  selectedProduct?: string;
+  patientSearch?: string;
+  productSearch?: string;
+  procedureSearch?: string;
+  sectorSearch?: string;
+  unidadeId?: string;
+  tenantId?: string;
+  isHealthWorker?: boolean;
+}
+
+export function useDispensationQueries({
+  selectedProduct = '',
+  patientSearch = '',
+  productSearch = '',
+  procedureSearch = '',
+  sectorSearch = '',
+  unidadeId,
+  tenantId,
+  isHealthWorker
+}: UseDispensationQueriesProps = {}) {
   // Buscar pacientes
   const pacientesQuery = useQuery({
-    queryKey: ['pacientes-global', patientSearch, tenantId],
+    queryKey: ['pacientes-global', patientSearch, tenantId, isHealthWorker],
+    enabled: !!tenantId,
     queryFn: async () => {
-      console.log('[Queries] Buscando pacientes com termo:', patientSearch);
+      console.log('[Queries] Buscando pacientes com termo:', patientSearch, 'Filtro Receptor:', isHealthWorker);
       let query = supabase
         .from('pacientes')
         .select('*')
-        .order('nome');
+        .order('nome')
+        .eq('tenant_id', tenantId);
       
       if (patientSearch) {
         query = query.or(`nome.ilike.%${patientSearch}%,sus_cpf.ilike.%${patientSearch}%`);
       }
 
-      // Se tiver tenantId, garantir que filtra por ele (embora RLS deva cuidar disso)
-      if (tenantId) {
-        query = query.eq('tenant_id', tenantId);
+      if (isHealthWorker !== undefined) {
+        query = query.eq('is_health_worker', isHealthWorker);
       }
 
-      const { data, error } = await query.limit(50);
+      const { data, error } = await query.limit(100);
       
       if (error) throw error;
       return data as Patient[];
     },
-    staleTime: 0,
+    staleTime: 60000, // 1 minuto de cache para melhorar a performance
   });
 
-  // Buscar procedimentos
+  // Buscar procedimentos (Globais + Tenant)
   const procedimentosQuery = useQuery({
-    queryKey: ['procedimentos', procedureSearch],
+    queryKey: ['procedimentos', procedureSearch, tenantId],
     queryFn: async () => {
+      console.log('[Queries] Buscando procedimentos. Tenant:', tenantId, 'Search:', procedureSearch);
+      
       let query = supabase
         .from('procedimentos')
         .select('*')
         .order('nome');
       
+      // Removemos o filtro de tenant para garantir que todos os procedimentos apareçam
+      // O RLS já permite a leitura de todos por usuários autenticados
+      
       if (procedureSearch) {
         query = query.ilike('nome', `%${procedureSearch}%`);
       }
 
-      const { data, error } = await query.limit(50);
-      if (error) throw error;
+      const { data, error } = await query.limit(200);
+      
+      if (error) {
+        console.error('[Queries] Erro ao buscar procedimentos:', error);
+        throw error;
+      }
 
-      // Garantir que a lista seja única por nome (case-sensitive)
+      console.log('[Queries] Procedimentos encontrados:', data?.length || 0);
+
+      if (!data || data.length === 0) {
+        return [];
+      }
+
+      // Garantir que a lista seja única por nome (case-insensitive)
       const uniqueProcedures = data.reduce((acc: any[], current) => {
-        const x = acc.find(item => item.nome === current.nome);
+        const x = acc.find(item => item.nome.toLowerCase() === current.nome.toLowerCase());
         if (!x) {
-          return acc.concat([current]);
-        } else {
-          return acc;
+          acc.push(current);
         }
+        return acc;
       }, []);
 
       return uniqueProcedures;
     },
-    staleTime: 0,
+    staleTime: 60000,
   });
 
   // Buscar setores
   const setoresQuery = useQuery({
-    queryKey: ['setores', sectorSearch],
+    queryKey: ['setores', sectorSearch, tenantId],
+    enabled: !!tenantId,
     queryFn: async () => {
       let query = supabase
         .from('setores')
         .select('*')
-        .order('nome');
+        .order('nome')
+        .eq('tenant_id', tenantId);
       
       if (sectorSearch) {
         query = query.ilike('nome', `%${sectorSearch}%`);
@@ -94,12 +123,13 @@ export function useDispensationQueries(
 
       return data;
     },
-    staleTime: 0,
+    staleTime: 60000,
   });
 
   // Buscar produtos com estoque
   const produtosQuery = useQuery({
-    queryKey: ['produtos-estoque-global', productSearch, unidadeId],
+    queryKey: ['produtos-estoque-global', productSearch, unidadeId, tenantId],
+    enabled: !!tenantId,
     queryFn: async () => {
       console.log(`[Queries] Buscando produtos para unidade: ${unidadeId || 'não informada'}`);
 
@@ -110,7 +140,8 @@ export function useDispensationQueries(
         const { data: entradasIds } = await supabase
           .from('entradas_produtos')
           .select('produto_id')
-          .eq('unidade_id', unidadeId);
+          .eq('unidade_id', unidadeId)
+          .eq('tenant_id', tenantId);
         
         if (entradasIds) {
           productIds = [...new Set(entradasIds.map(e => e.produto_id))];
@@ -121,7 +152,8 @@ export function useDispensationQueries(
       let query = supabase
         .from('produtos')
         .select('*')
-        .order('descricao');
+        .order('descricao')
+        .eq('tenant_id', tenantId);
       
       if (productSearch) {
         query = query.or(`descricao.ilike.%${productSearch}%,codigo.ilike.%${productSearch}%`);
@@ -159,15 +191,15 @@ export function useDispensationQueries(
 
       return (produtosData as Product[]).filter(p => (p.estoque_atual || 0) > 0);
     },
-    staleTime: 0,
+    staleTime: 60000,
   });
 
   // Buscar lotes do produto selecionado
   const lotesQuery = useQuery({
-    queryKey: ['lotes-produto', selectedProduct, unidadeId],
-    enabled: !!selectedProduct,
+    queryKey: ['lotes-produto', selectedProduct, unidadeId, tenantId],
+    enabled: !!selectedProduct && !!tenantId,
     queryFn: async () => {
-      if (!selectedProduct) return [];
+      if (!selectedProduct || !tenantId) return [];
       
       console.log(`[Queries] Buscando lotes para produto: ${selectedProduct} na unidade: ${unidadeId}`);
       
@@ -175,7 +207,9 @@ export function useDispensationQueries(
         .from('entradas_produtos')
         .select('lote, vencimento, created_at')
         .eq('produto_id', selectedProduct)
-        .order('created_at', { ascending: true });
+        .eq('tenant_id', tenantId);
+      
+      query = query.order('created_at', { ascending: true });
 
       // Filtrar lotes por unidade para evitar mostrar lotes de outras unidades
       if (unidadeId) {
@@ -203,15 +237,20 @@ export function useDispensationQueries(
 
   // Buscar dispensações recentes
   const dispensacoesQuery = useQuery({
-    queryKey: ['dispensacoes', unidadeId],
+    queryKey: ['dispensacoes', unidadeId, tenantId],
+    enabled: !!tenantId,
     queryFn: async () => {
+      if (!tenantId) return [];
+      
       let query = supabase
         .from('dispensacoes')
         .select(`
           *,
           paciente:paciente_id (
             nome,
-            sus_cpf
+            sus_cpf,
+            sector,
+            is_health_worker
           ),
           produto:produto_id (
             descricao,
@@ -222,6 +261,7 @@ export function useDispensationQueries(
             name
           )
         `)
+        .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false })
         .limit(10);
 

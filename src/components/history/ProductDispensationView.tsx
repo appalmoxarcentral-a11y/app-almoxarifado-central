@@ -74,29 +74,20 @@ export function ProductDispensationView({
   }
 
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="min-w-[100px]">Data</TableHead>
-            <TableHead className="min-w-[120px]">Tipo</TableHead>
-            <TableHead className="min-w-[150px]">Produto</TableHead>
-            <TableHead className="min-w-[80px]">Qtd</TableHead>
-            <TableHead className="min-w-[100px]">Lote</TableHead>
-            <TableHead className="min-w-[120px]">Paciente</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {dispensacoes?.map((dispensacao) => (
-            <TableRow key={dispensacao.id}>
-              <TableCell className="text-xs md:text-sm">
-                {format(new Date(dispensacao.data_dispensa), 'dd/MM/yy', { locale: ptBR })}
-              </TableCell>
-              <TableCell>
+    <>
+      {/* Mobile View */}
+      <div className="md:hidden space-y-4">
+        {dispensacoes?.map((dispensacao) => (
+          <div key={dispensacao.id} className="border rounded-lg p-4 bg-card space-y-3">
+            <div className="flex justify-between items-start">
+              <span className="text-xs text-muted-foreground">
+                {format(new Date(dispensacao.data_dispensa), 'dd/MM/yyyy', { locale: ptBR })}
+              </span>
+              <div className="flex flex-col items-end gap-1">
                 <Badge 
                   variant="secondary" 
                   className={cn(
-                    "text-xs",
+                    "text-[10px] w-fit",
                     dispensacao.is_parcial && "bg-amber-500 hover:bg-amber-600 text-white border-none"
                   )}
                 >
@@ -106,31 +97,112 @@ export function ProductDispensationView({
                     <><TrendingDown className="h-3 w-3 mr-1" /> Dispensação</>
                   )}
                 </Badge>
-              </TableCell>
-              <TableCell className="text-xs md:text-sm max-w-[150px] truncate">
-                {dispensacao.produto?.descricao}
-              </TableCell>
-              <TableCell className={cn(
-                "text-xs md:text-sm font-medium",
-                dispensacao.is_parcial && "text-amber-600"
-              )}>
-                {dispensacao.is_parcial && "!"} {dispensacao.quantidade}
-              </TableCell>
-              <TableCell className="text-xs md:text-sm">{dispensacao.lote}</TableCell>
-              <TableCell className="text-xs md:text-sm max-w-[120px] truncate">
-                {dispensacao.paciente?.nome || '-'}
-              </TableCell>
-            </TableRow>
-          ))}
-          {(!dispensacoes || dispensacoes.length === 0) && (
+                {dispensacao.is_servidor && (
+                  <Badge variant="outline" className="text-[9px] w-fit border-blue-500 text-blue-500 bg-blue-500/5">
+                    Servidor
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-sm font-bold uppercase">{dispensacao.produto?.descricao}</p>
+              <div className="flex flex-wrap gap-4 text-xs">
+                <div>
+                  <span className="text-muted-foreground">Qtd: </span>
+                  <span className={cn(
+                    "font-bold",
+                    dispensacao.is_parcial && "text-amber-600"
+                  )}>
+                    {dispensacao.is_parcial && "!"} {dispensacao.quantidade}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Lote: </span>
+                  <span className="font-medium">{dispensacao.lote}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t">
+              <span className="text-xs text-muted-foreground block mb-1">Paciente:</span>
+              <span className="text-sm font-medium">{dispensacao.paciente?.nome || '-'}</span>
+            </div>
+          </div>
+        ))}
+        {(!dispensacoes || dispensacoes.length === 0) && (
+          <div className="text-center py-8 text-gray-500 border rounded-lg">
+            {searchTerm ? 'Nenhuma dispensação encontrada com o termo buscado' : 'Nenhuma dispensação encontrada'}
+          </div>
+        )}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:block overflow-x-auto">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                {searchTerm ? 'Nenhuma dispensação encontrada com o termo buscado' : 'Nenhuma dispensação encontrada'}
-              </TableCell>
+              <TableHead className="min-w-[100px]">Data</TableHead>
+              <TableHead className="min-w-[120px]">Tipo</TableHead>
+              <TableHead className="min-w-[150px]">Produto</TableHead>
+              <TableHead className="min-w-[80px]">Qtd</TableHead>
+              <TableHead className="min-w-[100px]">Lote</TableHead>
+              <TableHead className="min-w-[120px]">Paciente</TableHead>
             </TableRow>
-          )}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {dispensacoes?.map((dispensacao) => (
+              <TableRow key={dispensacao.id}>
+                <TableCell className="text-xs md:text-sm">
+                  {format(new Date(dispensacao.data_dispensa), 'dd/MM/yy', { locale: ptBR })}
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-col gap-1">
+                    <Badge 
+                      variant="secondary" 
+                      className={cn(
+                        "text-xs w-fit",
+                        dispensacao.is_parcial && "bg-amber-500 hover:bg-amber-600 text-white border-none"
+                      )}
+                    >
+                      {dispensacao.is_parcial ? (
+                        <><AlertTriangle className="h-3 w-3 mr-1" /> Parcial</>
+                      ) : (
+                        <><TrendingDown className="h-3 w-3 mr-1" /> Dispensação</>
+                      )}
+                    </Badge>
+                    {dispensacao.is_servidor && (
+                      <Badge variant="outline" className="text-[10px] w-fit border-blue-500 text-blue-500 bg-blue-500/5">
+                        Servidor
+                      </Badge>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="text-xs md:text-sm max-w-[150px] truncate">
+                  {dispensacao.produto?.descricao}
+                </TableCell>
+                <TableCell className={cn(
+                  "text-xs md:text-sm font-medium",
+                  dispensacao.is_parcial && "text-amber-600"
+                )}>
+                  {dispensacao.is_parcial && "!"} {dispensacao.quantidade}
+                </TableCell>
+                <TableCell className="text-xs md:text-sm">{dispensacao.lote}</TableCell>
+                <TableCell className="text-xs md:text-sm max-w-[120px] truncate">
+                  {dispensacao.paciente?.nome || '-'}
+                </TableCell>
+              </TableRow>
+            ))}
+            {(!dispensacoes || dispensacoes.length === 0) && (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                  {searchTerm ? 'Nenhuma dispensação encontrada com o termo buscado' : 'Nenhuma dispensação encontrada'}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </>
   );
 }

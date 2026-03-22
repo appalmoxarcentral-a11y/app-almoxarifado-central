@@ -23,7 +23,8 @@ interface LoteInfo {
 
 interface ProductSelectionProps {
   selectedProduct: string;
-  onProductChange: (productId: string) => void;
+  selectedProductLabel?: string;
+  onProductChange: (productId: string, product?: Product) => void;
   selectedLote: string;
   setSelectedLote: (lote: string) => void;
   quantidade: string;
@@ -38,6 +39,7 @@ interface ProductSelectionProps {
 
 export function ProductSelection({
   selectedProduct,
+  selectedProductLabel,
   onProductChange,
   selectedLote,
   setSelectedLote,
@@ -55,7 +57,7 @@ export function ProductSelection({
   const produtoSelecionado = produtos.find(p => p.id === selectedProduct);
 
   const handleProductSelect = (product: Product) => {
-    onProductChange(product.id);
+    onProductChange(product.id, product);
   };
 
   const formatVencimento = (vencimento: string) => {
@@ -84,6 +86,7 @@ export function ProductSelection({
             <SearchableModal
               items={produtos}
               value={selectedProduct}
+              selectedItemLabel={selectedProductLabel}
               onSelect={handleProductSelect}
               onSearchChange={onSearchChange}
               getItemValue={(product) => product.id}

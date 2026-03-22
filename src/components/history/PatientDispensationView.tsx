@@ -124,13 +124,13 @@ export function PatientDispensationView({ searchTerm }: PatientDispensationViewP
   });
 
   if (isLoading) {
-    return <div className="text-center py-4">Carregando dispensações por paciente...</div>;
+    return <div className="text-center py-4">Carregando dispensações por paciente/receptor...</div>;
   }
 
   if (!pacientesComDispensacoes?.length) {
     return (
       <div className="text-center py-8 text-gray-500">
-        {searchTerm ? 'Nenhum paciente encontrado com o termo buscado' : 'Nenhuma dispensação encontrada'}
+        {searchTerm ? 'Nenhum paciente/receptor encontrado com o termo buscado' : 'Nenhuma dispensação encontrada'}
       </div>
     );
   }
@@ -151,13 +151,13 @@ export function PatientDispensationView({ searchTerm }: PatientDispensationViewP
               {paciente.is_health_worker && (
                 <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-none flex items-center gap-1">
                   <Briefcase className="h-4 w-4" />
-                  Servidor da Saúde: {paciente.sector}
+                  Receptor: {paciente.sector}
                 </Badge>
               )}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {/* Resumo do paciente */}
+            {/* Resumo do paciente/receptor */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 p-4 bg-muted rounded-lg border border-border">
               <div className="flex items-center gap-2">
                 <Package className="h-4 w-4 text-green-600" />
@@ -183,7 +183,63 @@ export function PatientDispensationView({ searchTerm }: PatientDispensationViewP
             </div>
 
             {/* Tabela de dispensações */}
-            <div className="overflow-x-auto">
+            <div className="md:hidden space-y-3">
+              {paciente.dispensacoes.map((dispensacao) => (
+                <div key={dispensacao.id} className="border rounded-lg p-3 bg-muted/50 space-y-2">
+                  <div className="flex justify-between items-start">
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(dispensacao.data_dispensa), 'dd/MM/yyyy', { locale: ptBR })}
+                    </span>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge 
+                        variant="secondary" 
+                        className={cn(
+                          "text-[10px] w-fit",
+                          dispensacao.is_parcial && "bg-amber-500 hover:bg-amber-600 text-white border-none"
+                        )}
+                      >
+                        {dispensacao.is_parcial ? (
+                          <><AlertTriangle className="h-3 w-3 mr-1" /> Parcial</>
+                        ) : (
+                          <><TrendingDown className="h-3 w-3 mr-1" /> Total</>
+                        )}
+                      </Badge>
+                      {dispensacao.is_servidor && (
+                        <Badge variant="outline" className="text-[9px] w-fit border-blue-500 text-blue-500 bg-blue-500/5">
+                          Servidor
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-bold uppercase">{dispensacao.produto?.descricao}</p>
+                    <div className="flex justify-between items-end mt-1">
+                      <div className="flex gap-3 text-xs">
+                        <div>
+                          <span className="text-muted-foreground">Qtd: </span>
+                          <span className={cn(
+                            "font-bold",
+                            dispensacao.is_parcial && "text-amber-600"
+                          )}>
+                            {dispensacao.is_parcial && "!"} {dispensacao.quantidade}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Lote: </span>
+                          <span className="font-medium">{dispensacao.lote}</span>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-[10px]">
+                        {dispensacao.produto?.unidade_medida}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -202,19 +258,26 @@ export function PatientDispensationView({ searchTerm }: PatientDispensationViewP
                         {format(new Date(dispensacao.data_dispensa), 'dd/MM/yy', { locale: ptBR })}
                       </TableCell>
                       <TableCell>
-                        <Badge 
-                          variant="secondary" 
-                          className={cn(
-                            "text-[10px]",
-                            dispensacao.is_parcial && "bg-amber-500 hover:bg-amber-600 text-white border-none"
+                        <div className="flex flex-col gap-1">
+                          <Badge 
+                            variant="secondary" 
+                            className={cn(
+                              "text-[10px] w-fit",
+                              dispensacao.is_parcial && "bg-amber-500 hover:bg-amber-600 text-white border-none"
+                            )}
+                          >
+                            {dispensacao.is_parcial ? (
+                              <><AlertTriangle className="h-3 w-3 mr-1" /> Parcial</>
+                            ) : (
+                              <><TrendingDown className="h-3 w-3 mr-1" /> Total</>
+                            )}
+                          </Badge>
+                          {dispensacao.is_servidor && (
+                            <Badge variant="outline" className="text-[9px] w-fit border-blue-500 text-blue-500 bg-blue-500/5">
+                              Servidor
+                            </Badge>
                           )}
-                        >
-                          {dispensacao.is_parcial ? (
-                            <><AlertTriangle className="h-3 w-3 mr-1" /> Parcial</>
-                          ) : (
-                            <><TrendingDown className="h-3 w-3 mr-1" /> Total</>
-                          )}
-                        </Badge>
+                        </div>
                       </TableCell>
                       <TableCell className="text-xs md:text-sm max-w-[150px] truncate">
                         {dispensacao.produto?.descricao}

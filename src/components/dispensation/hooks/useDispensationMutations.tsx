@@ -16,6 +16,7 @@ export function useDispensationMutations(
   selectedPatient: string,
   dataDispensa: string,
   tipoDispensacao: string,
+  isServidor: boolean,
   onSuccess: () => void
 ) {
   const { user, hasPermission } = useAuth();
@@ -43,7 +44,8 @@ export function useDispensationMutations(
         tenant_id: user.tenant_id || '00000000-0000-0000-0000-000000000000',
         unidade_id: user.unidade_id,
         procedimento: tipoDispensacao || null,
-        is_parcial: item.is_parcial || false
+        is_parcial: item.is_parcial || false,
+        is_servidor: isServidor
       }));
 
       const { error } = await supabase

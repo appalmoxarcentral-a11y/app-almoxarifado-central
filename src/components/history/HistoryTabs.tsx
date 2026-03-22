@@ -27,6 +27,8 @@ interface MovimentacaoType {
   tenant_name?: string;
   created_at?: string;
   is_parcial?: boolean;
+  is_servidor?: boolean;
+  paciente_setor?: string;
 }
 
 interface HistoryTabsProps {
@@ -89,74 +91,175 @@ export function HistoryTabs({
       default:
         // Mostrar todas as movimentações
         return (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="min-w-[100px]">Data</TableHead>
-                {isSuperAdmin && <TableHead className="min-w-[150px]">Unidade</TableHead>}
-                <TableHead className="min-w-[120px]">Tipo</TableHead>
-                <TableHead className="min-w-[150px]">Produto</TableHead>
-                <TableHead className="min-w-[80px]">Qtd</TableHead>
-                <TableHead className="min-w-[100px]">Lote</TableHead>
-                <TableHead className="min-w-[120px]">Paciente</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <>
+            {/* Mobile View */}
+            <div className="md:hidden space-y-4">
               {movimentacoes.map((mov, index) => (
-                <TableRow key={`${mov.tipo}-${mov.id}-${index}`}>
-                  <TableCell className="text-xs md:text-sm">
-                    {format(new Date(mov.data), 'dd/MM/yy', { locale: ptBR })}
-                  </TableCell>
-                  {isSuperAdmin && (
-                    <TableCell className="text-xs font-medium text-blue-600">
-                      {mov.tenant_name}
-                    </TableCell>
-                  )}
-                  <TableCell>
-                    <Badge 
-                      variant={mov.tipo === 'entrada' ? 'default' : 'secondary'} 
-                      className={cn(
-                        "text-xs",
-                        mov.tipo === 'dispensacao' && mov.is_parcial && "bg-amber-500 hover:bg-amber-600 text-white border-none"
+                <div key={`${mov.tipo}-${mov.id}-${index}`} className="border rounded-lg p-4 bg-card space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(mov.data), 'dd/MM/yyyy', { locale: ptBR })}
+                      </span>
+                      {isSuperAdmin && (
+                        <span className="text-xs font-medium text-blue-600">
+                          {mov.tenant_name}
+                        </span>
                       )}
-                    >
-                      {mov.tipo === 'entrada' ? (
-                        <><TrendingUp className="h-3 w-3 mr-1" /> Entrada</>
-                      ) : (
-                        <>
-                          {mov.is_parcial ? (
-                            <><AlertTriangle className="h-3 w-3 mr-1" /> Parcial</>
-                          ) : (
-                            <><TrendingDown className="h-3 w-3 mr-1" /> Dispensação</>
-                          )}
-                        </>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge 
+                        variant={mov.tipo === 'entrada' ? 'default' : 'secondary'} 
+                        className={cn(
+                          "text-xs w-fit",
+                          mov.tipo === 'dispensacao' && mov.is_parcial && "bg-amber-500 hover:bg-amber-600 text-white border-none"
+                        )}
+                      >
+                        {mov.tipo === 'entrada' ? (
+                          <><TrendingUp className="h-3 w-3 mr-1" /> Entrada</>
+                        ) : (
+                          <>
+                            {mov.is_parcial ? (
+                              <><AlertTriangle className="h-3 w-3 mr-1" /> Parcial</>
+                            ) : (
+                              <><TrendingDown className="h-3 w-3 mr-1" /> Dispensação</>
+                            )}
+                          </>
+                        )}
+                      </Badge>
+                      {mov.tipo === 'dispensacao' && mov.is_servidor && (
+                        <Badge variant="outline" className="text-[10px] w-fit border-blue-500 text-blue-500 bg-blue-500/5">
+                          Servidor
+                        </Badge>
                       )}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-xs md:text-sm max-w-[150px] truncate">
-                    {mov.descricao_produto}
-                  </TableCell>
-                  <TableCell className={cn(
-                    "text-xs md:text-sm font-medium",
-                    mov.tipo === 'dispensacao' && mov.is_parcial && "text-amber-600"
-                  )}>
-                    {mov.tipo === 'dispensacao' && mov.is_parcial && "!"} {mov.quantidade}
-                  </TableCell>
-                  <TableCell className="text-xs md:text-sm">{mov.lote}</TableCell>
-                  <TableCell className="text-xs md:text-sm max-w-[120px] truncate">
-                    {mov.paciente || '-'}
-                  </TableCell>
-                </TableRow>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold uppercase">{mov.descricao_produto}</p>
+                    <div className="flex gap-4 text-xs">
+                      <div>
+                        <span className="text-muted-foreground">Qtd: </span>
+                        <span className={cn(
+                          "font-medium",
+                          mov.tipo === 'dispensacao' && mov.is_parcial && "text-amber-600"
+                        )}>
+                          {mov.tipo === 'dispensacao' && mov.is_parcial && "!"} {mov.quantidade}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Lote: </span>
+                        <span className="font-medium">{mov.lote}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t">
+                    <span className="text-xs text-muted-foreground block mb-1">Paciente / Destinatário:</span>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium">{mov.paciente || '-'}</span>
+                      {mov.is_servidor && mov.paciente_setor && (
+                        <span className="text-[10px] text-primary font-bold uppercase">
+                          Setor: {mov.paciente_setor}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
               ))}
               {movimentacoes.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={isSuperAdmin ? 7 : 6} className="text-center py-8 text-gray-500">
-                    Nenhuma movimentação encontrada
-                  </TableCell>
-                </TableRow>
+                <div className="text-center py-8 text-gray-500 border rounded-lg">
+                  Nenhuma movimentação encontrada
+                </div>
               )}
-            </TableBody>
-          </Table>
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-[100px]">Data</TableHead>
+                    {isSuperAdmin && <TableHead className="min-w-[150px]">Unidade</TableHead>}
+                    <TableHead className="min-w-[120px]">Tipo</TableHead>
+                    <TableHead className="min-w-[150px]">Produto</TableHead>
+                    <TableHead className="min-w-[80px]">Qtd</TableHead>
+                    <TableHead className="min-w-[100px]">Lote</TableHead>
+                    <TableHead className="min-w-[120px]">Paciente</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {movimentacoes.map((mov, index) => (
+                    <TableRow key={`${mov.tipo}-${mov.id}-${index}`}>
+                      <TableCell className="text-xs md:text-sm">
+                        {format(new Date(mov.data), 'dd/MM/yy', { locale: ptBR })}
+                      </TableCell>
+                      {isSuperAdmin && (
+                        <TableCell className="text-xs font-medium text-blue-600">
+                          {mov.tenant_name}
+                        </TableCell>
+                      )}
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          <Badge 
+                            variant={mov.tipo === 'entrada' ? 'default' : 'secondary'} 
+                            className={cn(
+                              "text-xs w-fit",
+                              mov.tipo === 'dispensacao' && mov.is_parcial && "bg-amber-500 hover:bg-amber-600 text-white border-none"
+                            )}
+                          >
+                            {mov.tipo === 'entrada' ? (
+                              <><TrendingUp className="h-3 w-3 mr-1" /> Entrada</>
+                            ) : (
+                              <>
+                                {mov.is_parcial ? (
+                                  <><AlertTriangle className="h-3 w-3 mr-1" /> Parcial</>
+                                ) : (
+                                  <><TrendingDown className="h-3 w-3 mr-1" /> Dispensação</>
+                                )}
+                              </>
+                            )}
+                          </Badge>
+                          {mov.tipo === 'dispensacao' && mov.is_servidor && (
+                            <Badge variant="outline" className="text-[10px] w-fit border-blue-500 text-blue-500 bg-blue-500/5">
+                              Servidor
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs md:text-sm max-w-[150px] truncate">
+                        {mov.descricao_produto}
+                      </TableCell>
+                      <TableCell className={cn(
+                        "text-xs md:text-sm font-medium",
+                        mov.tipo === 'dispensacao' && mov.is_parcial && "text-amber-600"
+                      )}>
+                        {mov.tipo === 'dispensacao' && mov.is_parcial && "!"} {mov.quantidade}
+                      </TableCell>
+                      <TableCell className="text-xs md:text-sm">{mov.lote}</TableCell>
+                      <TableCell className="text-xs md:text-sm max-w-[120px] truncate">
+                        <div className="flex flex-col">
+                          <span>{mov.paciente || '-'}</span>
+                          {mov.is_servidor && mov.paciente_setor && (
+                            <span className="text-[10px] text-primary font-bold uppercase truncate">
+                              Setor: {mov.paciente_setor}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {movimentacoes.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={isSuperAdmin ? 7 : 6} className="text-center py-8 text-gray-500">
+                        Nenhuma movimentação encontrada
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         );
     }
   };

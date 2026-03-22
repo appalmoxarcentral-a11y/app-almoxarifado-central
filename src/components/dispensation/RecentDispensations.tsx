@@ -48,6 +48,11 @@ export function RecentDispensations({ dispensacoes, isLoading, onDelete }: Recen
                     </div>
                     <p className="text-xs font-bold text-muted-foreground uppercase tracking-tight">
                       {dispensacao.paciente?.nome}
+                      {dispensacao.is_servidor && (dispensacao.paciente as any)?.sector && (
+                        <span className="text-primary ml-1">
+                          • {(dispensacao.paciente as any).sector}
+                        </span>
+                      )}
                     </p>
                     <div className="flex flex-wrap gap-2 pt-1">
                       <Badge variant="secondary" className="text-[10px] font-bold h-5">
@@ -59,6 +64,11 @@ export function RecentDispensations({ dispensacoes, isLoading, onDelete }: Recen
                       {dispensacao.is_parcial && (
                         <Badge variant="outline" className="text-[10px] font-bold h-5 border-amber-500 text-amber-500 bg-amber-500/5">
                           Parcial
+                        </Badge>
+                      )}
+                      {dispensacao.is_servidor && (
+                        <Badge variant="outline" className="text-[10px] font-bold h-5 border-blue-500 text-blue-500 bg-blue-500/5">
+                          Servidor
                         </Badge>
                       )}
                     </div>

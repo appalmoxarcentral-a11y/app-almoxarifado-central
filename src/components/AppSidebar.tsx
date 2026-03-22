@@ -24,7 +24,7 @@ export function AppSidebar() {
     icon: Home,
     permission: null
   }, {
-    title: 'Cadastro de Pacientes',
+    title: 'Pacientes/Receptores',
     url: '/pacientes',
     icon: Users,
     permission: 'cadastro_pacientes'

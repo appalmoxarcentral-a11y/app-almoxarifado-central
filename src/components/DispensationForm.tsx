@@ -23,20 +23,24 @@ interface CarrinhoItem {
 
 export function DispensationForm() {
   const [selectedPatient, setSelectedPatient] = useState('');
+  const [selectedPatientLabel, setSelectedPatientLabel] = useState('');
   const [selectedProduct, setSelectedProduct] = useState('');
+  const [selectedProductLabel, setSelectedProductLabel] = useState('');
   const [selectedProductData, setSelectedProductData] = useState<Product | null>(null);
   const [quantidade, setQuantidade] = useState('');
   const [selectedLote, setSelectedLote] = useState('');
   const [dataDispensa, setDataDispensa] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [tipoDispensacao, setTipoDispensacao] = useState('');
+  const [selectedProcedureLabel, setSelectedProcedureLabel] = useState('');
   const [isParcial, setIsParcial] = useState(false);
+  const { user } = useAuth();
+  const [isServidor, setIsServidor] = useState(!!user?.habilitar_receptor);
   const [carrinho, setCarrinho] = useState<CarrinhoItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [patientSearch, setPatientSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
   const [procedureSearch, setProcedureSearch] = useState('');
   const isMobile = useIsMobile();
-  const { user } = useAuth();
 
   const {
     pacientes,
@@ -45,24 +49,28 @@ export function DispensationForm() {
     lotes,
     dispensacoes,
     isLoadingDispensacoes
-  } = useDispensationQueries(
+  } = useDispensationQueries({
     selectedProduct, 
     patientSearch, 
     productSearch,
     procedureSearch,
-    user?.unidade_id,
-    user?.tenant_id
-  );
+    unidadeId: user?.unidade_id,
+    tenantId: user?.tenant_id,
+    isHealthWorker: user?.habilitar_receptor ? isServidor : undefined
+  });
 
   const handleSuccessfulDispensation = () => {
     setCarrinho([]);
     setSelectedPatient('');
+    setSelectedPatientLabel('');
     setSelectedProduct('');
     setSelectedProductData(null);
     setQuantidade('');
     setSelectedLote('');
     setDataDispensa(format(new Date(), 'yyyy-MM-dd'));
     setTipoDispensacao('');
+    setSelectedProcedureLabel('');
+    setIsServidor(false);
     setCartOpen(false);
   };
 
@@ -70,6 +78,7 @@ export function DispensationForm() {
     selectedPatient,
     dataDispensa,
     tipoDispensacao,
+    isServidor,
     handleSuccessfulDispensation
   );
 
@@ -172,14 +181,15 @@ export function DispensationForm() {
     createDispensationMutation.mutate(carrinho);
   };
 
-  const handleProductChange = (productId: string) => {
+  const handleProductChange = (productId: string, product?: Product) => {
     setSelectedProduct(productId);
     setSelectedLote('');
     
     // Buscar e salvar o objeto do produto imediatamente
-    const product = produtos?.find(p => p.id === productId);
-    if (product) {
-      setSelectedProductData(product);
+    const productObj = product || produtos?.find(p => p.id === productId);
+    if (productObj) {
+      setSelectedProductData(productObj);
+      setSelectedProductLabel(`${productObj.descricao} (Estoque: ${productObj.estoque_atual} ${productObj.unidade_medida})`);
     }
   };
 
@@ -203,11 +213,21 @@ export function DispensationForm() {
         {/* Step 1: Patient */}
         <PatientSelection
           selectedPatient={selectedPatient}
-          setSelectedPatient={setSelectedPatient}
+          selectedPatientLabel={selectedPatientLabel}
+          setSelectedPatient={(id, patient) => {
+            setSelectedPatient(id);
+            if (patient) setSelectedPatientLabel(`${patient.nome} - ${patient.sus_cpf}`);
+          }}
           dataDispensa={dataDispensa}
           setDataDispensa={setDataDispensa}
           tipoDispensacao={tipoDispensacao}
-          setTipoDispensacao={setTipoDispensacao}
+          selectedProcedureLabel={selectedProcedureLabel}
+          setTipoDispensacao={(val, proc) => {
+            setTipoDispensacao(val);
+            if (proc) setSelectedProcedureLabel(proc.nome);
+          }}
+          isServidor={isServidor}
+          setIsServidor={setIsServidor}
           pacientes={pacientes}
           procedimentos={procedimentos}
           onSearchChange={setPatientSearch}
@@ -217,6 +237,7 @@ export function DispensationForm() {
         {/* Step 2: Products */}
         <ProductSelection
           selectedProduct={selectedProduct}
+          selectedProductLabel={selectedProductLabel}
           onProductChange={handleProductChange}
           selectedLote={selectedLote}
           setSelectedLote={setSelectedLote}
@@ -282,11 +303,21 @@ export function DispensationForm() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <PatientSelection
           selectedPatient={selectedPatient}
-          setSelectedPatient={setSelectedPatient}
+          selectedPatientLabel={selectedPatientLabel}
+          setSelectedPatient={(id, patient) => {
+            setSelectedPatient(id);
+            if (patient) setSelectedPatientLabel(`${patient.nome} - ${patient.sus_cpf}`);
+          }}
           dataDispensa={dataDispensa}
           setDataDispensa={setDataDispensa}
           tipoDispensacao={tipoDispensacao}
-          setTipoDispensacao={setTipoDispensacao}
+          selectedProcedureLabel={selectedProcedureLabel}
+          setTipoDispensacao={(val, proc) => {
+            setTipoDispensacao(val);
+            if (proc) setSelectedProcedureLabel(proc.nome);
+          }}
+          isServidor={isServidor}
+          setIsServidor={setIsServidor}
           pacientes={pacientes}
           procedimentos={procedimentos}
           onSearchChange={setPatientSearch}
@@ -303,6 +334,7 @@ export function DispensationForm() {
 
         <ProductSelection
           selectedProduct={selectedProduct}
+          selectedProductLabel={selectedProductLabel}
           onProductChange={handleProductChange}
           selectedLote={selectedLote}
           setSelectedLote={setSelectedLote}

@@ -213,7 +213,7 @@ export function Dashboard() {
             <div className="flex items-center gap-2">
               <Users className="h-6 w-6 md:h-8 md:w-8 text-primary" />
               <div>
-                <p className="text-xs md:text-sm text-muted-foreground">Pacientes</p>
+                <p className="text-xs md:text-sm text-muted-foreground">Pacientes/Receptores</p>
                 <p className="text-xl md:text-3xl font-bold text-primary">{pacienteStats || 0}</p>
               </div>
             </div>
