@@ -44,8 +44,10 @@ export function DispensationForm() {
 
   const {
     pacientes,
+    pacientesInfinite,
     procedimentos,
     produtos,
+    produtosInfinite,
     lotes,
     dispensacoes,
     isLoadingDispensacoes
@@ -229,6 +231,7 @@ export function DispensationForm() {
           isServidor={isServidor}
           setIsServidor={setIsServidor}
           pacientes={pacientes}
+          pacientesInfinite={pacientesInfinite}
           procedimentos={procedimentos}
           onSearchChange={setPatientSearch}
           onProcedureSearchChange={setProcedureSearch}
@@ -246,6 +249,7 @@ export function DispensationForm() {
           isParcial={isParcial}
           setIsParcial={setIsParcial}
           produtos={produtos}
+          produtosInfinite={produtosInfinite}
           lotes={lotes}
           onAddToCart={adicionarAoCarrinho}
           onSearchChange={setProductSearch}
@@ -319,6 +323,7 @@ export function DispensationForm() {
           isServidor={isServidor}
           setIsServidor={setIsServidor}
           pacientes={pacientes}
+          pacientesInfinite={pacientesInfinite}
           procedimentos={procedimentos}
           onSearchChange={setPatientSearch}
           onProcedureSearchChange={setProcedureSearch}
@@ -343,6 +348,7 @@ export function DispensationForm() {
           isParcial={isParcial}
           setIsParcial={setIsParcial}
           produtos={produtos}
+          produtosInfinite={produtosInfinite}
           lotes={lotes}
           onAddToCart={adicionarAoCarrinho}
           onSearchChange={setProductSearch}

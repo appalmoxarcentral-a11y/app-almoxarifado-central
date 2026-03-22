@@ -32,6 +32,12 @@ interface ProductSelectionProps {
   isParcial: boolean;
   setIsParcial: (value: boolean) => void;
   produtos?: Product[];
+  produtosInfinite?: {
+    fetchNextPage: () => void;
+    hasNextPage: boolean;
+    isFetchingNextPage: boolean;
+    isLoading: boolean;
+  };
   lotes?: LoteInfo[];
   onAddToCart: () => void;
   onSearchChange?: (value: string) => void;
@@ -48,6 +54,7 @@ export function ProductSelection({
   isParcial,
   setIsParcial,
   produtos = [],
+  produtosInfinite,
   lotes,
   onAddToCart,
   onSearchChange
@@ -97,6 +104,12 @@ export function ProductSelection({
               emptyMessage="Nenhum produto encontrado"
               title="Selecionar Produto"
               className="h-12 text-[16px] rounded-xl border-border bg-background focus:ring-2 focus:ring-primary/20"
+              infiniteScroll={{
+                fetchNextPage: produtosInfinite?.fetchNextPage || (() => {}),
+                hasNextPage: produtosInfinite?.hasNextPage || false,
+                isFetchingNextPage: produtosInfinite?.isFetchingNextPage || false,
+                isLoading: produtosInfinite?.isLoading || false
+              }}
             />
           </div>
 

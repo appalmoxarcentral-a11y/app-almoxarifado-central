@@ -1,7 +1,9 @@
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Product, Patient, Dispensation } from '@/types';
+
+const PAGE_SIZE = 50;
 
 interface LoteInfo {
   lote: string;
@@ -30,12 +32,14 @@ export function useDispensationQueries({
   tenantId,
   isHealthWorker
 }: UseDispensationQueriesProps = {}) {
-  // Buscar pacientes
-  const pacientesQuery = useQuery({
+  // Buscar pacientes com paginação infinita
+  const pacientesInfiniteQuery = useInfiniteQuery({
     queryKey: ['pacientes-global', patientSearch, tenantId, isHealthWorker],
     enabled: !!tenantId,
-    queryFn: async () => {
-      console.log('[Queries] Buscando pacientes com termo:', patientSearch, 'Filtro Receptor:', isHealthWorker);
+    initialPageParam: 0,
+    queryFn: async ({ pageParam = 0 }) => {
+      console.log('[Queries] Buscando pacientes (Página:', pageParam, ') com termo:', patientSearch, 'Filtro Receptor:', isHealthWorker);
+      
       let query = supabase
         .from('pacientes')
         .select('*')
@@ -50,13 +54,22 @@ export function useDispensationQueries({
         query = query.eq('is_health_worker', isHealthWorker);
       }
 
-      const { data, error } = await query.limit(100);
+      const from = pageParam * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
+      const { data, error } = await query.range(from, to);
       
       if (error) throw error;
       return data as Patient[];
     },
-    staleTime: 60000, // 1 minuto de cache para melhorar a performance
+    getNextPageParam: (lastPage, allPages) => {
+      return lastPage.length === PAGE_SIZE ? allPages.length : undefined;
+    },
+    staleTime: 60000,
   });
+
+  // Transformar dados do InfiniteQuery em uma lista única
+  const pacientes = pacientesInfiniteQuery.data?.pages.flat() || [];
 
   // Buscar procedimentos (Globais + Tenant)
   const procedimentosQuery = useQuery({
@@ -126,12 +139,13 @@ export function useDispensationQueries({
     staleTime: 60000,
   });
 
-  // Buscar produtos com estoque
-  const produtosQuery = useQuery({
+  // Buscar produtos com estoque e paginação infinita
+  const produtosInfiniteQuery = useInfiniteQuery({
     queryKey: ['produtos-estoque-global', productSearch, unidadeId, tenantId],
     enabled: !!tenantId,
-    queryFn: async () => {
-      console.log(`[Queries] Buscando produtos para unidade: ${unidadeId || 'não informada'}`);
+    initialPageParam: 0,
+    queryFn: async ({ pageParam = 0 }) => {
+      console.log(`[Queries] Buscando produtos (Página: ${pageParam}) para unidade: ${unidadeId || 'não informada'}`);
 
       let productIds: string[] = [];
 
@@ -158,11 +172,13 @@ export function useDispensationQueries({
       if (productSearch) {
         query = query.or(`descricao.ilike.%${productSearch}%,codigo.ilike.%${productSearch}%`);
       } else if (productIds.length > 0) {
-        // Se não houver busca, mostrar apenas produtos que já tiveram entrada na unidade
         query = query.in('id', productIds);
       }
 
-      const { data: produtosData, error: prodError } = await query.limit(100);
+      const from = pageParam * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
+      const { data: produtosData, error: prodError } = await query.range(from, to);
       if (prodError) throw prodError;
 
       // 3. Se tivermos unidadeId, buscar o estoque real desta unidade na tabela consolidada
@@ -180,7 +196,6 @@ export function useDispensationQueries({
           estoqueMap.set(e.produto_id, e.estoque_atual);
         });
 
-        // Montar a lista final com estoque e filtrar apenas os que possuem estoque > 0
         return produtosData
           .map(produto => ({
             ...produto,
@@ -191,8 +206,13 @@ export function useDispensationQueries({
 
       return (produtosData as Product[]).filter(p => (p.estoque_atual || 0) > 0);
     },
+    getNextPageParam: (lastPage, allPages) => {
+      return lastPage.length === PAGE_SIZE ? allPages.length : undefined;
+    },
     staleTime: 60000,
   });
+
+  const produtos = produtosInfiniteQuery.data?.pages.flat() || [];
 
   // Buscar lotes do produto selecionado
   const lotesQuery = useQuery({
@@ -277,10 +297,22 @@ export function useDispensationQueries({
   });
 
   return {
-    pacientes: pacientesQuery.data,
+    pacientes,
+    pacientesInfinite: {
+      fetchNextPage: pacientesInfiniteQuery.fetchNextPage,
+      hasNextPage: pacientesInfiniteQuery.hasNextPage,
+      isFetchingNextPage: pacientesInfiniteQuery.isFetchingNextPage,
+      isLoading: pacientesInfiniteQuery.isLoading
+    },
     procedimentos: procedimentosQuery.data,
     setores: setoresQuery.data,
-    produtos: produtosQuery.data,
+    produtos,
+    produtosInfinite: {
+      fetchNextPage: produtosInfiniteQuery.fetchNextPage,
+      hasNextPage: produtosInfiniteQuery.hasNextPage,
+      isFetchingNextPage: produtosInfiniteQuery.isFetchingNextPage,
+      isLoading: produtosInfiniteQuery.isLoading
+    },
     lotes: lotesQuery.data,
     dispensacoes: dispensacoesQuery.data,
     isLoadingDispensacoes: dispensacoesQuery.isLoading

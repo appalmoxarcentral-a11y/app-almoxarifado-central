@@ -13,6 +13,7 @@ import { useProductEntryMutations } from './product-entry/hooks/useProductEntryM
 
 export function ProductEntryForm() {
   const [selectedProduct, setSelectedProduct] = useState('');
+  const [selectedProductLabel, setSelectedProductLabel] = useState('');
   const [quantidade, setQuantidade] = useState('');
   const [lote, setLote] = useState('');
   const [vencimento, setVencimento] = useState('');
@@ -20,7 +21,7 @@ export function ProductEntryForm() {
   const [productSearch, setProductSearch] = useState('');
 
   const { user } = useAuth();
-  const { produtos } = useProductEntryQueries({ productSearch });
+  const { produtos, produtosInfinite } = useProductEntryQueries({ productSearch });
   const { createEntryMutation, handleSubmit } = useProductEntryMutations();
 
   // Verificar se o usuário está autenticado
@@ -37,6 +38,7 @@ export function ProductEntryForm() {
 
   const resetForm = () => {
     setSelectedProduct('');
+    setSelectedProductLabel('');
     setQuantidade('');
     setLote('');
     setVencimento('');
@@ -92,7 +94,11 @@ export function ProductEntryForm() {
               <TabsContent value="manual" className="pt-2">
                 <ProductEntryFormFields
                   selectedProduct={selectedProduct}
-                  setSelectedProduct={setSelectedProduct}
+                  setSelectedProduct={(id, label) => {
+                    setSelectedProduct(id);
+                    if (label) setSelectedProductLabel(label);
+                  }}
+                  selectedProductLabel={selectedProductLabel}
                   quantidade={quantidade}
                   setQuantidade={setQuantidade}
                   lote={lote}
@@ -102,6 +108,7 @@ export function ProductEntryForm() {
                   dataEntrada={dataEntrada}
                   setDataEntrada={setDataEntrada}
                   produtos={produtos}
+                  produtosInfinite={produtosInfinite}
                   onSearchChange={setProductSearch}
                   onSubmit={onSubmit}
                   isLoading={createEntryMutation.isPending}

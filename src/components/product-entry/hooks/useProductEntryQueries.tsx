@@ -1,7 +1,9 @@
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Product, ProductEntry } from '@/types';
+
+const PAGE_SIZE = 50;
 
 interface UseProductEntryQueriesParams {
   page?: number;
@@ -14,12 +16,16 @@ export const useProductEntryQueries = (params: UseProductEntryQueriesParams = {}
   const { page = 1, limit = 50, searchTerm = '', productSearch = '' } = params;
 
   const {
-    data: produtos = [],
+    data: produtosInfiniteData,
     isLoading: isLoadingProdutos,
-    refetch: refetchProdutos
-  } = useQuery({
+    refetch: refetchProdutos,
+    fetchNextPage: fetchNextPageProdutos,
+    hasNextPage: hasNextPageProdutos,
+    isFetchingNextPage: isFetchingNextPageProdutos
+  } = useInfiniteQuery({
     queryKey: ['produtos-entrada', productSearch],
-    queryFn: async () => {
+    initialPageParam: 0,
+    queryFn: async ({ pageParam = 0 }) => {
       let query = supabase
         .from('produtos')
         .select('*')
@@ -29,12 +35,21 @@ export const useProductEntryQueries = (params: UseProductEntryQueriesParams = {}
         query = query.or(`descricao.ilike.%${productSearch}%,codigo.ilike.%${productSearch}%`);
       }
 
-      const { data, error } = await query.limit(100);
+      const from = pageParam * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
+      const { data, error } = await query.range(from, to);
       
       if (error) throw error;
       return data as Product[];
     },
+    getNextPageParam: (lastPage, allPages) => {
+      return lastPage.length === PAGE_SIZE ? allPages.length : undefined;
+    },
+    staleTime: 60000,
   });
+
+  const produtos = produtosInfiniteData?.pages.flat() || [];
 
   const {
     data: entradasData,
@@ -92,6 +107,12 @@ export const useProductEntryQueries = (params: UseProductEntryQueriesParams = {}
 
   return {
     produtos,
+    produtosInfinite: {
+      fetchNextPage: fetchNextPageProdutos,
+      hasNextPage: hasNextPageProdutos,
+      isFetchingNextPage: isFetchingNextPageProdutos,
+      isLoading: isLoadingProdutos
+    },
     isLoadingProdutos,
     refetchProdutos,
     entradas: entradasData?.entries || [],

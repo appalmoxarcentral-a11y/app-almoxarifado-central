@@ -10,7 +10,8 @@ import type { Product } from '@/types';
 
 interface ProductEntryFormFieldsProps {
   selectedProduct: string;
-  setSelectedProduct: (value: string) => void;
+  setSelectedProduct: (value: string, label?: string) => void;
+  selectedProductLabel?: string;
   quantidade: string;
   setQuantidade: (value: string) => void;
   lote: string;
@@ -20,6 +21,12 @@ interface ProductEntryFormFieldsProps {
   dataEntrada: string;
   setDataEntrada: (value: string) => void;
   produtos: Product[] | undefined;
+  produtosInfinite?: {
+    fetchNextPage: () => void;
+    hasNextPage: boolean;
+    isFetchingNextPage: boolean;
+    isLoading: boolean;
+  };
   onSearchChange?: (value: string) => void;
   onSubmit: (e: React.FormEvent) => void;
   isLoading: boolean;
@@ -28,6 +35,7 @@ interface ProductEntryFormFieldsProps {
 export function ProductEntryFormFields({
   selectedProduct,
   setSelectedProduct,
+  selectedProductLabel,
   quantidade,
   setQuantidade,
   lote,
@@ -37,6 +45,7 @@ export function ProductEntryFormFields({
   dataEntrada,
   setDataEntrada,
   produtos,
+  produtosInfinite,
   onSearchChange,
   onSubmit,
   isLoading
@@ -51,7 +60,8 @@ export function ProductEntryFormFields({
         <SearchableModal
           items={produtos || []}
           value={selectedProduct}
-          onSelect={(produto) => setSelectedProduct(produto.id)}
+          selectedItemLabel={selectedProductLabel}
+          onSelect={(produto) => setSelectedProduct(produto.id, `${produto.descricao} (${produto.codigo})`)}
           onSearchChange={onSearchChange}
           getItemValue={(produto) => produto.id}
           getItemLabel={(produto) => `${produto.descricao} (${produto.codigo})`}
@@ -61,6 +71,12 @@ export function ProductEntryFormFields({
           emptyMessage="Nenhum produto encontrado"
           title="Selecionar Produto"
           className="h-12 text-[16px] rounded-xl border-border bg-background focus:ring-2 focus:ring-primary/20"
+          infiniteScroll={{
+            fetchNextPage: produtosInfinite?.fetchNextPage || (() => {}),
+            hasNextPage: produtosInfinite?.hasNextPage || false,
+            isFetchingNextPage: produtosInfinite?.isFetchingNextPage || false,
+            isLoading: produtosInfinite?.isLoading || false
+          }}
         />
       </div>
 

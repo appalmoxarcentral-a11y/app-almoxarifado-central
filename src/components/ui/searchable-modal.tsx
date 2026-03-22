@@ -40,6 +40,12 @@ interface SearchableModalProps<T> {
     icon?: React.ReactNode
     isLoading?: boolean
   }
+  infiniteScroll?: {
+    fetchNextPage: () => void
+    hasNextPage: boolean
+    isFetchingNextPage: boolean
+    isLoading: boolean
+  }
 }
 
 export function SearchableModal<T>({
@@ -58,9 +64,20 @@ export function SearchableModal<T>({
   title = "Selecionar Item",
   onSearchChange,
   emptyAction,
+  infiniteScroll,
 }: SearchableModalProps<T>) {
   const [open, setOpen] = React.useState(false)
   const [searchValue, setSearchValue] = React.useState("")
+  const listRef = React.useRef<HTMLDivElement>(null)
+
+  const handleScroll = React.useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    if (!infiniteScroll || !infiniteScroll.hasNextPage || infiniteScroll.isFetchingNextPage) return
+
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget
+    if (scrollHeight - scrollTop <= clientHeight + 50) {
+      infiniteScroll.fetchNextPage()
+    }
+  }, [infiniteScroll])
 
   const filteredItems = React.useMemo(() => {
     if (onSearchChange) return items // External search handles filtering
@@ -136,7 +153,10 @@ export function SearchableModal<T>({
               </Button>
             )}
           </div>
-          <CommandList className="max-h-[40vh] sm:max-h-[300px] overflow-y-auto p-1 sm:p-2 custom-scrollbar">
+          <CommandList 
+            className="max-h-[40vh] sm:max-h-[300px] overflow-y-auto p-1 sm:p-2 custom-scrollbar"
+            onScroll={handleScroll}
+          >
             <CommandEmpty>
               <div className="py-6 sm:py-8 text-center px-4">
                 <p className="text-muted-foreground font-medium mb-3 sm:mb-4 text-sm sm:text-base">{emptyMessage}</p>
@@ -190,6 +210,12 @@ export function SearchableModal<T>({
                   </CommandItem>
                 )
               })}
+              
+              {infiniteScroll?.isFetchingNextPage && (
+                <div className="py-4 flex justify-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" />
+                </div>
+              )}
             </CommandGroup>
           </CommandList>
         </Command>

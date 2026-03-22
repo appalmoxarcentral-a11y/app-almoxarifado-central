@@ -27,6 +27,12 @@ interface PatientSelectionProps {
   isServidor: boolean;
   setIsServidor: (value: boolean) => void;
   pacientes?: Patient[];
+  pacientesInfinite?: {
+    fetchNextPage: () => void;
+    hasNextPage: boolean;
+    isFetchingNextPage: boolean;
+    isLoading: boolean;
+  };
   procedimentos?: any[];
   onSearchChange?: (value: string) => void;
   onProcedureSearchChange?: (value: string) => void;
@@ -44,6 +50,7 @@ export function PatientSelection({
   isServidor,
   setIsServidor,
   pacientes = [],
+  pacientesInfinite,
   procedimentos = [],
   onSearchChange,
   onProcedureSearchChange
@@ -170,6 +177,12 @@ export function PatientSelection({
             emptyMessage={isServidor ? "Receptor ainda não cadastrado, por favor, cadastre o mesmo ou ative a caixa \"Paciente receptor\" em seu cadastro original" : "Nenhum paciente encontrado"}
             title="Selecionar Paciente/Receptor"
             className="h-12 text-[16px] rounded-xl border-border bg-background focus:ring-2 focus:ring-primary/20"
+            infiniteScroll={{
+              fetchNextPage: pacientesInfinite?.fetchNextPage || (() => {}),
+              hasNextPage: pacientesInfinite?.hasNextPage || false,
+              isFetchingNextPage: pacientesInfinite?.isFetchingNextPage || false,
+              isLoading: pacientesInfinite?.isLoading || false
+            }}
           />
         </div>
 
