@@ -71,7 +71,7 @@ export function PatientSelection({
   };
 
   const handleAddProcedure = async (overrideName?: string) => {
-    const nomeToSave = overrideName || localProcedureSearch;
+    const nomeToSave = (overrideName || localProcedureSearch).toUpperCase();
     if (!nomeToSave) return;
 
     setIsAddingProcedure(true);

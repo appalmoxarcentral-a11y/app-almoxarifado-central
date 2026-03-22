@@ -6,8 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { TrendingDown, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatarData } from '@/lib/date-utils';
 import type { Dispensation } from '@/types';
 
 interface ProductDispensationViewProps {
@@ -81,7 +80,7 @@ export function ProductDispensationView({
           <div key={dispensacao.id} className="border rounded-lg p-4 bg-card space-y-3">
             <div className="flex justify-between items-start">
               <span className="text-xs text-muted-foreground">
-                {format(new Date(dispensacao.data_dispensa), 'dd/MM/yyyy', { locale: ptBR })}
+                {formatarData(dispensacao.data_dispensa)}
               </span>
               <div className="flex flex-col items-end gap-1">
                 <Badge 
@@ -154,7 +153,7 @@ export function ProductDispensationView({
             {dispensacoes?.map((dispensacao) => (
               <TableRow key={dispensacao.id}>
                 <TableCell className="text-xs md:text-sm">
-                  {format(new Date(dispensacao.data_dispensa), 'dd/MM/yy', { locale: ptBR })}
+                  {formatarData(dispensacao.data_dispensa, 'dd/MM/yy')}
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-col gap-1">

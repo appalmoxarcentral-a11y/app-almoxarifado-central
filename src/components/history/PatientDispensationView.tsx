@@ -7,9 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { User, Package, Calendar, AlertTriangle, TrendingDown, Briefcase } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns/format';
-import { ptBR } from 'date-fns/locale/pt-BR';
-import type { Dispensation } from '@/types';
+import { formatarData } from '@/lib/date-utils';
+import type { Dispensation, Patient } from '@/types';
 
 interface PatientDispensationViewProps {
   searchTerm: string;
@@ -188,7 +187,7 @@ export function PatientDispensationView({ searchTerm }: PatientDispensationViewP
                 <div key={dispensacao.id} className="border rounded-lg p-3 bg-muted/50 space-y-2">
                   <div className="flex justify-between items-start">
                     <span className="text-xs text-muted-foreground">
-                      {format(new Date(dispensacao.data_dispensa), 'dd/MM/yyyy', { locale: ptBR })}
+                      {formatarData(dispensacao.data_dispensa)}
                     </span>
                     <div className="flex flex-col items-end gap-1">
                       <Badge 
@@ -255,7 +254,7 @@ export function PatientDispensationView({ searchTerm }: PatientDispensationViewP
                   {paciente.dispensacoes.map((dispensacao) => (
                     <TableRow key={dispensacao.id}>
                       <TableCell className="text-xs md:text-sm">
-                        {format(new Date(dispensacao.data_dispensa), 'dd/MM/yy', { locale: ptBR })}
+                        {formatarData(dispensacao.data_dispensa, 'dd/MM/yy')}
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">

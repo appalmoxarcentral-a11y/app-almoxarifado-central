@@ -64,12 +64,13 @@ export function PatientForm() {
   const handleAddSector = async (nome: string) => {
     if (!nome.trim() || !user?.tenant_id) return;
     
+    const uppercaseNome = nome.trim().toUpperCase();
     setIsAddingSector(true);
     try {
       const { error } = await supabase
         .from('setores')
         .insert([{ 
-          nome: nome.trim(), 
+          nome: uppercaseNome, 
           tenant_id: user.tenant_id 
         }]);
 
@@ -77,11 +78,11 @@ export function PatientForm() {
 
       toast({
         title: "Setor adicionado!",
-        description: `O setor ${nome} foi cadastrado com sucesso.`,
+        description: `O setor ${uppercaseNome} foi cadastrado com sucesso.`,
       });
 
       queryClient.invalidateQueries({ queryKey: ['setores'] });
-      setFormData(prev => ({ ...prev, sector: nome.trim() }));
+      setFormData(prev => ({ ...prev, sector: uppercaseNome }));
     } catch (error) {
       console.error('Erro ao adicionar setor:', error);
       toast({
@@ -252,15 +253,15 @@ export function PatientForm() {
         const { error } = await supabase
           .from('pacientes')
           .update({
-            nome: formData.nome,
+            nome: formData.nome.toUpperCase(),
             sus_cpf: susCpfNumbers,
-            endereco: formData.endereco,
-            bairro: formData.bairro,
+            endereco: formData.endereco.toUpperCase(),
+            bairro: formData.bairro.toUpperCase(),
             telefone: formData.telefone,
             nascimento: formData.nascimento,
             idade: idade,
             is_health_worker: formData.is_health_worker,
-            sector: formData.is_health_worker ? formData.sector : null
+            sector: formData.is_health_worker ? (formData.sector?.toUpperCase() || null) : null
           })
           .eq('id', editingPatient.id);
 
@@ -286,15 +287,15 @@ export function PatientForm() {
         const { error } = await supabase
           .from('pacientes')
           .insert([{
-            nome: formData.nome,
+            nome: formData.nome.toUpperCase(),
             sus_cpf: susCpfNumbers,
-            endereco: formData.endereco,
-            bairro: formData.bairro,
+            endereco: formData.endereco.toUpperCase(),
+            bairro: formData.bairro.toUpperCase(),
             telefone: formData.telefone,
             nascimento: formData.nascimento,
             idade: idade,
             is_health_worker: formData.is_health_worker,
-            sector: formData.is_health_worker ? formData.sector : null,
+            sector: formData.is_health_worker ? (formData.sector?.toUpperCase() || null) : null,
             tenant_id: user?.tenant_id || '00000000-0000-0000-0000-000000000000',
             unidade_id: user?.unidade_id
           }]);
@@ -434,9 +435,9 @@ export function PatientForm() {
                 <Input
                   id="nome"
                   value={formData.nome}
-                  onChange={(e) => handleInputChange('nome', e.target.value)}
+                  onChange={(e) => handleInputChange('nome', e.target.value.toUpperCase())}
                   placeholder="Ex: João da Silva"
-                  className="h-12 text-[16px] rounded-xl border-border bg-background"
+                  className="h-12 text-[16px] rounded-xl border-border bg-background uppercase"
                   required
                 />
               </div>
@@ -471,9 +472,9 @@ export function PatientForm() {
                 <Input
                   id="endereco"
                   value={formData.endereco}
-                  onChange={(e) => handleInputChange('endereco', e.target.value)}
-                  placeholder="Rua, número, complemento..."
-                  className="h-12 text-[16px] rounded-xl border-border bg-background"
+                  onChange={(e) => handleInputChange('endereco', e.target.value.toUpperCase())}
+                  placeholder="Ex: Rua A, nº 123"
+                  className="h-12 text-[16px] rounded-xl border-border bg-background uppercase"
                   required
                 />
               </div>
@@ -483,9 +484,9 @@ export function PatientForm() {
                 <Input
                   id="bairro"
                   value={formData.bairro}
-                  onChange={(e) => handleInputChange('bairro', e.target.value)}
-                  placeholder="Ex: Centro - Cidade"
-                  className="h-12 text-[16px] rounded-xl border-border bg-background"
+                  onChange={(e) => handleInputChange('bairro', e.target.value.toUpperCase())}
+                  placeholder="Ex: Centro"
+                  className="h-12 text-[16px] rounded-xl border-border bg-background uppercase"
                   required
                 />
               </div>
@@ -539,7 +540,7 @@ export function PatientForm() {
                     <SearchableModal
                       items={setores || []}
                       value={formData.sector}
-                      onSelect={(item) => handleInputChange('sector', (item as any).nome)}
+                      onSelect={(item) => handleInputChange('sector', (item as any).nome.toUpperCase())}
                       onSearchChange={setSectorSearch}
                       getItemValue={(s) => (s as any).nome}
                       getItemLabel={(s) => (s as any).nome}
@@ -551,10 +552,10 @@ export function PatientForm() {
                       emptyAction={{
                         label: "Adicionar",
                         isLoading: isAddingSector,
-                        onClick: (val) => handleAddSector(val),
+                        onClick: (val) => handleAddSector(val.toUpperCase()),
                         icon: <Plus className="h-4 w-4" />
                       }}
-                      className="h-12 text-[16px] rounded-xl border-border bg-background"
+                      className="h-12 text-[16px] rounded-xl border-border bg-background uppercase"
                       disabled={loading}
                     />
                   </div>

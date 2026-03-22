@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns/format';
 import { ptBR } from 'date-fns/locale/pt-BR';
+import { formatarData } from '@/lib/date-utils';
 import { Edit2, Trash2 } from 'lucide-react';
 import type { ProductEntry } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -88,12 +89,12 @@ export function RecentEntriesList() {
                   Lote: {entrada.lote} | Qtd: {entrada.quantidade} {entrada.produto?.unidade_medida}
                 </p>
                 <p className="text-xs text-gray-500">
-                  Venc: {format(new Date(entrada.vencimento), 'dd/MM/yyyy', { locale: ptBR })}
+                  Venc: {formatarData(entrada.vencimento)}
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <Badge variant="secondary">
-                  {format(new Date(entrada.data_entrada), 'dd/MM', { locale: ptBR })}
+                  {formatarData(entrada.data_entrada, 'dd/MM')}
                 </Badge>
                 {isAdmin && (
                   <div className="flex gap-1">

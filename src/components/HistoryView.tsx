@@ -2,6 +2,7 @@
 import React from 'react';
 import { History } from 'lucide-react';
 import { format } from 'date-fns';
+import { formatarData } from '@/lib/date-utils';
 import { useHistoryData, useHistoryFilters, HistoryStats, HistoryFilters, HistoryTabs } from './history';
 
 export function HistoryView() {
@@ -56,7 +57,7 @@ export function HistoryView() {
   const getMovimentacoesHoje = () => {
     const hoje = format(new Date(), 'yyyy-MM-dd');
     return movimentacoes.filter(mov => 
-      format(new Date(mov.data), 'yyyy-MM-dd') === hoje
+      formatarData(mov.data, 'yyyy-MM-dd') === hoje
     ).length;
   };
 

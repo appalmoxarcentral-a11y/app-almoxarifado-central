@@ -9,6 +9,7 @@ import { SearchableModal } from '@/components/ui/searchable-modal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns/format';
 import { ptBR } from 'date-fns/locale/pt-BR';
+import { formatarData } from '@/lib/date-utils';
 import { Product } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -68,12 +69,7 @@ export function ProductSelection({
   };
 
   const formatVencimento = (vencimento: string) => {
-    try {
-      const date = new Date(vencimento + 'T12:00:00');
-      return format(date, 'dd/MM/yyyy', { locale: ptBR });
-    } catch (e) {
-      return vencimento;
-    }
+    return formatarData(vencimento);
   };
 
   return (

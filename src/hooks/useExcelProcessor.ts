@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ExcelProductRow, ProcessResult } from '@/utils/excelUtils';
+import { format } from 'date-fns';
 
 export const useExcelProcessor = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -65,7 +66,7 @@ export const useExcelProcessor = () => {
                   quantidade: row.quantidade,
                   lote: row.lote!,
                   vencimento: row.vencimento!,
-                  data_entrada: row.data_entrada || new Date().toISOString().split('T')[0],
+                  data_entrada: row.data_entrada || format(new Date(), 'yyyy-MM-dd'),
                   usuario_id: user.id
                 });
 
@@ -133,7 +134,7 @@ export const useExcelProcessor = () => {
               quantidade: row.quantidade,
               lote: row.lote!,
               vencimento: row.vencimento!,
-              data_entrada: row.data_entrada || new Date().toISOString().split('T')[0],
+              data_entrada: row.data_entrada || format(new Date(), 'yyyy-MM-dd'),
               usuario_id: user.id
             });
 

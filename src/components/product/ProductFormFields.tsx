@@ -34,9 +34,10 @@ export function ProductFormFields({ formData, onFormDataChange, unidadesMedida, 
   const handleAddUnit = async (descricao: string) => {
     if (!descricao.trim()) return;
     
+    const uppercaseDescricao = descricao.trim().toUpperCase();
     // Tenta extrair um código simples (ex: primeiras 2-3 letras)
-    const suggestedCode = descricao.trim().substring(0, 3).toUpperCase();
-    const finalCode = prompt(`Informe o código para a nova unidade "${descricao}":`, suggestedCode);
+    const suggestedCode = uppercaseDescricao.substring(0, 3);
+    const finalCode = prompt(`Informe o código para a nova unidade "${uppercaseDescricao}":`, suggestedCode);
     
     if (!finalCode) return;
 
@@ -46,7 +47,7 @@ export function ProductFormFields({ formData, onFormDataChange, unidadesMedida, 
         .from('unidades_medida')
         .insert([{ 
           codigo: finalCode.toUpperCase(), 
-          descricao: descricao.trim(),
+          descricao: uppercaseDescricao,
           ativo: true
         }]);
 
@@ -54,7 +55,7 @@ export function ProductFormFields({ formData, onFormDataChange, unidadesMedida, 
 
       toast({
         title: "Unidade adicionada!",
-        description: `A unidade ${descricao} foi cadastrada com sucesso.`,
+        description: `A unidade ${uppercaseDescricao} foi cadastrada com sucesso.`,
       });
 
       queryClient.invalidateQueries({ queryKey: ['unidades-medida-admin'] });
@@ -78,10 +79,10 @@ export function ProductFormFields({ formData, onFormDataChange, unidadesMedida, 
         <Input
           id="descricao"
           value={formData.descricao}
-          onChange={(e) => onFormDataChange((prev: any) => ({ ...prev, descricao: e.target.value }))}
+          onChange={(e) => onFormDataChange((prev: any) => ({ ...prev, descricao: e.target.value.toUpperCase() }))}
           placeholder="Ex: Dipirona 500mg"
           required
-          className="h-12 text-[16px]"
+          className="h-12 text-[16px] uppercase"
         />
       </div>
 
@@ -94,7 +95,7 @@ export function ProductFormFields({ formData, onFormDataChange, unidadesMedida, 
             onChange={(e) => onFormDataChange((prev: any) => ({ ...prev, codigo: e.target.value.toUpperCase() }))}
             placeholder="Ex: DIP500"
             required
-            className={`h-12 text-[16px] ${isDuplicate ? "border-red-500" : ""}`}
+            className={`h-12 text-[16px] uppercase ${isDuplicate ? "border-red-500" : ""}`}
           />
           <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
             {isValidating && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
@@ -152,10 +153,10 @@ export function ProductFormFields({ formData, onFormDataChange, unidadesMedida, 
           emptyAction={{
             label: "Adicionar",
             isLoading: isAddingUnit,
-            onClick: (val) => handleAddUnit(val),
+            onClick: (val) => handleAddUnit(val.toUpperCase()),
             icon: <Plus className="h-4 w-4" />
           }}
-          className="h-12 text-[16px]"
+          className="h-12 text-[16px] uppercase"
         />
       </div>
     </div>

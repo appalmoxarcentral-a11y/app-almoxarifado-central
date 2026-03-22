@@ -98,7 +98,7 @@ export function ProductEntryFormFields({
           <Input
             id="lote"
             value={lote}
-            onChange={(e) => setLote(e.target.value)}
+            onChange={(e) => setLote(e.target.value.toUpperCase())}
             placeholder="Ex: LOT001"
             className="h-12 text-[16px] rounded-xl border-border bg-background"
           />

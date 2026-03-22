@@ -4,8 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatarData } from '@/lib/date-utils';
 import type { Dispensation } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -76,7 +75,7 @@ export function RecentDispensations({ dispensacoes, isLoading, onDelete }: Recen
                   
                   <div className="flex flex-col items-end gap-2">
                     <Badge variant="secondary" className="bg-primary/10 text-primary border-none font-bold text-[10px]">
-                      {format(new Date(dispensacao.data_dispensa), 'dd/MM', { locale: ptBR })}
+                      {formatarData(dispensacao.data_dispensa, 'dd/MM')}
                     </Badge>
 
                     {(isAdmin || hasPermission('pode_excluir')) && onDelete && (

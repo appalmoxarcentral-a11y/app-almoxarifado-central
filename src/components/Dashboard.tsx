@@ -5,9 +5,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Activity, Users, Package, TrendingUp, TrendingDown, AlertTriangle, Calendar, AlertCircle } from 'lucide-react';
-import { format } from 'date-fns/format';
+import { format } from 'date-fns';
 import { startOfMonth } from 'date-fns/startOfMonth';
+import { formatarData, formatarDataHora } from '@/lib/date-utils';
 import { ptBR } from 'date-fns/locale/pt-BR';
+import type { Product, Patient, Dispensation, ProductEntry } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
@@ -63,7 +65,7 @@ export function Dashboard() {
   const { data: entradasMes } = useQuery({
     queryKey: ['entradas-mes', unidadeId],
     queryFn: async () => {
-      const inicioMes = startOfMonth(new Date()).toISOString().split('T')[0];
+      const inicioMes = format(startOfMonth(new Date()), 'yyyy-MM-dd');
       let query = supabase.from('entradas_produtos').select('quantidade').gte('data_entrada', inicioMes);
       
       if (unidadeId) {
@@ -80,7 +82,7 @@ export function Dashboard() {
   const { data: dispensacoesMes } = useQuery({
     queryKey: ['dispensacoes-mes', unidadeId],
     queryFn: async () => {
-      const inicioMes = startOfMonth(new Date()).toISOString().split('T')[0];
+      const inicioMes = format(startOfMonth(new Date()), 'yyyy-MM-dd');
       let query = supabase
         .from('dispensacoes')
         .select('quantidade, is_parcial')
@@ -110,7 +112,7 @@ export function Dashboard() {
       let query = supabase
         .from('entradas_produtos')
         .select(`vencimento, lote, quantidade, produtos:produto_id (descricao, codigo)`)
-        .lte('vencimento', proximosMes.toISOString().split('T')[0]);
+        .lte('vencimento', format(proximosMes, 'yyyy-MM-dd'));
       
       if (unidadeId) {
         query = query.eq('unidade_id', unidadeId);
@@ -151,7 +153,7 @@ export function Dashboard() {
   const { data: movimentacoesRecentes } = useQuery({
     queryKey: ['movimentacoes-recentes', unidadeId],
     queryFn: async () => {
-      const hoje = new Date().toISOString().split('T')[0];
+      const hoje = format(new Date(), 'yyyy-MM-dd');
       
       let entradasQuery = supabase.from('entradas_produtos').select(`*, produtos:produto_id (descricao)`).eq('data_entrada', hoje);
       let dispensacoesQuery = supabase.from('dispensacoes').select(`*, produtos:produto_id (descricao), pacientes:paciente_id (nome)`).eq('data_dispensa', hoje);
@@ -311,7 +313,7 @@ export function Dashboard() {
                     </div>
                     <div className="text-right">
                       <Badge variant="secondary" className="text-xs">
-                        {format(new Date(entrada.vencimento), 'dd/MM/yyyy', { locale: ptBR })}
+                        {formatarData(entrada.vencimento)}
                       </Badge>
                       <p className="text-[10px] text-muted-foreground mt-1">{entrada.quantidade} un.</p>
                     </div>
@@ -366,7 +368,7 @@ export function Dashboard() {
                       )}
                     </Badge>
                     <p className="text-[10px] text-muted-foreground mt-1">
-                      {format(new Date(mov.created_at || ''), 'HH:mm', { locale: ptBR })}
+                      {formatarDataHora(mov.created_at, 'HH:mm')}
                     </p>
                   </div>
                 </div>

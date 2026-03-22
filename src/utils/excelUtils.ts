@@ -1,6 +1,7 @@
 
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
+import { format } from 'date-fns';
 import { Product, ProductEntry } from '@/types';
 
 export interface ExcelProductRow {
@@ -38,7 +39,7 @@ const convertExcelDate = (value: any): string | undefined => {
     
     // Verificar se a data é válida
     if (!isNaN(date.getTime())) {
-      return date.toISOString().split('T')[0];
+      return format(date, 'yyyy-MM-dd');
     }
   }
   
@@ -46,7 +47,7 @@ const convertExcelDate = (value: any): string | undefined => {
   if (typeof value === 'string') {
     const date = new Date(value);
     if (!isNaN(date.getTime())) {
-      return date.toISOString().split('T')[0];
+      return format(date, 'yyyy-MM-dd');
     }
   }
   

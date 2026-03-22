@@ -5,8 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp } from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatarData } from '@/lib/date-utils';
 import type { ProductEntry } from '@/types';
 
 interface EntriesOnlyViewProps {
@@ -76,7 +75,7 @@ export function EntriesOnlyView({
           <div key={entrada.id} className="border rounded-lg p-4 bg-card space-y-3">
             <div className="flex justify-between items-start">
               <span className="text-xs text-muted-foreground">
-                {format(new Date(entrada.data_entrada), 'dd/MM/yyyy', { locale: ptBR })}
+                {formatarData(entrada.data_entrada)}
               </span>
               <Badge variant="default" className="text-[10px]">
                 <TrendingUp className="h-3 w-3 mr-1" /> Entrada
@@ -100,7 +99,7 @@ export function EntriesOnlyView({
             <div className="pt-2 border-t flex justify-between items-center">
               <span className="text-xs text-muted-foreground">Vencimento:</span>
               <span className="text-xs font-medium">
-                {format(new Date(entrada.vencimento), 'dd/MM/yyyy', { locale: ptBR })}
+                {formatarData(entrada.vencimento)}
               </span>
             </div>
           </div>
@@ -129,7 +128,7 @@ export function EntriesOnlyView({
             {entradas?.map((entrada) => (
               <TableRow key={entrada.id}>
                 <TableCell className="text-xs md:text-sm">
-                  {format(new Date(entrada.data_entrada), 'dd/MM/yy', { locale: ptBR })}
+                  {formatarData(entrada.data_entrada, 'dd/MM/yy')}
                 </TableCell>
                 <TableCell>
                   <Badge variant="default" className="text-xs">
@@ -142,7 +141,7 @@ export function EntriesOnlyView({
                 <TableCell className="text-xs md:text-sm">{entrada.quantidade}</TableCell>
                 <TableCell className="text-xs md:text-sm">{entrada.lote}</TableCell>
                 <TableCell className="text-xs md:text-sm">
-                  {format(new Date(entrada.vencimento), 'dd/MM/yy', { locale: ptBR })}
+                  {formatarData(entrada.vencimento, 'dd/MM/yy')}
                 </TableCell>
               </TableRow>
             ))}

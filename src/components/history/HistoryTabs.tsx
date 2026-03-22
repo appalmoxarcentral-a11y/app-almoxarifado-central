@@ -6,8 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns/format';
-import { ptBR } from 'date-fns/locale/pt-BR';
+import { formatarData, formatarDataHora } from '@/lib/date-utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   StockOnlyTable, 
@@ -99,7 +98,7 @@ export function HistoryTabs({
                   <div className="flex justify-between items-start">
                     <div className="flex flex-col gap-1">
                       <span className="text-xs text-muted-foreground">
-                        {format(new Date(mov.data), 'dd/MM/yyyy', { locale: ptBR })}
+                        {formatarData(mov.data)}
                       </span>
                       {isSuperAdmin && (
                         <span className="text-xs font-medium text-blue-600">
@@ -192,7 +191,7 @@ export function HistoryTabs({
                   {movimentacoes.map((mov, index) => (
                     <TableRow key={`${mov.tipo}-${mov.id}-${index}`}>
                       <TableCell className="text-xs md:text-sm">
-                        {format(new Date(mov.data), 'dd/MM/yy', { locale: ptBR })}
+                        {formatarData(mov.data, 'dd/MM/yy')}
                       </TableCell>
                       {isSuperAdmin && (
                         <TableCell className="text-xs font-medium text-blue-600">
@@ -310,7 +309,7 @@ export function HistoryTabs({
                       )}
                     </div>
                     <Badge variant="outline" className="text-xs self-start">
-                      {format(new Date(log.created_at || ''), 'dd/MM HH:mm', { locale: ptBR })}
+                      {formatarDataHora(log.created_at, 'dd/MM HH:mm')}
                     </Badge>
                   </div>
                 </div>

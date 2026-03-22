@@ -26,9 +26,9 @@ export function useProductMutations(onSuccess?: () => void) {
       const { data: result, error } = await supabase
         .from('produtos')
         .insert([{
-          descricao: data.descricao,
-          codigo: data.codigo,
-          unidade_medida: data.unidade_medida,
+          descricao: data.descricao.toUpperCase(),
+          codigo: data.codigo.toUpperCase(),
+          unidade_medida: data.unidade_medida.toUpperCase(),
           tenant_id: user?.tenant_id || '00000000-0000-0000-0000-000000000000',
           unidade_id: user?.unidade_id
         }])
@@ -83,9 +83,10 @@ export function useProductMutations(onSuccess?: () => void) {
       const { data: result, error } = await supabase
         .from('produtos')
         .update({
-          descricao: data.descricao,
-          codigo: data.codigo,
-          unidade_medida: data.unidade_medida,
+          descricao: data.descricao.toUpperCase(),
+          codigo: data.codigo.toUpperCase(),
+          unidade_medida: data.unidade_medida.toUpperCase(),
+          unidade_id: user?.unidade_id
         })
         .eq('id', id)
         .select()
