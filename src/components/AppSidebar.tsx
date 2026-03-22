@@ -4,6 +4,8 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 import { Home, Users, Package, PackagePlus, Pill, History, UserCog, LogOut, ShoppingCart, ChevronRight, CreditCard, Building2, BookOpen } from 'lucide-react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ModeToggle } from '@/components/ui/mode-toggle';
+
 export function AppSidebar() {
   const {
     user,
@@ -83,19 +85,19 @@ export function AppSidebar() {
   });
 
   return <Sidebar>
-      <SidebarHeader className="border-b p-4 bg-fuchsia-950">
+      <SidebarHeader className="border-b p-4 bg-sidebar">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
             <Pill className="w-4 h-4 text-primary-foreground" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold">SMSA</h2>
-            <p className="text-xs text-muted-foreground">Sistema Farmácia</p>
+            <h2 className="text-lg font-semibold text-sidebar-foreground">SMSA</h2>
+            <p className="text-xs text-sidebar-foreground/70">Sistema Farmácia</p>
           </div>
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="bg-[#5c0d2b]">
+      <SidebarContent className="bg-sidebar">
         <SidebarMenu>
           {filteredMenuItems.map(item => <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton asChild isActive={isActive(item.url)} className="cursor-pointer">
@@ -173,12 +175,12 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarContent>
 
-      <SidebarFooter className="border-t p-4 bg-fuchsia-950">
-        <div className="space-y-2">
+      <SidebarFooter className="border-t p-4 bg-sidebar">
+        <div className="space-y-2 text-sidebar-foreground">
           <div className="text-sm">
             <p className="font-medium">{user?.nome}</p>
-            <p className="text-xs text-muted-foreground">{user?.email}</p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-sidebar-foreground/70">{user?.email}</p>
+            <p className="text-xs text-sidebar-foreground/70">
               {user?.tipo === 'SUPER_ADMIN' ? 'Super Administrador' : 
                user?.tipo === 'ADMIN' ? 'Administrador' : 'Usuário Comum'}
             </p>

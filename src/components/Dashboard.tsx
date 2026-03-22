@@ -185,13 +185,13 @@ export function Dashboard() {
       </div>
 
       {isSubscriptionBlocked && (
-        <div className="bg-red-50 p-4 rounded-lg border border-red-200 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-          <AlertCircle className="h-5 w-5 text-red-600 shrink-0" />
+        <div className="bg-destructive/10 p-4 rounded-lg border border-destructive/20 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+          <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
           <div className="flex-1">
-            <p className="text-sm font-semibold text-red-800">
+            <p className="text-sm font-semibold text-destructive">
               Acesso Restrito: Sua unidade possui faturas pendentes.
             </p>
-            <p className="text-xs text-red-700">
+            <p className="text-xs text-destructive/80">
               {user?.tipo === 'ADMIN' 
                 ? "As funcionalidades do sistema estão bloqueadas. Regularize sua assinatura para liberar o acesso total."
                 : "Entre em contato com o administrador da sua unidade para regularizar a assinatura."}
@@ -199,7 +199,7 @@ export function Dashboard() {
           </div>
           {user?.tipo === 'ADMIN' && (
             <Badge 
-              className="bg-red-600 hover:bg-red-700 cursor-pointer"
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground cursor-pointer"
               onClick={() => window.location.href = '/assinatura'}
             >
               Ir para Pagamento

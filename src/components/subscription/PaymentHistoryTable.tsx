@@ -259,59 +259,54 @@ export function PaymentHistoryTable() {
   }
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-      <div className="p-6 border-b border-slate-800 bg-slate-950/50">
-        <h3 className="text-lg font-bold text-white">Histórico de Cobrança</h3>
-        <p className="text-slate-400 text-sm">Faturas e comprovantes de pagamento</p>
+    <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-xl">
+      <div className="p-6 border-b border-border bg-muted/50">
+        <h3 className="text-lg font-bold text-foreground">Histórico de Cobrança</h3>
+        <p className="text-muted-foreground text-sm">Faturas e comprovantes de pagamento</p>
       </div>
       <div className="overflow-x-auto">
         <Table>
-          <TableHeader className="bg-slate-950/30">
-            <TableRow className="border-slate-800 hover:bg-transparent">
-              <TableHead className="text-slate-400 font-bold uppercase tracking-widest text-[10px] py-4">Vencimento</TableHead>
-              <TableHead className="text-slate-400 font-bold uppercase tracking-widest text-[10px] py-4">Valor</TableHead>
-              <TableHead className="text-slate-400 font-bold uppercase tracking-widest text-[10px] py-4">Situação</TableHead>
-              <TableHead className="text-slate-400 font-bold uppercase tracking-widest text-[10px] py-4">Próximo Ciclo</TableHead>
-              <TableHead className="text-slate-400 font-bold uppercase tracking-widest text-[10px] py-4">Pagamento</TableHead>
-              <TableHead className="text-slate-400 font-bold uppercase tracking-widest text-[10px] py-4 text-right">Ações</TableHead>
+          <TableHeader className="bg-muted/30">
+            <TableRow className="border-border hover:bg-transparent">
+              <TableHead className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] py-4">Vencimento</TableHead>
+              <TableHead className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] py-4">Valor</TableHead>
+              <TableHead className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] py-4">Situação</TableHead>
+              <TableHead className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] py-4">Próximo Ciclo</TableHead>
+              <TableHead className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] py-4">Pagamento</TableHead>
+              <TableHead className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] py-4 text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {invoices.map((invoice, index) => {
-              // Lógica de encadeamento de datas sugerida pelo usuário:
-              // O Vencimento desta fatura deve ser o Próximo Ciclo da fatura anterior (se houver)
-              // O Próximo Ciclo desta fatura deve ser 1 mês após o Vencimento
+              // ... existing logic ...
               
               let displayDueDate = invoice.due_date;
               let displayNextCycle = invoice.next_cycle_date;
 
-              // Se houver uma fatura anterior (mais antiga na lista, ou seja, index + 1)
               const previousInvoice = invoices[index + 1];
               if (previousInvoice && previousInvoice.next_cycle_date) {
                 displayDueDate = previousInvoice.next_cycle_date;
               }
 
-              // Se o próximo ciclo estiver vazio ou for o caso de AGUARDANDO, calculamos 1 mês após o vencimento
               if (!displayNextCycle && displayDueDate) {
                 const date = new Date(displayDueDate);
                 date.setMonth(date.getMonth() + 1);
                 displayNextCycle = date.toISOString();
               } else if (displayDueDate && invoice.status === 'waiting') {
-                // Forçar 1 mês após o vencimento para faturas em aguardando para manter o padrão 18/04 -> 18/05
                 const date = new Date(displayDueDate);
                 date.setMonth(date.getMonth() + 1);
                 displayNextCycle = date.toISOString();
               }
 
               return (
-                <TableRow key={invoice.id} className="border-slate-800 hover:bg-slate-800/30 transition-colors">
-                  <TableCell className="text-white font-bold py-4">
+                <TableRow key={invoice.id} className="border-border hover:bg-muted/30 transition-colors">
+                  <TableCell className="text-foreground font-bold py-4">
                       <div className="flex flex-col">
                         <span>{displayDueDate ? new Date(displayDueDate).toLocaleDateString('pt-BR') : '-'}</span>
-                        <span className="text-[10px] text-slate-400">23:59</span>
+                        <span className="text-[10px] text-muted-foreground">23:59</span>
                       </div>
                   </TableCell>
-                  <TableCell className="text-white font-bold py-4">
+                  <TableCell className="text-foreground font-bold py-4">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(invoice.amount))}
                   </TableCell>
                   <TableCell className="py-4">
@@ -335,13 +330,13 @@ export function PaymentHistoryTable() {
                       </div>
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-white font-bold py-4">
+                  <TableCell className="text-foreground font-bold py-4">
                       <div className="flex flex-col">
                         <span>{displayNextCycle ? new Date(displayNextCycle).toLocaleDateString('pt-BR') : '-'}</span>
-                        <span className="text-[10px] text-slate-400">23:59</span>
+                        <span className="text-[10px] text-muted-foreground">23:59</span>
                       </div>
                   </TableCell>
-                  <TableCell className="text-slate-400 py-4 font-mono text-xs">
+                  <TableCell className="text-muted-foreground py-4 font-mono text-xs">
                       {invoice.status === 'paid' && invoice.payment_date 
                         ? new Date(invoice.payment_date).toLocaleDateString('pt-BR') 
                         : '-'}
@@ -353,7 +348,7 @@ export function PaymentHistoryTable() {
                       variant="ghost" 
                       onClick={() => handleViewDetails(invoice)}
                       disabled={invoice.status === 'paid'}
-                      className="h-8 w-8 p-0 text-slate-400 hover:text-white hover:bg-slate-800"
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted"
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
@@ -373,7 +368,7 @@ export function PaymentHistoryTable() {
                         size="sm" 
                         variant="outline" 
                         onClick={() => copyToClipboard(invoice.pix_code!)}
-                        className="h-8 border-slate-700 text-slate-300 hover:bg-slate-800"
+                        className="h-8 border-border text-muted-foreground hover:bg-muted"
                       >
                         <Copy className="h-3.5 w-3.5 mr-2" />
                         PIX
@@ -385,7 +380,7 @@ export function PaymentHistoryTable() {
                         size="sm" 
                         variant="ghost" 
                         onClick={() => handleDeleteInvoice(invoice.id)}
-                        className="h-8 w-8 p-0 text-rose-500/50 hover:text-rose-500 hover:bg-rose-500/10"
+                        className="h-8 w-8 p-0 text-destructive/50 hover:text-destructive hover:bg-destructive/10"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

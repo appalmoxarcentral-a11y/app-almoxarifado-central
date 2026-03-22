@@ -98,28 +98,29 @@ export function SignUp() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-background py-12 px-4 sm:px-6 lg:px-8">
+      <Card className="w-full max-w-md border-border bg-card">
         <CardHeader>
-          <CardTitle className="text-center">Criar Conta</CardTitle>
-          <CardDescription className="text-center">
+          <CardTitle className="text-center text-foreground">Criar Conta</CardTitle>
+          <CardDescription className="text-center text-muted-foreground">
             Comece a gerenciar seu estoque hoje mesmo.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSignUp} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="nome">Nome Completo</Label>
+              <Label htmlFor="nome" className="text-foreground">Nome Completo</Label>
               <Input
                 id="nome"
                 required
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
                 placeholder="Seu nome"
+                className="bg-background border-border text-foreground"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-foreground">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -127,20 +128,22 @@ export function SignUp() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="seu@email.com"
+                className="bg-background border-border text-foreground"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="telefone">WhatsApp / Telefone</Label>
+              <Label htmlFor="telefone" className="text-foreground">WhatsApp / Telefone</Label>
               <Input
                 id="telefone"
                 required
                 value={telefone}
                 onChange={handleTelefoneChange}
                 placeholder="(00) 90000-0000"
+                className="bg-background border-border text-foreground"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+              <Label htmlFor="password" className="text-foreground">Senha</Label>
               <Input
                 id="password"
                 type="password"
@@ -148,15 +151,16 @@ export function SignUp() {
                 value={senha}
                 onChange={(e) => setSenha(e.target.value)}
                 placeholder="******"
+                className="bg-background border-border text-foreground"
               />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={loading}>
               {loading ? 'Criando conta...' : 'Cadastrar'}
             </Button>
           </form>
         </CardContent>
         <CardFooter className="flex justify-center">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             Já tem uma conta?{' '}
             <Link to="/login" className="font-medium text-primary hover:text-primary/80">
               Fazer Login

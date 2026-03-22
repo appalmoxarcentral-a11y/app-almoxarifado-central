@@ -116,18 +116,18 @@ export function SelectUnidade() {
   });
 
   return (
-    <div className="min-h-screen bg-zinc-50 flex flex-col items-center">
+    <div className="min-h-screen bg-background flex flex-col items-center">
       <div className="w-full max-w-5xl px-4 py-12 md:py-20 space-y-12">
         {/* Header */}
         <div className="text-center space-y-4 animate-in fade-in slide-in-from-top-4 duration-700">
-          <div className="mx-auto w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center border border-emerald-100 shadow-sm">
-            <Building2 className="h-8 w-8 text-emerald-600" />
+          <div className="mx-auto w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center border border-emerald-500/20 shadow-sm">
+            <Building2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div className="space-y-2">
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-zinc-900">
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-foreground">
               Selecione sua Unidade de Saúde
             </h1>
-            <p className="text-zinc-500 max-w-md mx-auto">
+            <p className="text-muted-foreground max-w-md mx-auto">
               Para continuar, você precisa estar vinculado a uma unidade de atendimento.
             </p>
           </div>
@@ -136,17 +136,17 @@ export function SelectUnidade() {
         {/* Filters */}
         <div className="flex flex-col md:flex-row gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150">
           <div className="relative flex-1 group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400 group-focus-within:text-emerald-400 transition-colors" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-emerald-500 transition-colors" />
             <Input
               placeholder="Buscar por nome, código ou bairro..."
-              className="h-14 pl-12 bg-[#060C14] border-none text-white placeholder:text-zinc-500 rounded-2xl shadow-xl focus-visible:ring-2 focus-visible:ring-emerald-500 transition-all"
+              className="h-14 pl-12 bg-card border-border text-foreground placeholder:text-muted-foreground rounded-2xl shadow-xl focus-visible:ring-2 focus-visible:ring-emerald-500 transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           <div className="w-full md:w-72">
             <select
-              className="w-full h-14 px-4 bg-white border border-zinc-200 text-zinc-700 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all appearance-none cursor-pointer"
+              className="w-full h-14 px-4 bg-card border border-border text-foreground rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all appearance-none cursor-pointer"
               value={selectedBairro}
               onChange={(e) => setSelectedBairro(e.target.value)}
             >
@@ -161,24 +161,24 @@ export function SelectUnidade() {
         {/* Units List/Grid */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 space-y-4">
-            <Loader2 className="h-10 w-10 animate-spin text-emerald-600" />
-            <p className="text-sm text-zinc-500 font-medium">Carregando unidades disponíveis...</p>
+            <Loader2 className="h-10 w-10 animate-spin text-emerald-600 dark:text-emerald-400" />
+            <p className="text-sm text-muted-foreground font-medium">Carregando unidades disponíveis...</p>
           </div>
         ) : filteredUnidades.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
             {filteredUnidades.map((unidade) => (
               <div 
                 key={unidade.id} 
-                className="group relative bg-white border border-zinc-200 rounded-[2rem] overflow-hidden hover:shadow-2xl hover:-translate-y-1 transition-all duration-500"
+                className="group relative bg-card border border-border rounded-[2rem] overflow-hidden hover:shadow-2xl hover:-translate-y-1 transition-all duration-500"
               >
                 {/* Header do Card */}
                 <div className="p-8 space-y-4">
                   <div className="flex justify-between items-start gap-4">
                     <div className="space-y-1">
-                      <h3 className="text-xl font-bold text-emerald-800 leading-tight uppercase">
+                      <h3 className="text-xl font-bold text-emerald-800 dark:text-emerald-400 leading-tight uppercase">
                         {unidade.nome}
                       </h3>
-                      <Badge variant="outline" className="bg-zinc-50 text-[10px] font-mono border-zinc-200 text-zinc-500 uppercase">
+                      <Badge variant="outline" className="bg-muted text-[10px] font-mono border-border text-muted-foreground uppercase">
                         {unidade.codigo}
                       </Badge>
                     </div>
@@ -186,29 +186,29 @@ export function SelectUnidade() {
                 </div>
 
                 {/* Dark Info Band */}
-                <div className="bg-[#060C14] px-8 py-6 flex items-start gap-4">
+                <div className="bg-muted px-8 py-6 flex items-start gap-4">
                   <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center shrink-0">
-                    <MapPin className="h-5 w-5 text-emerald-400" />
+                    <MapPin className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                   </div>
                   <div className="space-y-0.5 min-w-0">
-                    <p className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Localização</p>
-                    <p className="text-zinc-100 text-sm truncate font-medium">
+                    <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Localização</p>
+                    <p className="text-foreground text-sm truncate font-medium">
                       {unidade.endereco || '-'}
                     </p>
-                    <p className="text-zinc-500 text-xs truncate">
+                    <p className="text-muted-foreground text-xs truncate">
                       {unidade.bairro} • {unidade.cidade}
                     </p>
                   </div>
                 </div>
 
                 {/* Footer do Card */}
-                <div className="p-6 bg-white flex justify-end">
+                <div className="p-6 bg-card flex justify-end">
                   <Button 
                     className={cn(
                       "h-12 px-8 rounded-xl font-bold transition-all gap-2",
                       selecting === unidade.id 
-                        ? "bg-zinc-100 text-zinc-400" 
-                        : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-200"
+                        ? "bg-muted text-muted-foreground" 
+                        : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-200 dark:shadow-none"
                     )}
                     disabled={selecting !== null}
                     onClick={() => handleSelect(unidade.id)}
@@ -225,17 +225,17 @@ export function SelectUnidade() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-24 bg-white rounded-[2rem] border-2 border-dashed border-zinc-200 space-y-6">
-            <div className="mx-auto w-20 h-20 bg-zinc-50 rounded-full flex items-center justify-center">
-              <Building2 className="h-10 w-10 text-zinc-300" />
+          <div className="text-center py-24 bg-card rounded-[2rem] border-2 border-dashed border-border space-y-6">
+            <div className="mx-auto w-20 h-20 bg-muted rounded-full flex items-center justify-center">
+              <Building2 className="h-10 w-10 text-muted-foreground/50" />
             </div>
             <div className="space-y-2">
-              <h3 className="text-xl font-bold text-zinc-900">Nenhuma unidade encontrada</h3>
-              <p className="text-zinc-500 max-w-xs mx-auto">Tente ajustar sua busca ou filtro de bairro.</p>
+              <h3 className="text-xl font-bold text-foreground">Nenhuma unidade encontrada</h3>
+              <p className="text-muted-foreground max-w-xs mx-auto">Tente ajustar sua busca ou filtro de bairro.</p>
             </div>
             <Button 
               variant="outline" 
-              className="rounded-xl px-8 h-12 border-zinc-200 hover:bg-zinc-50 transition-colors"
+              className="rounded-xl px-8 h-12 border-border hover:bg-muted transition-colors"
               onClick={() => { setSearchTerm(''); setSelectedBairro('todos'); }}
             >
               Limpar Filtros
@@ -244,15 +244,15 @@ export function SelectUnidade() {
         )}
 
         {/* Footer Info */}
-        <div className="pt-12 border-t border-zinc-200 flex flex-col md:flex-row justify-between items-center gap-6 text-sm">
-          <div className="flex items-center gap-3 text-zinc-400 bg-zinc-100/50 px-4 py-2 rounded-full border border-zinc-200/50">
+        <div className="pt-12 border-t border-border flex flex-col md:flex-row justify-between items-center gap-6 text-sm">
+          <div className="flex items-center gap-3 text-muted-foreground bg-muted/50 px-4 py-2 rounded-full border border-border/50">
             <Info className="h-4 w-4 text-emerald-500" />
             <span>Dúvidas? Entre em contato com o suporte.</span>
           </div>
           <Button 
             variant="ghost" 
             onClick={logout} 
-            className="text-zinc-500 hover:text-red-500 hover:bg-red-50 rounded-full transition-all gap-2"
+            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full transition-all gap-2"
           >
             Sair do sistema
             <ArrowRight className="h-4 w-4" />

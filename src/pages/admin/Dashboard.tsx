@@ -52,24 +52,24 @@ export function AdminDashboard() {
   if (error) {
     return (
         <div className="flex justify-center items-center h-screen flex-col gap-4">
-            <h1 className="text-2xl font-bold text-red-600">Acesso Negado</h1>
-            <p className="text-gray-600">{(error as any).message || "Você não tem permissão para acessar o painel administrativo."}</p>
+            <h1 className="text-2xl font-bold text-destructive">Acesso Negado</h1>
+            <p className="text-muted-foreground">{(error as any).message || "Você não tem permissão para acessar o painel administrativo."}</p>
         </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
+    <div className="min-h-screen bg-background p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-gray-900">Painel Administrativo SaaS</h1>
-            <Badge variant="outline" className="bg-white">Super Admin</Badge>
+            <h1 className="text-3xl font-bold text-foreground">Painel Administrativo SaaS</h1>
+            <Badge variant="outline" className="bg-card">Super Admin</Badge>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Total de Clientes</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total de Clientes</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-4xl font-bold">{tenants?.length || 0}</div>
@@ -77,20 +77,20 @@ export function AdminDashboard() {
           </Card>
            <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Assinaturas Ativas</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Assinaturas Ativas</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold text-green-600">
+              <div className="text-4xl font-bold text-emerald-500">
                 {tenants?.filter((t: any) => t.status?.toLowerCase() === 'active' || t.status?.toLowerCase() === 'paid' || t.status?.toLowerCase() === 'waiting').length || 0}
               </div>
             </CardContent>
           </Card>
            <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Em Trial</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Em Trial</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold text-blue-600">
+              <div className="text-4xl font-bold text-blue-500">
                 {tenants?.filter((t: any) => t.status === 'trialing').length || 0}
               </div>
             </CardContent>

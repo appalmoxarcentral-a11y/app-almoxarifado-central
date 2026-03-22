@@ -10,6 +10,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import useEmblaCarousel from 'embla-carousel-react';
 import type { User } from "@/types";
+import { ModeToggle } from "./ui/mode-toggle";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -82,7 +83,7 @@ export function Layout({ children }: LayoutProps) {
           {/* Header */}
           <header className="bg-card border-b border-border px-4 py-3 flex justify-between items-center sticky top-0 z-40 w-full max-w-full">
             <div className="flex items-center gap-2 md:gap-3 overflow-hidden">
-              {!isMobile && <SidebarTrigger className="shrink-0" />}
+              <SidebarTrigger className="shrink-0" />
               {isMobile && (
                 <div className="flex items-center gap-1.5 shrink-0 overflow-hidden max-w-[150px]">
                   <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center shrink-0">
@@ -98,29 +99,35 @@ export function Layout({ children }: LayoutProps) {
               {/* Unidade em Destaque */}
               {user?.unidade_nome && (
                 <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-                  <Building2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                  <span className="text-xs font-bold text-emerald-700 uppercase tracking-wide truncate max-w-[200px]">
+                  <Building2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide truncate max-w-[200px]">
                     {user.unidade_nome}
                   </span>
                 </div>
               )}
               
-              <div className="flex items-center gap-1.5 md:gap-2">
-                <UserIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="text-sm font-bold text-foreground truncate max-w-[80px] md:max-w-[150px]">
-                  {isMobile ? firstName : user?.nome}
-                </span>
-                <Badge 
-                  variant={user?.tipo === 'SUPER_ADMIN' ? 'destructive' : user?.tipo === 'ADMIN' ? 'default' : 'secondary'} 
-                  className="text-[9px] md:text-[10px] shrink-0 font-black uppercase"
-                >
-                  {user?.tipo === 'SUPER_ADMIN' ? 'SUPER' : user?.tipo === 'ADMIN' ? 'ADMIN' : 'COMUM'}
-                </Badge>
+              <div className="flex items-center gap-2 md:gap-4">
+                <div className="flex items-center gap-1.5 md:gap-2">
+                  <UserIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="text-sm font-bold text-foreground truncate max-w-[80px] md:max-w-[150px]">
+                    {isMobile ? firstName : user?.nome}
+                  </span>
+                  <Badge 
+                    variant={user?.tipo === 'SUPER_ADMIN' ? 'destructive' : user?.tipo === 'ADMIN' ? 'default' : 'secondary'} 
+                    className="text-[9px] md:text-[10px] shrink-0 font-black uppercase"
+                  >
+                    {user?.tipo === 'SUPER_ADMIN' ? 'SUPER' : user?.tipo === 'ADMIN' ? 'ADMIN' : 'COMUM'}
+                  </Badge>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <ModeToggle />
+                  <Button variant="ghost" size="icon" onClick={logout} className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                    <LogOut className="h-4 w-4" />
+                    <span className="sr-only">Sair</span>
+                  </Button>
+                </div>
               </div>
-              <Button variant="outline" size="sm" onClick={logout} className="shrink-0">
-                <LogOut className="h-4 w-4 md:mr-2" />
-                <span className="hidden md:inline">Sair</span>
-              </Button>
             </div>
           </header>
           

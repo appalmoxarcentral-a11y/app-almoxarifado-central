@@ -141,14 +141,14 @@ export function PatientDispensationView({ searchTerm }: PatientDispensationViewP
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <User className="h-5 w-5 text-blue-600" />
+                <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 <div>
-                  <div className="text-lg font-semibold">{paciente.nome}</div>
-                  <div className="text-sm text-gray-600">SUS/CPF: {paciente.sus_cpf}</div>
+                  <div className="text-lg font-semibold text-foreground">{paciente.nome}</div>
+                  <div className="text-sm text-muted-foreground">SUS/CPF: {paciente.sus_cpf}</div>
                 </div>
               </div>
               {paciente.is_health_worker && (
-                <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-none flex items-center gap-1">
+                <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 border-none flex items-center gap-1">
                   <Briefcase className="h-4 w-4" />
                   Receptor: {paciente.sector}
                 </Badge>
@@ -157,25 +157,25 @@ export function PatientDispensationView({ searchTerm }: PatientDispensationViewP
           </CardHeader>
           <CardContent>
             {/* Resumo do paciente/receptor */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 p-4 bg-muted rounded-lg border border-border">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 p-4 bg-muted/50 rounded-lg border border-border">
               <div className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-green-600" />
+                <Package className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 <div>
-                  <p className="text-xs text-gray-600">Produtos Diferentes</p>
+                  <p className="text-xs text-muted-foreground">Produtos Diferentes</p>
                   <p className="font-semibold">{paciente.total_produtos_diferentes}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-blue-600" />
+                <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 <div>
-                  <p className="text-xs text-gray-600">Total Dispensações</p>
+                  <p className="text-xs text-muted-foreground">Total Dispensações</p>
                   <p className="font-semibold">{paciente.dispensacoes.length}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-purple-600" />
+                <Package className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                 <div>
-                  <p className="text-xs text-gray-600">Quantidade Total</p>
+                  <p className="text-xs text-muted-foreground">Quantidade Total</p>
                   <p className="font-semibold">{paciente.total_quantidade_dispensada}</p>
                 </div>
               </div>

@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { Layout } from '@/components/Layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { LoginForm } from '@/components/auth/LoginForm';
+import { ThemeProvider } from 'next-themes';
 import { Suspense, lazy } from 'react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 
@@ -45,13 +46,14 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Router>
-          <ErrorBoundary>
-            <Suspense fallback={<LoadingSpinner />}>
-              <Routes>
-                <Route path="/login" element={<LoginForm />} />
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <Router>
+            <ErrorBoundary>
+              <Suspense fallback={<LoadingSpinner />}>
+                <Routes>
+                  <Route path="/login" element={<LoginForm />} />
                 <Route path="/signup" element={<SignUp />} />
                 <Route
                   path="/select-unidade"
@@ -135,6 +137,7 @@ function App() {
         <Toaster />
       </AuthProvider>
     </QueryClientProvider>
+  </ThemeProvider>
   );
 }
 

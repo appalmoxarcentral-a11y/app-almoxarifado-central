@@ -425,19 +425,19 @@ export function SubscriptionForm({ planName, planId, planPrice, subscriptionId, 
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-slate-900 border-slate-800 text-white shadow-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-border text-foreground shadow-2xl">
         <DialogHeader>
           <div className="bg-emerald-500/10 w-fit p-3 rounded-2xl mb-4">
             <QrCode className="h-6 w-6 text-emerald-500" />
           </div>
           <DialogTitle className="text-2xl font-bold tracking-tight">Finalizar Assinatura - Plano {planName}</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-muted-foreground">
             Preencha os dados da sua organização para gerar o faturamento e ativar seu acesso.
           </DialogDescription>
         </DialogHeader>
 
         {missingTenant ? (
-          <div className="bg-rose-500/10 border border-rose-500/30 text-rose-400 p-6 rounded-xl flex flex-col gap-4 mt-4">
+          <div className="bg-destructive/10 border border-destructive/30 text-destructive p-6 rounded-xl flex flex-col gap-4 mt-4">
             <div className="flex items-center gap-3">
               <AlertCircle className="h-5 w-5" />
               <p className="font-bold uppercase tracking-widest text-xs">Atenção Necessária</p>
@@ -445,7 +445,7 @@ export function SubscriptionForm({ planName, planId, planPrice, subscriptionId, 
             <p className="text-sm leading-relaxed">Não foi possível identificar sua organização. Isso geralmente ocorre quando o cadastro inicial não foi concluído corretamente.</p>
             <Button 
               variant="destructive" 
-              className="w-full bg-rose-600 hover:bg-rose-700 font-bold uppercase tracking-widest text-[10px]"
+              className="w-full font-bold uppercase tracking-widest text-[10px]"
               onClick={() => window.location.href = '/onboarding'}
             >
               Concluir Cadastro da Empresa
@@ -455,25 +455,25 @@ export function SubscriptionForm({ planName, planId, planPrice, subscriptionId, 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 py-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="full_name" className="text-slate-400 text-xs font-bold uppercase tracking-widest">Responsável</Label>
-              <Input id="full_name" className="bg-slate-950 border-slate-800 focus:border-emerald-500 transition-colors" {...register('full_name', { required: true })} />
+              <Label htmlFor="full_name" className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Responsável</Label>
+              <Input id="full_name" className="bg-background border-border focus:border-emerald-500 transition-colors" {...register('full_name', { required: true })} />
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-slate-400 text-xs font-bold uppercase tracking-widest">E-mail de Cobrança</Label>
-              <Input id="email" type="email" {...register('email', { required: true })} readOnly className="bg-slate-800/50 border-slate-800 text-slate-500 cursor-not-allowed" />
+              <Label htmlFor="email" className="text-muted-foreground text-xs font-bold uppercase tracking-widest">E-mail de Cobrança</Label>
+              <Input id="email" type="email" {...register('email', { required: true })} readOnly className="bg-muted border-border text-muted-foreground cursor-not-allowed" />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone" className="text-slate-400 text-xs font-bold uppercase tracking-widest">WhatsApp / Telefone</Label>
-              <Input id="phone" className="bg-slate-950 border-slate-800 focus:border-emerald-500" {...register('phone', { required: true })} placeholder="(00) 00000-0000" />
+              <Label htmlFor="phone" className="text-muted-foreground text-xs font-bold uppercase tracking-widest">WhatsApp / Telefone</Label>
+              <Input id="phone" className="bg-background border-border focus:border-emerald-500" {...register('phone', { required: true })} placeholder="(00) 00000-0000" />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="document" className="text-slate-400 text-xs font-bold uppercase tracking-widest">CPF ou CNPJ</Label>
+              <Label htmlFor="document" className="text-muted-foreground text-xs font-bold uppercase tracking-widest">CPF ou CNPJ</Label>
               <Input 
                 id="document" 
-                className="bg-slate-950 border-slate-800 focus:border-emerald-500" 
+                className="bg-background border-border focus:border-emerald-500" 
                 {...register('document', { 
                   required: true,
                   onChange: (e) => {
@@ -487,39 +487,39 @@ export function SubscriptionForm({ planName, planId, planPrice, subscriptionId, 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="company_name" className="text-slate-400 text-xs font-bold uppercase tracking-widest">Nome da Unidade / Razão Social</Label>
-            <Input id="company_name" className="bg-slate-950 border-slate-800 focus:border-emerald-500" {...register('company_name', { required: true })} />
+            <Label htmlFor="company_name" className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Nome da Unidade / Razão Social</Label>
+            <Input id="company_name" className="bg-background border-border focus:border-emerald-500" {...register('company_name', { required: true })} />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="address" className="text-slate-400 text-xs font-bold uppercase tracking-widest">Endereço Completo</Label>
-            <Input id="address" className="bg-slate-950 border-slate-800 focus:border-emerald-500" {...register('address', { required: true })} placeholder="Logradouro, número, bairro" />
+            <Label htmlFor="address" className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Endereço Completo</Label>
+            <Input id="address" className="bg-background border-border focus:border-emerald-500" {...register('address', { required: true })} placeholder="Logradouro, número, bairro" />
           </div>
 
           <div className="grid grid-cols-3 gap-6">
             <div className="col-span-1 space-y-2">
-              <Label htmlFor="postal_code" className="text-slate-400 text-xs font-bold uppercase tracking-widest">CEP</Label>
-              <Input id="postal_code" className="bg-slate-950 border-slate-800 focus:border-emerald-500" {...register('postal_code', { required: true })} />
+              <Label htmlFor="postal_code" className="text-muted-foreground text-xs font-bold uppercase tracking-widest">CEP</Label>
+              <Input id="postal_code" className="bg-background border-border focus:border-emerald-500" {...register('postal_code', { required: true })} />
             </div>
             <div className="col-span-1 space-y-2">
-              <Label htmlFor="city" className="text-slate-400 text-xs font-bold uppercase tracking-widest">Cidade</Label>
-              <Input id="city" className="bg-slate-950 border-slate-800 focus:border-emerald-500" {...register('city', { required: true })} />
+              <Label htmlFor="city" className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Cidade</Label>
+              <Input id="city" className="bg-background border-border focus:border-emerald-500" {...register('city', { required: true })} />
             </div>
             <div className="col-span-1 space-y-2">
-              <Label htmlFor="state" className="text-slate-400 text-xs font-bold uppercase tracking-widest">UF</Label>
-              <Input id="state" className="bg-slate-950 border-slate-800 focus:border-emerald-500" {...register('state', { required: true })} maxLength={2} placeholder="UF" />
+              <Label htmlFor="state" className="text-muted-foreground text-xs font-bold uppercase tracking-widest">UF</Label>
+              <Input id="state" className="bg-background border-border focus:border-emerald-500" {...register('state', { required: true })} maxLength={2} placeholder="UF" />
             </div>
           </div>
 
           <div className="flex items-center gap-2 p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
             <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
-            <p className="text-[10px] text-amber-200/70 leading-relaxed">
+            <p className="text-[10px] text-amber-600 dark:text-amber-200/70 leading-relaxed">
               Ao prosseguir, você concorda com os termos de uso e faturamento. A fatura será gerada e o código PIX será exibido na próxima tela.
             </p>
           </div>
 
           <DialogFooter className="mt-8 gap-3">
-            <Button type="button" variant="ghost" className="text-slate-400 hover:text-white hover:bg-slate-800" onClick={onClose} disabled={isLoading}>
+            <Button type="button" variant="ghost" className="text-muted-foreground hover:text-foreground hover:bg-muted" onClick={onClose} disabled={isLoading}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isLoading} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold uppercase tracking-widest px-8">
