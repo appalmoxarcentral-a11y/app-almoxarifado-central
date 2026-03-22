@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { SearchableSelect } from '@/components/ui/searchable-select';
+import { SearchableModal } from '@/components/ui/searchable-modal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns/format';
 import { ptBR } from 'date-fns/locale/pt-BR';
@@ -81,7 +81,7 @@ export function ProductSelection({
             <Label htmlFor="produto" className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
               Produto *
             </Label>
-            <SearchableSelect
+            <SearchableModal
               items={produtos}
               value={selectedProduct}
               onSelect={handleProductSelect}
@@ -92,6 +92,7 @@ export function ProductSelection({
               placeholder="Selecione um produto"
               searchPlaceholder="Digite nome ou código do produto..."
               emptyMessage="Nenhum produto encontrado"
+              title="Selecionar Produto"
               className="h-12 text-[16px] rounded-xl border-border bg-background focus:ring-2 focus:ring-primary/20"
             />
           </div>

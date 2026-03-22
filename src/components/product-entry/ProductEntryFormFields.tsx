@@ -3,7 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { SearchableSelect } from '@/components/ui/searchable-select';
+import { SearchableModal } from '@/components/ui/searchable-modal';
 import { SmartDatePicker } from '@/components/ui/smart-date-picker';
 import { Save, Package, Calendar as CalendarIcon } from 'lucide-react';
 import type { Product } from '@/types';
@@ -48,7 +48,7 @@ export function ProductEntryFormFields({
           <Package className="h-3.5 w-3.5" />
           Produto *
         </Label>
-        <SearchableSelect
+        <SearchableModal
           items={produtos || []}
           value={selectedProduct}
           onSelect={(produto) => setSelectedProduct(produto.id)}
@@ -59,6 +59,7 @@ export function ProductEntryFormFields({
           placeholder="Selecione um produto..."
           searchPlaceholder="Buscar por nome ou código..."
           emptyMessage="Nenhum produto encontrado"
+          title="Selecionar Produto"
           className="h-12 text-[16px] rounded-xl border-border bg-background focus:ring-2 focus:ring-primary/20"
         />
       </div>

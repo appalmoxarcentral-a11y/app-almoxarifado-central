@@ -14,6 +14,7 @@ export function useDispensationQueries(
   patientSearch: string = '', 
   productSearch: string = '',
   procedureSearch: string = '',
+  sectorSearch: string = '',
   unidadeId?: string,
   tenantId?: string
 ) {
@@ -71,6 +72,27 @@ export function useDispensationQueries(
       }, []);
 
       return uniqueProcedures;
+    },
+    staleTime: 0,
+  });
+
+  // Buscar setores
+  const setoresQuery = useQuery({
+    queryKey: ['setores', sectorSearch],
+    queryFn: async () => {
+      let query = supabase
+        .from('setores')
+        .select('*')
+        .order('nome');
+      
+      if (sectorSearch) {
+        query = query.ilike('nome', `%${sectorSearch}%`);
+      }
+
+      const { data, error } = await query.limit(50);
+      if (error) throw error;
+
+      return data;
     },
     staleTime: 0,
   });
@@ -217,6 +239,7 @@ export function useDispensationQueries(
   return {
     pacientes: pacientesQuery.data,
     procedimentos: procedimentosQuery.data,
+    setores: setoresQuery.data,
     produtos: produtosQuery.data,
     lotes: lotesQuery.data,
     dispensacoes: dispensacoesQuery.data,

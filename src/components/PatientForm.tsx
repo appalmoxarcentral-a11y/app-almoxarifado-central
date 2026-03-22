@@ -5,19 +5,29 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Save, UserPlus, Trash2, Edit, X, Search, MapPin, Phone, Calendar as CalendarIcon, Briefcase } from "lucide-react";
+import { Users, Save, UserPlus, Trash2, Edit, X, Search, MapPin, Phone, Calendar as CalendarIcon, Briefcase, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Patient } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { PermissionCheck } from "@/components/auth/PermissionCheck";
 import { SmartDatePicker } from "@/components/ui/smart-date-picker";
 import { Checkbox } from "@/components/ui/checkbox";
+import { SearchableModal } from "@/components/ui/searchable-modal";
+import { useDispensationQueries } from "@/components/dispensation/hooks/useDispensationQueries";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function PatientForm() {
   const { toast } = useToast();
   const { user, hasPermission } = useAuth();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
+  const [isAddingSector, setIsAddingSector] = useState(false);
+  const [sectorSearch, setSectorSearch] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+
+  const { setores = [] } = useDispensationQueries(
+    '', '', '', '', sectorSearch, user?.unidade_id, user?.tenant_id
+  );
   const [patients, setPatients] = useState<Patient[]>([]);
   const [totalPatients, setTotalPatients] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
@@ -46,6 +56,39 @@ export function PatientForm() {
       return age;
     } catch (e) {
       return 0;
+    }
+  };
+
+  const handleAddSector = async (nome: string) => {
+    if (!nome.trim() || !user?.tenant_id || !isAdmin) return;
+    
+    setIsAddingSector(true);
+    try {
+      const { error } = await supabase
+        .from('setores')
+        .insert([{ 
+          nome: nome.trim(), 
+          tenant_id: user.tenant_id 
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Setor adicionado!",
+        description: `O setor ${nome} foi cadastrado com sucesso.`,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['setores'] });
+      setFormData(prev => ({ ...prev, sector: nome.trim() }));
+    } catch (error) {
+      console.error('Erro ao adicionar setor:', error);
+      toast({
+        title: "Erro ao adicionar setor",
+        description: "Não foi possível salvar o novo setor.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAddingSector(false);
     }
   };
 
@@ -348,6 +391,8 @@ export function PatientForm() {
 
   const idade = calculateAge(formData.nascimento);
 
+  const isAdmin = user?.tipo === 'SUPER_ADMIN' || user?.tipo === 'ADMIN';
+
   return (
     <div className="space-y-6 md:space-y-10 pb-24 md:pb-10">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border pb-6 md:pb-8">
@@ -489,13 +534,26 @@ export function PatientForm() {
                 {formData.is_health_worker && (
                   <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
                     <Label htmlFor="sector" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Setor de Lotação *</Label>
-                    <Input
-                      id="sector"
+                    <SearchableModal
+                      items={setores || []}
                       value={formData.sector}
-                      onChange={(e) => handleInputChange('sector', e.target.value)}
-                      placeholder="Ex: Almoxarifado, Recepção, Enfermagem..."
+                      onSelect={(item) => handleInputChange('sector', (item as any).nome)}
+                      onSearchChange={setSectorSearch}
+                      getItemValue={(s) => (s as any).nome}
+                      getItemLabel={(s) => (s as any).nome}
+                      getItemSearchText={(s) => (s as any).nome}
+                      placeholder="Selecione ou digite um setor"
+                      searchPlaceholder="Busque ou digite o setor..."
+                      emptyMessage="Nenhum setor encontrado"
+                      title="Selecionar Setor"
+                      emptyAction={{
+                        label: "Adicionar",
+                        isLoading: isAddingSector,
+                        onClick: (val) => handleAddSector(val),
+                        icon: <Plus className="h-4 w-4" />
+                      }}
                       className="h-12 text-[16px] rounded-xl border-border bg-background"
-                      required={formData.is_health_worker}
+                      disabled={loading}
                     />
                   </div>
                 )}

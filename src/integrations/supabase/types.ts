@@ -362,6 +362,35 @@ export type Database = {
         }
         Relationships: []
       }
+      setores: {
+        Row: {
+          id: string
+          nome: string
+          tenant_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          nome: string
+          tenant_id?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          nome?: string
+          tenant_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "setores_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           id: string

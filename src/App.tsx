@@ -26,6 +26,7 @@ const DispensationForm = lazy(() => import('@/components/DispensationForm').then
 const HistoryView = lazy(() => import('@/components/HistoryView').then(m => ({ default: m.HistoryView })));
 const UserManagement = lazy(() => import('@/components/users/UserManagement').then(m => ({ default: m.UserManagement })));
 const PurchaseReport = lazy(() => import('@/components/purchase-report/PurchaseReport').then(m => ({ default: m.PurchaseReport })));
+const ManagementPage = lazy(() => import('@/pages/ManagementPage'));
 
 const LoadingSpinner = () => (
   <div className="flex items-center justify-center min-h-[60vh]">
@@ -119,6 +120,7 @@ function App() {
                             } 
                           />
                           <Route path="/relatorio-compras" element={<PurchaseReport />} />
+                          <Route path="/gerenciamento" element={<ManagementPage />} />
                           <Route path="/assinatura" element={<SubscriptionPage />} />
                           <Route path="*" element={<NotFound />} />
                         </Routes>

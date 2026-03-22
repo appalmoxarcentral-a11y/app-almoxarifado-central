@@ -7,7 +7,6 @@ import { Product } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { PermissionCheck } from "@/components/auth/PermissionCheck";
 import { ExcelImportExport } from "@/components/excel/ExcelImportExport";
-import { UnidadeMedidaManager } from "@/components/excel/UnidadeMedidaManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProductFormFields } from "@/components/product/ProductFormFields";
 import { ProductList } from "@/components/product/ProductList";
@@ -134,15 +133,11 @@ export function ProductForm() {
       </div>
 
       <Tabs defaultValue="manual" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 h-12 md:h-14 bg-muted/50 p-1 rounded-xl md:rounded-2xl border border-border/50">
+        <TabsList className="grid w-full grid-cols-2 h-12 md:h-14 bg-muted/50 p-1 rounded-xl md:rounded-2xl border border-border/50">
           <TabsTrigger value="manual" className="rounded-lg md:rounded-xl font-bold text-[10px] md:text-sm uppercase tracking-wider">Cadastro Manual</TabsTrigger>
           <TabsTrigger value="excel" className="rounded-lg md:rounded-xl font-bold text-[10px] md:text-sm uppercase tracking-wider">
             <FileSpreadsheet className="h-3.5 w-3.5 md:h-4 md:w-4 md:mr-2" />
             <span className="hidden xs:inline">Excel</span>
-          </TabsTrigger>
-          <TabsTrigger value="units" className="rounded-lg md:rounded-xl font-bold text-[10px] md:text-sm uppercase tracking-wider">
-            <Settings className="h-3.5 w-3.5 md:h-4 md:w-4 md:mr-2" />
-            <span className="hidden xs:inline">Unidades</span>
           </TabsTrigger>
         </TabsList>
 
@@ -171,6 +166,7 @@ export function ProductForm() {
                   onFormDataChange={setFormData}
                   unidadesMedida={unidadesMedida}
                   editingProductId={editingProduct?.id}
+                  onUnitAdded={loadUnidadesMedida}
                 />
 
                 <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-border/50">
@@ -205,10 +201,6 @@ export function ProductForm() {
 
         <TabsContent value="excel">
           <ExcelImportExport mode="products" onSuccess={handleExcelSuccess} />
-        </TabsContent>
-
-        <TabsContent value="units">
-          <UnidadeMedidaManager />
         </TabsContent>
       </Tabs>
 

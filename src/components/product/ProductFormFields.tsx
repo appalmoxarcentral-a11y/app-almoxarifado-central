@@ -1,11 +1,15 @@
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { CheckCircle, AlertCircle, Loader2, Plus } from "lucide-react";
 import { useProductValidation } from "./hooks/useProductValidation";
+import { SearchableModal } from "@/components/ui/searchable-modal";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 
 interface ProductFormFieldsProps {
   formData: {
@@ -16,13 +20,57 @@ interface ProductFormFieldsProps {
   onFormDataChange: (data: any) => void;
   unidadesMedida: { value: string; label: string }[];
   editingProductId?: string;
+  onUnitAdded?: () => void;
 }
 
-export function ProductFormFields({ formData, onFormDataChange, unidadesMedida, editingProductId }: ProductFormFieldsProps) {
+export function ProductFormFields({ formData, onFormDataChange, unidadesMedida, editingProductId, onUnitAdded }: ProductFormFieldsProps) {
+  const queryClient = useQueryClient();
+  const [isAddingUnit, setIsAddingUnit] = useState(false);
   const { isValidating, isDuplicate, suggestedCodes } = useProductValidation({
     codigo: formData.codigo,
     editingProductId
   });
+
+  const handleAddUnit = async (descricao: string) => {
+    if (!descricao.trim()) return;
+    
+    // Tenta extrair um código simples (ex: primeiras 2-3 letras)
+    const suggestedCode = descricao.trim().substring(0, 3).toUpperCase();
+    const finalCode = prompt(`Informe o código para a nova unidade "${descricao}":`, suggestedCode);
+    
+    if (!finalCode) return;
+
+    setIsAddingUnit(true);
+    try {
+      const { error } = await supabase
+        .from('unidades_medida')
+        .insert([{ 
+          codigo: finalCode.toUpperCase(), 
+          descricao: descricao.trim(),
+          ativo: true
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Unidade adicionada!",
+        description: `A unidade ${descricao} foi cadastrada com sucesso.`,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['unidades-medida-admin'] });
+      onFormDataChange((prev: any) => ({ ...prev, unidade_medida: finalCode.toUpperCase() }));
+      if (onUnitAdded) onUnitAdded();
+    } catch (error: any) {
+      toast({
+        title: "Erro ao adicionar unidade",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsAddingUnit(false);
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
       <div className="space-y-1.5 md:space-y-2">
@@ -30,7 +78,7 @@ export function ProductFormFields({ formData, onFormDataChange, unidadesMedida, 
         <Input
           id="descricao"
           value={formData.descricao}
-          onChange={(e) => onFormDataChange(prev => ({ ...prev, descricao: e.target.value }))}
+          onChange={(e) => onFormDataChange((prev: any) => ({ ...prev, descricao: e.target.value }))}
           placeholder="Ex: Dipirona 500mg"
           required
           className="h-12 text-[16px]"
@@ -43,7 +91,7 @@ export function ProductFormFields({ formData, onFormDataChange, unidadesMedida, 
           <Input
             id="codigo"
             value={formData.codigo}
-            onChange={(e) => onFormDataChange(prev => ({ ...prev, codigo: e.target.value.toUpperCase() }))}
+            onChange={(e) => onFormDataChange((prev: any) => ({ ...prev, codigo: e.target.value.toUpperCase() }))}
             placeholder="Ex: DIP500"
             required
             className={`h-12 text-[16px] ${isDuplicate ? "border-red-500" : ""}`}
@@ -74,7 +122,7 @@ export function ProductFormFields({ formData, onFormDataChange, unidadesMedida, 
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => onFormDataChange(prev => ({ ...prev, codigo: suggestion }))}
+                        onClick={() => onFormDataChange((prev: any) => ({ ...prev, codigo: suggestion }))}
                         className="h-8 text-[11px] font-bold"
                       >
                         {suggestion}
@@ -90,23 +138,25 @@ export function ProductFormFields({ formData, onFormDataChange, unidadesMedida, 
 
       <div className="space-y-1.5 md:space-y-2">
         <Label htmlFor="unidade_medida" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Unidade de Medida *</Label>
-        <Select 
-          value={formData.unidade_medida} 
-          onValueChange={(value: string) => 
-            onFormDataChange(prev => ({ ...prev, unidade_medida: value }))
-          }
-        >
-          <SelectTrigger className="h-12 text-[16px]">
-            <SelectValue placeholder="Selecione a unidade" />
-          </SelectTrigger>
-          <SelectContent>
-            {unidadesMedida.map((unidade) => (
-              <SelectItem key={unidade.value} value={unidade.value}>
-                {unidade.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SearchableModal
+          items={unidadesMedida}
+          value={formData.unidade_medida}
+          onSelect={(item) => onFormDataChange((prev: any) => ({ ...prev, unidade_medida: item.value }))}
+          getItemValue={(u) => u.value}
+          getItemLabel={(u) => u.label}
+          getItemSearchText={(u) => u.label}
+          placeholder="Selecione a unidade"
+          searchPlaceholder="Busque ou digite a unidade..."
+          emptyMessage="Nenhuma unidade encontrada"
+          title="Selecionar Unidade"
+          emptyAction={{
+            label: "Adicionar",
+            isLoading: isAddingUnit,
+            onClick: (val) => handleAddUnit(val),
+            icon: <Plus className="h-4 w-4" />
+          }}
+          className="h-12 text-[16px]"
+        />
       </div>
     </div>
   );

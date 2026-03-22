@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem } from '@/components/ui/sidebar';
-import { Home, Users, Package, PackagePlus, Pill, History, UserCog, LogOut, ShoppingCart, ChevronRight, CreditCard, Building2 } from 'lucide-react';
+import { Home, Users, Package, PackagePlus, Pill, History, UserCog, LogOut, ShoppingCart, ChevronRight, CreditCard, Building2, BookOpen } from 'lucide-react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 export function AppSidebar() {
@@ -53,6 +53,11 @@ export function AppSidebar() {
     url: '/relatorio-compras',
     icon: ShoppingCart,
     permission: 'relatorio_compras'
+  }, {
+    title: 'Configurações',
+    url: '/gerenciamento',
+    icon: BookOpen,
+    permission: null
   }];
   
   const hasPermission = (permission: string | null) => {

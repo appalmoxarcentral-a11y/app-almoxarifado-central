@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { SearchableSelect } from '@/components/ui/searchable-select';
+import { SearchableModal } from '@/components/ui/searchable-modal';
 import { SmartDatePicker } from '@/components/ui/smart-date-picker';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -91,7 +91,7 @@ export function PatientSelection({
     }
   };
 
-  const isNewProcedure = tipoDispensacao && !procedimentos.find(p => p.nome === tipoDispensacao);
+  const isAdmin = user?.tipo === 'SUPER_ADMIN' || user?.tipo === 'ADMIN';
 
   return (
     <Card className="lg:col-span-2 border-border bg-card shadow-xl rounded-2xl md:rounded-3xl overflow-hidden relative">
@@ -109,7 +109,7 @@ export function PatientSelection({
             <User className="h-3.5 w-3.5" />
             Paciente *
           </Label>
-          <SearchableSelect
+          <SearchableModal
             items={pacientes}
             value={selectedPatient}
             onSelect={handlePatientSelect}
@@ -120,6 +120,7 @@ export function PatientSelection({
             placeholder="Selecione um paciente"
             searchPlaceholder="Digite nome ou SUS/CPF do paciente..."
             emptyMessage="Nenhum paciente encontrado"
+            title="Selecionar Paciente"
             className="h-12 text-[16px] rounded-xl border-border bg-background focus:ring-2 focus:ring-primary/20"
           />
         </div>
@@ -132,7 +133,7 @@ export function PatientSelection({
             </Label>
             <div className="flex flex-col sm:flex-row gap-2">
               <div className="flex-1 relative">
-                <SearchableSelect
+                <SearchableModal
                   items={procedimentos}
                   value={tipoDispensacao}
                   onSelect={handleProcedureSelect}
@@ -146,8 +147,10 @@ export function PatientSelection({
                   placeholder="Selecione ou digite um procedimento"
                   searchPlaceholder="Busque ou digite o procedimento..."
                   emptyMessage="Nenhum procedimento encontrado"
+                  title="Selecionar Procedimento"
                   emptyAction={{
                     label: "Adicionar",
+                    isLoading: isAddingProcedure,
                     onClick: (val) => {
                       setTipoDispensacao(val);
                       handleAddProcedure(val);
@@ -157,16 +160,6 @@ export function PatientSelection({
                   className="h-12 text-[16px] rounded-xl border-border bg-background focus:ring-2 focus:ring-primary/20"
                 />
               </div>
-              {isNewProcedure && (
-                <Button 
-                  onClick={handleAddProcedure}
-                  disabled={isAddingProcedure}
-                  className="h-12 w-full sm:w-auto px-6 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-primary/20"
-                >
-                  <Plus className="h-4 w-4" />
-                  {isAddingProcedure ? "Salvando..." : "Add"}
-                </Button>
-              )}
             </div>
           </div>
         )}
