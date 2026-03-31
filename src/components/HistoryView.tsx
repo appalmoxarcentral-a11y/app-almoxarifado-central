@@ -45,7 +45,7 @@ export function HistoryView() {
       tipo: 'dispensacao' as const,
       data: dispensacao.data_dispensa,
       descricao_produto: dispensacao.produto?.descricao || '',
-      paciente: dispensacao.paciente?.nome || '',
+      paciente: dispensacao.paciente?.nome || dispensacao.procedimento || '',
       tenant_name: dispensacao.tenant?.name || 'Unidade Desconhecida',
       is_parcial: dispensacao.is_parcial,
       is_servidor: dispensacao.is_servidor,

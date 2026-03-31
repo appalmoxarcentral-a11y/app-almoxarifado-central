@@ -25,7 +25,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
-import { formatDistanceToNow, addMonths, format, startOfMonth } from 'date-fns';
+import { formatDistanceToNow, addMonths, format, startOfMonth, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   Select,
@@ -34,6 +34,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import type { RascunhoCompra, PurchaseDraftItem } from '@/types/purchase-draft';
 
 import { useQuery } from '@tanstack/react-query';
@@ -87,7 +93,9 @@ export function DraftManager({
   const [createStepDialogOpen, setCreateStepDialogOpen] = useState(false);
   const [creationMode, setCreationMode] = useState<'unit' | 'type' | 'base'>('type');
   const [selectedUnitId, setSelectedUnitId] = useState<string>('');
-  const [draftName, setDraftName] = useState('');
+  const [description, setDescription] = useState('');
+  const [calendarDate, setCalendarDate] = useState<Date | undefined>(new Date());
+  const [manualDate, setManualDate] = useState(format(new Date(), 'dd/MM/yyyy'));
 
   const canSelectUnit = hasPermission('acesso_global_pedidos');
 
@@ -111,21 +119,6 @@ export function DraftManager({
 
   const currentDraft = getCurrentDraft();
   const isMobileLayout = className?.includes('h-9') || className?.includes('h-10') || className?.includes('w-full');
-
-  const getMonthOptions = () => {
-    const options = [];
-    const now = new Date();
-    
-    for (let i = 0; i < 4; i++) {
-      const date = addMonths(now, i);
-      const label = format(date, "'Pedido mês' MMMM yyyy", { locale: ptBR });
-      options.push({ label, value: label });
-    }
-    
-    return options;
-  };
-
-  const monthOptions = getMonthOptions();
 
   // Obter meses únicos dos rascunhos para o filtro
   const availableMonths = Array.from(new Set(drafts.map(d => {
@@ -156,15 +149,21 @@ export function DraftManager({
       onSaveDraft(currentDraft.nome_rascunho, items);
     } else {
       // Criar novo rascunho
-      setDraftName(monthOptions[0].value);
+      const now = new Date();
+      setCalendarDate(now);
+      setManualDate(format(now, 'dd/MM/yyyy'));
+      setDescription('');
       setSaveDialogOpen(true);
     }
   };
 
   const handleSaveNew = () => {
-    if (draftName.trim()) {
-      onSaveDraft(draftName.trim(), items, targetUnidadeId || undefined);
-      setDraftName('');
+    if (manualDate && description.trim()) {
+      // Garantir o prefixo "Pedido " se não existir
+      const datePart = manualDate.trim();
+      const finalName = `Pedido ${datePart} - ${description.trim()}`;
+      onSaveDraft(finalName, items, targetUnidadeId || undefined);
+      setDescription('');
       setSaveDialogOpen(false);
     }
   };
@@ -192,10 +191,44 @@ export function DraftManager({
     setCreationMode('type');
   };
 
+  const handleCalendarSelect = (date: Date | undefined) => {
+    if (date) {
+      setCalendarDate(date);
+      setManualDate(format(date, 'dd/MM/yyyy'));
+    }
+  };
+
+  const handleManualDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, ''); // Remove não dígitos
+    
+    // Aplicar máscara dd/mm/yyyy
+    if (value.length > 8) value = value.substring(0, 8);
+    
+    let formatted = value;
+    if (value.length > 2) formatted = value.substring(0, 2) + '/' + value.substring(2);
+    if (value.length > 4) formatted = formatted.substring(0, 5) + '/' + formatted.substring(5);
+    
+    setManualDate(formatted);
+    
+    // Se estiver completo, tentar atualizar o calendário
+    if (value.length === 8) {
+      const day = parseInt(value.substring(0, 2));
+      const month = parseInt(value.substring(2, 4)) - 1;
+      const year = parseInt(value.substring(4, 8));
+      const date = new Date(year, month, day);
+      if (!isNaN(date.getTime())) {
+        setCalendarDate(date);
+      }
+    }
+  };
+
   const handleStartFromScratch = () => {
     onCreateNew(selectedUnitId || undefined);
     setCreateStepDialogOpen(false);
-    setDraftName(monthOptions[0].value);
+    const now = new Date();
+    setCalendarDate(now);
+    setManualDate(format(now, 'dd/MM/yyyy'));
+    setDescription('');
     setSaveDialogOpen(true);
   };
 
@@ -206,7 +239,10 @@ export function DraftManager({
   const handleSelectBaseDraft = (draft: RascunhoCompra) => {
     onLoadDraftAsBase(draft);
     setCreateStepDialogOpen(false);
-    setDraftName(monthOptions[0].value);
+    const now = new Date();
+    setCalendarDate(now);
+    setManualDate(format(now, 'dd/MM/yyyy'));
+    setDescription('');
     setSaveDialogOpen(true);
   };
 
@@ -258,9 +294,9 @@ export function DraftManager({
           </DialogTrigger>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Selecionar Mês ou Pedido</DialogTitle>
+            <DialogTitle>Gerenciar Pedidos</DialogTitle>
             <DialogDescription>
-              Escolha o pedido mensal que deseja editar ou crie um novo.
+              Escolha um pedido existente para editar ou crie um novo pedido do zero.
             </DialogDescription>
           </DialogHeader>
           
@@ -268,10 +304,10 @@ export function DraftManager({
             <div className="grid grid-cols-2 gap-2">
               <Select value={filterMonth} onValueChange={setFilterMonth}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Filtrar Mês/Ano" />
+                  <SelectValue placeholder="Filtrar por Data" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos os Meses</SelectItem>
+                  <SelectItem value="all">Todas as Datas</SelectItem>
                   {availableMonths.map(month => (
                     <SelectItem key={month} value={month}>{month}</SelectItem>
                   ))}
@@ -499,38 +535,58 @@ export function DraftManager({
       <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Salvar Pedido</DialogTitle>
+            <DialogTitle>Salvar Novo Pedido</DialogTitle>
             <DialogDescription>
-              Digite um nome para o pedido do relatório de compras.
+              Selecione a data e informe uma descrição curta para este pedido.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 py-2">
             <div>
-              <Label htmlFor="draft-month">Selecione o Mês do Pedido</Label>
-              <Select 
-                value={draftName} 
-                onValueChange={(value) => setDraftName(value)}
-              >
-                <SelectTrigger id="draft-month">
-                  <SelectValue placeholder="Selecione um mês" />
-                </SelectTrigger>
-                <SelectContent>
-                  {monthOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="draft-date">Data do Pedido (Calendário ou Digite)</Label>
+              <div className="flex gap-2 mt-1.5">
+                <Input
+                  id="draft-date"
+                  value={manualDate}
+                  onChange={handleManualDateChange}
+                  placeholder="DD/MM/YYYY"
+                  className="flex-1"
+                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="icon" className="shrink-0">
+                      <Calendar className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <CalendarComponent
+                      mode="single"
+                      selected={calendarDate}
+                      onSelect={handleCalendarSelect}
+                      initialFocus
+                      locale={ptBR}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Será salvo como: <span className="font-semibold text-primary">Pedido {manualDate}</span>
+              </p>
             </div>
             <div>
-              <Label htmlFor="draft-name">Nome do Pedido (opcional para ajuste)</Label>
+              <Label htmlFor="draft-description">Descrição do Pedido *</Label>
               <Input
-                id="draft-name"
-                value={draftName}
-                onChange={(e) => setDraftName(e.target.value)}
-                placeholder="Ex: Relatório Janeiro 2024"
+                id="draft-description"
+                className="mt-1.5"
+                value={description}
+                onChange={(e) => setDescription(e.target.value.substring(0, 30))}
+                placeholder="Ex: Reposição Semanal"
+                maxLength={30}
+                required
               />
+              <p className="text-[10px] text-muted-foreground mt-1.5 flex justify-between">
+                <span>Campo obrigatório</span>
+                <span>{description.length}/30 caracteres</span>
+              </p>
             </div>
           </div>
           <DialogFooter>
@@ -539,7 +595,7 @@ export function DraftManager({
             </Button>
             <Button 
               onClick={handleSaveNew}
-              disabled={!draftName.trim() || isSaving}
+              disabled={!description.trim() || manualDate.length < 10 || isSaving}
             >
               Salvar
             </Button>

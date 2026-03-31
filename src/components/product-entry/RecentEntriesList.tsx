@@ -68,10 +68,6 @@ export function RecentEntriesList() {
     setCurrentPage(page);
   };
 
-  if (isLoadingEntradas) {
-    return <div className="text-center py-4">Carregando entradas...</div>;
-  }
-
   return (
     <div className="space-y-4">
       <ProductEntrySearch 
@@ -79,82 +75,86 @@ export function RecentEntriesList() {
         onSearchChange={handleSearchChange}
       />
 
-      <div className="space-y-3 max-h-[600px] overflow-y-auto">
-        {entradas?.map((entrada) => (
-          <div key={entrada.id} className="border rounded-lg p-3">
-            <div className="flex justify-between items-start">
-              <div className="flex-1">
-                <p className="font-medium">{entrada.produto?.descricao}</p>
-                <p className="text-sm text-gray-600">
-                  Lote: {entrada.lote} | Qtd: {entrada.quantidade} {entrada.produto?.unidade_medida}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Venc: {formatarData(entrada.vencimento)}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary">
-                  {formatarData(entrada.data_entrada, 'dd/MM')}
-                </Badge>
-                {isAdmin && (
-                  <div className="flex gap-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleEdit(entrada)}
-                      className="h-8 w-8 p-0"
-                    >
-                      <Edit2 className="h-3 w-3" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Tem certeza que deseja excluir esta entrada?
-                            <br />
-                            <strong>Produto:</strong> {entrada.produto?.descricao}
-                            <br />
-                            <strong>Quantidade:</strong> {entrada.quantidade} {entrada.produto?.unidade_medida}
-                            <br />
-                            <strong>Lote:</strong> {entrada.lote}
-                            <br />
-                            <br />
-                            Esta ação não pode ser desfeita e o estoque será ajustado automaticamente.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDelete(entrada.id)}
-                            className="bg-red-600 hover:bg-red-700"
+      {isLoadingEntradas ? (
+        <div className="text-center py-4">Carregando entradas...</div>
+      ) : (
+        <div className="space-y-3 max-h-[600px] overflow-y-auto">
+          {entradas?.map((entrada) => (
+            <div key={entrada.id} className="border rounded-lg p-3">
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <p className="font-medium">{entrada.produto?.descricao}</p>
+                  <p className="text-sm text-gray-600">
+                    Lote: {entrada.lote} | Qtd: {entrada.quantidade} {entrada.produto?.unidade_medida}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Venc: {formatarData(entrada.vencimento)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">
+                    {formatarData(entrada.data_entrada, 'dd/MM')}
+                  </Badge>
+                  {isAdmin && (
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEdit(entrada)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Edit2 className="h-3 w-3" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
                           >
-                            Excluir
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                )}
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tem certeza que deseja excluir esta entrada?
+                              <br />
+                              <strong>Produto:</strong> {entrada.produto?.descricao}
+                              <br />
+                              <strong>Quantidade:</strong> {entrada.quantidade} {entrada.produto?.unidade_medida}
+                              <br />
+                              <strong>Lote:</strong> {entrada.lote}
+                              <br />
+                              <br />
+                              Esta ação não pode ser desfeita e o estoque será ajustado automaticamente.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDelete(entrada.id)}
+                              className="bg-red-600 hover:bg-red-700"
+                            >
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-        {(!entradas || entradas.length === 0) && (
-          <p className="text-center text-gray-500 py-4">
-            {searchTerm ? 'Nenhuma entrada encontrada' : 'Nenhuma entrada registrada ainda'}
-          </p>
-        )}
-      </div>
+          ))}
+          {(!entradas || entradas.length === 0) && (
+            <p className="text-center text-gray-500 py-4">
+              {searchTerm ? 'Nenhuma entrada encontrada' : 'Nenhuma entrada registrada ainda'}
+            </p>
+          )}
+        </div>
+      )}
 
       {totalPages > 1 && (
         <ProductEntryPagination

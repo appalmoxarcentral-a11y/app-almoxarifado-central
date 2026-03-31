@@ -3,9 +3,11 @@ import { useState, useEffect } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { Product } from "@/types";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from '@/contexts/AuthContext';
 
 export const useProductQueries = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [totalProducts, setTotalProducts] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
@@ -44,14 +46,8 @@ export const useProductQueries = () => {
       setIsSearching(true);
       setCurrentPage(page);
       
-      // 1. Obter a unidade atual do usuário para o cálculo de estoque
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('unidade_id')
-        .eq('id', (await supabase.auth.getUser()).data.user?.id)
-        .single();
-
-      const unidadeId = profile?.unidade_id;
+      // Usar a unidade do AuthContext em vez de buscar no banco toda vez
+      const unidadeId = user?.unidade_id;
 
       let query = supabase
         .from('produtos')

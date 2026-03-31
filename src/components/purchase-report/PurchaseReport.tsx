@@ -9,6 +9,7 @@ import { PurchaseFilters } from './PurchaseFilters';
 import { PurchaseTable } from './PurchaseTable';
 import { PurchasePDFGenerator } from './PurchasePDFGenerator';
 import { DraftManager } from './DraftManager';
+import { BatchSelectionModal } from './BatchSelectionModal';
 import { usePurchaseData } from './hooks/usePurchaseData';
 import { usePurchaseState } from './hooks/usePurchaseState';
 import { useAuth } from '@/contexts/AuthContext';
@@ -66,6 +67,8 @@ export function PurchaseReport() {
   } = usePurchaseState();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
+  const [pendingSaveData, setPendingSaveData] = useState<{ nome: string, items: any[], unidade_id?: string } | null>(null);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -94,6 +97,29 @@ export function PurchaseReport() {
     },
     enabled: !!originUnidadeId
   });
+
+  const isCentralUnit = originUnidade?.nome?.toLowerCase().includes('almoxarifado central');
+
+  const handleInterceptSave = (nome: string, items: any[], unidade_id?: string) => {
+    // Se for Unidade Central e houver itens para reposição que ainda não têm lote selecionado
+    // OU se o usuário quiser revisar os lotes ao salvar.
+    const itemsWithQty = items.filter(item => (item.quantidade_reposicao || 0) > 0);
+    
+    if (isCentralUnit && itemsWithQty.length > 0) {
+      setPendingSaveData({ nome, items, unidade_id });
+      setIsBatchModalOpen(true);
+    } else {
+      saveDraft(nome, items, unidade_id);
+    }
+  };
+
+  const handleConfirmBatches = (updatedItems: any[]) => {
+    if (pendingSaveData) {
+      saveDraft(pendingSaveData.nome, updatedItems, pendingSaveData.unidade_id);
+      setPendingSaveData(null);
+    }
+    setIsBatchModalOpen(false);
+  };
 
   const handleAuthorize = () => {
     if (currentDraft?.id) {
@@ -235,7 +261,7 @@ export function PurchaseReport() {
                   isSaving={isSaving}
                   canEditDraft={canEditDraft}
                   canDeleteDraft={canDeleteDraft}
-                  onSaveDraft={saveDraft}
+                  onSaveDraft={handleInterceptSave}
                   onLoadDraft={loadDraft}
                   onLoadDraftAsBase={loadDraftAsBase}
                   onDeleteDraft={deleteDraft}
@@ -327,6 +353,16 @@ export function PurchaseReport() {
       <PurchaseTable
         items={filteredItems}
         onQuantityChange={updatePurchaseQuantity}
+        unidadeDestinoNome={currentDraft?.unidade_nome || manualUnidadeNome}
+        isCentralUnit={isCentralUnit}
+      />
+
+      <BatchSelectionModal
+        isOpen={isBatchModalOpen}
+        onClose={() => setIsBatchModalOpen(false)}
+        onConfirm={handleConfirmBatches}
+        items={pendingSaveData?.items || draftItems}
+        originUnidadeId={originUnidadeId || ''}
       />
 
       <AlertDialog open={!!stockError} onOpenChange={(open) => !open && clearStockError()}>

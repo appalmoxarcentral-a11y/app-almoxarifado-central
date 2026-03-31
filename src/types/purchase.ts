@@ -5,7 +5,11 @@ export interface PurchaseItem {
   descricao: string;
   unidade_medida: string; // Agora é string que referencia unidades_medida.codigo
   estoque_atual: number;
+  estoque_origem?: number;
   quantidade_reposicao?: number;
+  unidade_destino_nome?: string;
+  lote_selecionado?: string;
+  vencimento_selecionado?: string;
 }
 
 export interface PurchaseReportData {

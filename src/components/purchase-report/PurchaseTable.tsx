@@ -10,9 +10,11 @@ import { Badge } from '@/components/ui/badge';
 interface PurchaseTableProps {
   items: PurchaseItem[];
   onQuantityChange: (productId: string, quantity: number | undefined) => void;
+  unidadeDestinoNome?: string;
+  isCentralUnit?: boolean;
 }
 
-export function PurchaseTable({ items, onQuantityChange }: PurchaseTableProps) {
+export function PurchaseTable({ items, onQuantityChange, unidadeDestinoNome, isCentralUnit }: PurchaseTableProps) {
   const isMobile = useIsMobile();
   const handleQuantityChange = (productId: string, value: string) => {
     const quantity = value === '' ? undefined : parseInt(value);
@@ -54,19 +56,35 @@ export function PurchaseTable({ items, onQuantityChange }: PurchaseTableProps) {
                       </span>
                       <span className="flex items-center gap-1">
                         <Layers className="h-3 w-3" /> {item.unidade_medida}
+                        {isCentralUnit && <span className="text-[10px] ml-1">(UNID MEDIDA)</span>}
                       </span>
                     </div>
                   </div>
+                <div className="flex flex-col gap-2 shrink-0 items-end">
                   <Badge 
                     variant="outline" 
-                    className={`shrink-0 font-bold ${
+                    className={`font-bold ${
                       item.estoque_atual <= 10 ? 'bg-red-500/10 text-red-500 border-red-500/20' : 
                       item.estoque_atual <= 50 ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 
                       'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                     }`}
                   >
-                    {item.estoque_atual} em estoque
+                    {item.estoque_atual} {isCentralUnit ? 'no Destino' : 'em estoque'}
                   </Badge>
+                  {isCentralUnit && (
+                    <Badge 
+                      variant="outline" 
+                      className={`font-bold ${
+                        (item.estoque_origem || 0) <= 10 ? 'bg-red-500/10 text-red-500 border-red-500/20' : 
+                        (item.estoque_origem || 0) <= 50 ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 
+                        'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                      }`}
+                    >
+                      {item.estoque_origem || 0} na Origem
+                      {item.lote_selecionado && <span className="ml-1 opacity-60 text-[8px] font-normal">({item.lote_selecionado})</span>}
+                    </Badge>
+                  )}
+                </div>
                 </div>
 
                 <div className="flex items-center justify-between gap-4 pt-2 border-t border-muted/30">
@@ -102,8 +120,17 @@ export function PurchaseTable({ items, onQuantityChange }: PurchaseTableProps) {
               <tr className="border-b">
                 <th className="text-left p-3 font-semibold text-muted-foreground uppercase text-xs tracking-wider">Código</th>
                 <th className="text-left p-3 font-semibold text-muted-foreground uppercase text-xs tracking-wider">Descrição</th>
-                <th className="text-center p-3 font-semibold text-muted-foreground uppercase text-xs tracking-wider">Unidade</th>
-                <th className="text-center p-3 font-semibold text-muted-foreground uppercase text-xs tracking-wider">Estoque Atual</th>
+                <th className="text-center p-3 font-semibold text-muted-foreground uppercase text-xs tracking-wider">
+                  {isCentralUnit ? 'Unid Medida' : 'Unidade'}
+                </th>
+                {isCentralUnit && (
+                  <th className="text-center p-3 font-semibold text-muted-foreground uppercase text-xs tracking-wider">
+                    Unid Origem
+                  </th>
+                )}
+                <th className="text-center p-3 font-semibold text-muted-foreground uppercase text-xs tracking-wider">
+                  {isCentralUnit ? 'Unid Destino' : 'Estoque Atual'}
+                </th>
                 <th className="text-center p-3 font-semibold text-muted-foreground uppercase text-xs tracking-wider">Qtd. Reposição</th>
               </tr>
             </thead>
@@ -117,6 +144,23 @@ export function PurchaseTable({ items, onQuantityChange }: PurchaseTableProps) {
                       {item.unidade_medida}
                     </span>
                   </td>
+                  {isCentralUnit && (
+                    <td className="p-3 text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <span className={`font-bold text-base ${
+                          (item.estoque_origem || 0) <= 10 ? 'text-red-500' : 
+                          (item.estoque_origem || 0) <= 50 ? 'text-amber-500' : 'text-emerald-500'
+                        }`}>
+                          {item.estoque_origem || 0}
+                        </span>
+                        {item.lote_selecionado && (
+                          <Badge variant="secondary" className="text-[9px] h-4 py-0 px-1 bg-primary/10 text-primary border-primary/20">
+                            Lote: {item.lote_selecionado}
+                          </Badge>
+                        )}
+                      </div>
+                    </td>
+                  )}
                   <td className="p-3 text-center">
                     <span className={`font-bold text-base ${
                       item.estoque_atual <= 10 ? 'text-red-500' : 

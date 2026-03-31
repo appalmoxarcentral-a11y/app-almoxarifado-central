@@ -7,11 +7,10 @@ export function usePurchaseData(overrideUnidadeId?: string) {
   const { data: produtos, isLoading, error } = useQuery({
     queryKey: ['purchase-products', overrideUnidadeId],
     queryFn: async () => {
-      // 1. Obter a unidade ID a ser usada
+      // 1. Obter a unidade ID a ser usada (Destino)
       let unidadeId = overrideUnidadeId;
 
       if (!unidadeId) {
-        console.log('🔍 usePurchaseData: Buscando unidade_id do perfil do usuário');
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('Usuário não autenticado');
 
@@ -23,11 +22,8 @@ export function usePurchaseData(overrideUnidadeId?: string) {
         unidadeId = profile?.unidade_id;
       }
 
-      if (!unidadeId) {
-        console.warn('⚠️ usePurchaseData: unidadeId não encontrado, usando filtro vazio');
-      } else {
-        console.log(`📊 usePurchaseData: Buscando estoque para unidade ${unidadeId}`);
-      }
+      // ID fixo do Almoxarifado Central (Origem)
+      const CENTRAL_ID = '9dce634a-7ee1-46b2-92e6-916f5789875c';
 
       // 2. Buscar produtos
       const { data: produtosData, error: prodError } = await supabase
@@ -37,17 +33,29 @@ export function usePurchaseData(overrideUnidadeId?: string) {
 
       if (prodError) throw prodError;
 
-      // 3. Buscar todos os estoques da unidade de uma vez na tabela consolidada
+      // 3. Buscar estoques da unidade de destino e do central de uma vez
+      const unitsToFetch = [unidadeId];
+      if (unidadeId !== CENTRAL_ID) {
+        unitsToFetch.push(CENTRAL_ID);
+      }
+
       const { data: estoqueData, error: estoqueErr } = await supabase
         .from('produtos_estoque')
-        .select('produto_id, estoque_atual')
-        .eq('unidade_id', unidadeId);
+        .select('produto_id, estoque_atual, unidade_id')
+        .in('unidade_id', unitsToFetch.filter(Boolean) as string[]);
 
       if (estoqueErr) throw estoqueErr;
 
-      const estoqueMap = new Map<string, number>();
+      const estoqueDestinoMap = new Map<string, number>();
+      const estoqueOrigemMap = new Map<string, number>();
+
       estoqueData?.forEach(e => {
-        estoqueMap.set(e.produto_id, e.estoque_atual);
+        if (e.unidade_id === unidadeId) {
+          estoqueDestinoMap.set(e.produto_id, e.estoque_atual);
+        }
+        if (e.unidade_id === CENTRAL_ID) {
+          estoqueOrigemMap.set(e.produto_id, e.estoque_atual);
+        }
       });
 
       // 4. Montar a lista final
@@ -56,7 +64,8 @@ export function usePurchaseData(overrideUnidadeId?: string) {
         codigo: produto.codigo,
         descricao: produto.descricao,
         unidade_medida: produto.unidade_medida,
-        estoque_atual: estoqueMap.get(produto.id) || 0,
+        estoque_atual: estoqueDestinoMap.get(produto.id) || 0,
+        estoque_origem: estoqueOrigemMap.get(produto.id) || 0,
         quantidade_reposicao: undefined
       })) as PurchaseItem[];
     }
