@@ -1,0 +1,134 @@
+Jerime Rego (37):
+      Grande atualização
+      deploy vercel
+      fix: downgrade date-fns to v3 and cleanup lockfiles
+      ajuste designer
+      ajuste assinatura
+      relatorio compras
+      fix: syntax errors in PatientForm.tsx
+      criação unidades
+      ajuste geral
+      ajuste sidebar
+      Mover users
+      acesso global pacientes/produtos
+      Ajuste estoque unico
+      implementação pedidos
+      fix: database column mapping in delivery trigger
+      ajuste confirmação pedido
+      Ajuste tela login
+      Travamento tela login
+      ajuste tela dispensação-entrada
+      feat: setup inicial para produção (GitHub & Vercel)
+      Ajuste geral
+      ajuste tela pedidos
+      Excluir caixa de marcar reposição
+      ajuste bloqueio todos usuarios
+      implementado melhorias seção dispensação
+      seção gerar pedidos terceiros
+      ajuste seção pedidos
+      ADIDICIONADO CAMPO SERVIDOR
+      ajuste ux permissões usuarios
+      Ajustes globais mobile
+      adição Paciente/Receptor
+      correção prduto entrada
+      correção erro salvar procedimento
+      ajuste data final
+      implantação tema dark-light
+      ajuste seção entrada e pedidos
+      versão1.1
+
+gpt-engineer-app[bot] (93):
+      Use tech stack vite_react_shadcn_ts
+      Implement pharmacy stock management system
+      Connect to Supabase project
+      Run SQL script to create database tables
+      Implement modules and integrate with DB
+      Fix: Syntax error in HistoryView.tsx
+      Fix: Correct property names in data access
+      Fix: Select.Item value prop error
+      feat: Implement user management and dispensation improvements
+      Fix UserManagement and AuthContext type errors
+      Fix type conversion errors in UserManagement and AuthContext
+      feat: Integrate AuthContext in ProductEntryForm
+      Refactor: Split ProductEntryForm into components
+      Fix: Implement SUS/CPF validation
+      Visual edit in Lovable
+      Visual edit in Lovable
+      Implement history view features
+      Refactor: Improve mobile responsiveness
+      feat: Implement dispensation plan
+      Refactor: DispensationForm into smaller components
+      Implement mobile menu
+      feat: Implement product editing and permissions
+      Run SQL for unidades_medida table
+      Refactor: ProductForm into smaller components
+      Implement Excel download and entry edit/delete
+      Fix: Implement plan for import errors
+      Enhance product entry and history views
+      Implement improvements
+      Fix: PatientDispensationView build error
+      Fix: HistoryFiltersProps type error
+      Implement SearchableSelect component
+      Run SQL migration
+      Fix: Import NotFound component
+      Fix: Implement automatic scroll on product edit
+      Add unit of measure management
+      Run SQL to fix deletion error
+      Run SQL migration
+      Run SQL for enum synchronization.
+      Remove automatic enum sync
+      Run SQL migration for unit refactor
+      Run SQL migration
+      Refactor unit of measure system
+      Run SQL migration
+      Fix product registration errors
+      Run SQL migration for permissions
+      Fix purchase report replenishment input
+      Code edited in Lovable Code Editor
+      Run SQL migration for purchase report drafts
+      Implement integration with Supabase authentication
+      Run SQL migration
+      Fix: Implement plan to resolve draft saving issues
+      Fix errors in purchase report
+      Run SQL migration
+      Fix: Debug draft loading
+      Run SQL migration
+      Run SQL migration for new table
+      Run user permission update SQL
+      Run simplified RLS SQL
+      Share purchase report drafts
+      Run SQL migration
+      Implement shared draft editing
+      Visual edit in Lovable
+      Visual edit in Lovable
+      Fix draft visibility across devices
+      Connect to Supabase project
+      Run Supabase reintegration SQL
+      Run database migration
+      Run SQL migration
+      Run SQL migration
+      Run SQL migration
+      Run SQL migration
+      Run SQL migrations
+      Run rollback SQL
+      Run migration for draft table consolidation
+      Fix purchase draft loading
+      Run SQL migration
+      Fix purchase draft persistence
+      Run SQL changes
+      Changes
+      Corrigido login flutuante
+      Corrigiu login intermitente
+      Corrigiu login intermitente
+      Implementar layout mobile responsivo dispensa
+      Make mobile dispensation UI responsive
+      Mobile menu for all screens
+      Enable dark mode and mobile nav
+      Preceding changes
+      Preceding changes
+      Preceding changes
+      Preceding changes
+      Implementar navegação móvel completa
+      Atualizou layout mobile global
+      Mobile layout across screens
+
