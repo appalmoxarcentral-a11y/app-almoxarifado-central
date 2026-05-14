@@ -90,6 +90,7 @@ export function PurchaseReport() {
   const originUnidadeId = currentDraft?.unidade_origem_id || user?.unidade_id;
   const { data: originUnidade } = useQuery({
     queryKey: ['unidade-origem-info', originUnidadeId],
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       if (!originUnidadeId) return null;
       const { data } = await supabase.from('unidades_saude').select('nome').eq('id', originUnidadeId).single();
@@ -225,31 +226,31 @@ export function PurchaseReport() {
         </div>
       </div>
 
-      <div className="sticky top-[52px] z-50 bg-background/95 backdrop-blur-md pb-4 pt-2 -mx-4 px-4 shadow-md border-b md:top-[64px] md:-mx-6 md:px-6">
-        <div className="space-y-4">
-          <PurchaseFilters 
-            filters={filters}
-            onFiltersChange={setFilters}
-            showOnlySearch
-          />
+      <div className="sticky top-[56px] md:top-[64px] z-50 bg-background/95 backdrop-blur-md pb-4 pt-3 -mx-4 px-4 shadow-md border-b md:-mx-6 md:px-6">
+        <div className="flex flex-col md:flex-row items-end gap-4">
+          <div className="flex-1 w-full">
+            <PurchaseFilters 
+              filters={filters}
+              onFiltersChange={setFilters}
+              showOnlySearch
+            />
+          </div>
 
-          <div className="flex flex-wrap items-center justify-center md:justify-end gap-2 w-full md:w-auto flex-1">
+          <div className="flex items-center justify-end gap-2 w-full md:w-auto">
             {(currentDraftId || manualUnidadeId) && (
-              <div className="w-full md:w-auto flex justify-center md:justify-end mb-1 md:mb-0 md:mr-2">
-                <div className="px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-[10px] font-bold text-primary flex items-center gap-1.5 shadow-sm backdrop-blur-sm">
-                  <Calendar className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate max-w-[250px] md:max-w-[400px] flex items-center gap-1.5">
-                    {currentDraftId ? currentDraft?.nome_rascunho : 'Novo Pedido'}
-                    {(currentDraft?.unidade_nome || manualUnidadeNome) && (
-                      <>
-                        <span className="opacity-30">|</span>
-                        <span className="uppercase text-primary/80 tracking-tight">
-                          {currentDraft?.unidade_nome || manualUnidadeNome}
-                        </span>
-                      </>
-                    )}
-                  </span>
-                </div>
+              <div className="hidden lg:flex px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-[10px] font-bold text-primary items-center gap-1.5 shadow-sm backdrop-blur-sm mr-2">
+                <Calendar className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate max-w-[200px] flex items-center gap-1.5">
+                  {currentDraftId ? currentDraft?.nome_rascunho : 'Novo Pedido'}
+                  {(currentDraft?.unidade_nome || manualUnidadeNome) && (
+                    <>
+                      <span className="opacity-30">|</span>
+                      <span className="uppercase text-primary/80 tracking-tight">
+                        {currentDraft?.unidade_nome || manualUnidadeNome}
+                      </span>
+                    </>
+                  )}
+                </span>
               </div>
             )}
             <div className="grid grid-cols-3 md:flex gap-2 w-full md:w-auto">

@@ -28,6 +28,7 @@ export function usePurchaseState() {
   // Buscar nome da unidade manual se necessário
   const { data: manualUnidadeNome } = useQuery({
     queryKey: ['unidade-manual-nome', manualUnidadeId],
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       if (!manualUnidadeId) return null;
       console.log('🔍 Buscando nome da unidade manual:', manualUnidadeId);
@@ -70,11 +71,16 @@ export function usePurchaseState() {
     }
   }, [initialProducts, isProductsLoading, targetUnidadeId]);
 
-  const updatePurchaseQuantity = useCallback((productId: string, quantidade: number | undefined) => {
+  const updatePurchaseQuantity = useCallback((productId: string, quantidade: number | undefined, lote?: string, vencimento?: string) => {
     setPurchaseItems(items => 
       items.map(item => 
         item.id === productId 
-          ? { ...item, quantidade_reposicao: quantidade }
+          ? { 
+              ...item, 
+              quantidade_reposicao: quantidade,
+              lote_selecionado: lote !== undefined ? lote : item.lote_selecionado,
+              vencimento_selecionado: vencimento !== undefined ? vencimento : item.vencimento_selecionado
+            }
           : item
       )
     );
@@ -151,7 +157,9 @@ export function usePurchaseState() {
       descricao: item.descricao,
       unidade_medida: item.unidade_medida,
       estoque_atual: item.estoque_atual,
-      quantidade_reposicao: item.quantidade_reposicao
+      quantidade_reposicao: item.quantidade_reposicao,
+      lote_selecionado: item.lote_selecionado,
+      vencimento_selecionado: item.vencimento_selecionado
     }));
     
     const finalUnidadeId =  unidade_id || targetUnidadeId;
@@ -172,7 +180,9 @@ export function usePurchaseState() {
         if (draftItem) {
           return {
             ...currentItem,
-            quantidade_reposicao: draftItem.quantidade_reposicao
+            quantidade_reposicao: draftItem.quantidade_reposicao,
+            lote_selecionado: draftItem.lote_selecionado,
+            vencimento_selecionado: draftItem.vencimento_selecionado
           };
         }
         return currentItem;
@@ -194,14 +204,25 @@ export function usePurchaseState() {
   // REMOVIDO auto-save a cada 30 segundos conforme solicitado pelo usuário
   // "não salve ao digitar e sim ao clicar no botão salvar"
 
-  // Carregar rascunho mais recente apenas na montagem inicial
+  // Carregar rascunho persistido ou o mais recente apenas na montagem inicial
   useEffect(() => {
-    if (!hasAttemptedAutoLoad && persistence.drafts.length > 0 && !persistence.currentDraftId && purchaseItems.length > 0) {
+    if (!hasAttemptedAutoLoad && persistence.drafts.length > 0 && purchaseItems.length > 0) {
       setHasAttemptedAutoLoad(true);
-      const latestDraft = persistence.drafts[0]; // Já ordenado por data_atualizacao desc
-      if (latestDraft.dados_produtos && latestDraft.dados_produtos.length > 0) {
-        console.log('🔄 Carregando rascunho mais recente automaticamente:', latestDraft.nome_rascunho);
-        loadDraft(latestDraft);
+      
+      // 1. Tentar carregar o rascunho que estava sendo trabalhado (via persistence.currentDraftId do localStorage)
+      const lastDraft = persistence.drafts.find(d => d.id === persistence.currentDraftId);
+      
+      if (lastDraft) {
+        console.log('🔄 Restaurando último rascunho trabalhado:', lastDraft.nome_rascunho);
+        loadDraft(lastDraft);
+      } 
+      // 2. Se não houver rascunho selecionado, carregar o mais recente por padrão
+      else if (!persistence.currentDraftId) {
+        const latestDraft = persistence.drafts[0]; // Já ordenado por data_atualizacao desc
+        if (latestDraft.dados_produtos && latestDraft.dados_produtos.length > 0) {
+          console.log('🔄 Carregando rascunho mais recente automaticamente:', latestDraft.nome_rascunho);
+          loadDraft(latestDraft);
+        }
       }
     }
   }, [persistence.drafts, persistence.currentDraftId, purchaseItems.length, loadDraft, hasAttemptedAutoLoad]);
@@ -217,7 +238,9 @@ export function usePurchaseState() {
         if (draftItem) {
           return {
             ...currentItem,
-            quantidade_reposicao: draftItem.quantidade_reposicao
+            quantidade_reposicao: draftItem.quantidade_reposicao,
+            lote_selecionado: draftItem.lote_selecionado,
+            vencimento_selecionado: draftItem.vencimento_selecionado
           };
         }
         return currentItem;
@@ -287,7 +310,9 @@ export function usePurchaseState() {
       descricao: item.descricao,
       unidade_medida: item.unidade_medida,
       estoque_atual: item.estoque_atual,
-      quantidade_reposicao: item.quantidade_reposicao
+      quantidade_reposicao: item.quantidade_reposicao,
+      lote_selecionado: item.lote_selecionado,
+      vencimento_selecionado: item.vencimento_selecionado
     })),
     hasChanges
   };

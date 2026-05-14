@@ -132,7 +132,7 @@ export function Layout({ children }: LayoutProps) {
           </header>
           
           {/* Main content - add bottom padding on mobile for nav */}
-          <main className={`flex-1 w-full max-w-full p-0 sm:p-4 lg:p-6 ${isMobile ? 'pb-32' : ''} overflow-x-hidden`}>
+          <main className={`flex-1 w-full max-w-full p-0 sm:p-4 lg:p-6 ${isMobile ? 'pb-32' : ''}`}>
             {children}
           </main>
 

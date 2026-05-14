@@ -9,7 +9,21 @@ export function usePurchaseDraftPersistence() {
   const { user, hasPermission } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
+  
+  // Usar localStorage para persistir o rascunho atual entre sessões e atualizações
+  const [currentDraftId, setCurrentDraftId] = useState<string | null>(() => {
+    return localStorage.getItem('lastWorkedDraftId');
+  });
+
+  const updateCurrentDraftId = (id: string | null) => {
+    setCurrentDraftId(id);
+    if (id) {
+      localStorage.setItem('lastWorkedDraftId', id);
+    } else {
+      localStorage.removeItem('lastWorkedDraftId');
+    }
+  };
+
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [stockError, setStockError] = useState<{ title: string; items: string[] } | null>(null);
 
@@ -76,6 +90,7 @@ export function usePurchaseDraftPersistence() {
   // Buscar todos os rascunhos ativos (Pedidos)
   const { data: drafts = [], isLoading, refetch } = useQuery({
     queryKey: ['rascunhos-compras-todos'],
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       if (!user?.id || (!canManageDrafts && !canAccessReports)) {
         console.log('⚠️ Usuário não autorizado para rascunhos');
@@ -186,7 +201,7 @@ export function usePurchaseDraftPersistence() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['rascunhos-compras-todos'] });
-      setCurrentDraftId(data.id);
+      updateCurrentDraftId(data.id);
       toast({
         title: "Rascunho salvo",
         description: "Seu rascunho foi salvo com sucesso.",
@@ -315,7 +330,7 @@ export function usePurchaseDraftPersistence() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rascunhos-compras-todos'] });
-      setCurrentDraftId(null);
+      updateCurrentDraftId(null);
       toast({
         title: "Rascunho excluído",
         description: "O rascunho foi excluído com sucesso.",
@@ -487,12 +502,12 @@ export function usePurchaseDraftPersistence() {
   });
 
   const loadDraft = (draft: RascunhoCompra): PurchaseDraftItem[] => {
-    setCurrentDraftId(draft.id);
+    updateCurrentDraftId(draft.id);
     return Array.isArray(draft.dados_produtos) ? draft.dados_produtos : [];
   };
 
   const createNewDraft = () => {
-    setCurrentDraftId(null);
+    updateCurrentDraftId(null);
   };
 
   const deleteDraft = (draftId: string) => {

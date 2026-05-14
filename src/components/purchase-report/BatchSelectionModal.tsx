@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -45,8 +45,18 @@ export function BatchSelectionModal({
   items,
   originUnidadeId
 }: BatchSelectionModalProps) {
-  const itemsToProcess = items.filter(item => (item.quantidade_reposicao || 0) > 0);
   const [selections, setSelections] = useState<Record<string, { lote: string; vencimento: string }>>({});
+
+  const itemsToProcess = useMemo(() => {
+    return items
+      .filter(item => (item.quantidade_reposicao || 0) > 0)
+      .sort((a, b) => {
+        const hasA = selections[a.id] ? 1 : 0;
+        const hasB = selections[b.id] ? 1 : 0;
+        if (hasA !== hasB) return hasA - hasB;
+        return a.descricao.localeCompare(b.descricao);
+      });
+  }, [items, selections]);
 
   // Initialize selections with existing data if available
   useEffect(() => {

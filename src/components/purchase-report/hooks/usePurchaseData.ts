@@ -6,6 +6,7 @@ import type { PurchaseItem } from '@/types/purchase';
 export function usePurchaseData(overrideUnidadeId?: string) {
   const { data: produtos, isLoading, error } = useQuery({
     queryKey: ['purchase-products', overrideUnidadeId],
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       // 1. Obter a unidade ID a ser usada (Destino)
       let unidadeId = overrideUnidadeId;
