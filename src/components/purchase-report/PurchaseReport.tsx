@@ -364,6 +364,7 @@ export function PurchaseReport() {
         onConfirm={handleConfirmBatches}
         items={pendingSaveData?.items || draftItems}
         originUnidadeId={originUnidadeId || ''}
+        isSaving={isSaving}
       />
 
       <AlertDialog open={!!stockError} onOpenChange={(open) => !open && clearStockError()}>

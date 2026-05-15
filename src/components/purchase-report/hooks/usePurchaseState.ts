@@ -141,17 +141,20 @@ export function usePurchaseState() {
   }, [purchaseItems]);
 
   // Detectar mudanças comparando estado atual com último salvo
-  const currentStateString = JSON.stringify(
+  const currentStateString = useMemo(() => JSON.stringify(
     purchaseItems.map(item => ({ 
       id: item.id, 
-      quantidade_reposicao: item.quantidade_reposicao 
+      q: item.quantidade_reposicao 
     }))
-  );
+  ), [purchaseItems]);
   
   const hasChanges = currentStateString !== lastSavedState && persistence.currentDraftId !== null;
 
   const saveDraft = useCallback((nome: string, items?: PurchaseDraftItem[], unidade_id?: string) => {
-    const finalItems = items || purchaseItems.map(item => ({
+    if (persistence.isSaving) return;
+
+    // 1. Determinar quais itens usar
+    const itemsToUse = items || purchaseItems.map(item => ({
       id: item.id,
       codigo: item.codigo,
       descricao: item.descricao,
@@ -161,15 +164,35 @@ export function usePurchaseState() {
       lote_selecionado: item.lote_selecionado,
       vencimento_selecionado: item.vencimento_selecionado
     }));
+
+    const finalUnidadeId = unidade_id || targetUnidadeId;
     
-    const finalUnidadeId =  unidade_id || targetUnidadeId;
-    
-    persistence.saveDraft(nome, finalItems, finalUnidadeId || undefined);
-    setLastSavedState(currentStateString);
-    
-    // Forçar re-ordenação APÓS salvar
-    setSortTrigger(prev => prev + 1);
-  }, [purchaseItems, persistence.saveDraft, currentStateString, targetUnidadeId]);
+    // 2. Chamar persistência com callback de sucesso
+    persistence.saveDraft(nome, itemsToUse, finalUnidadeId || undefined, (savedData) => {
+      // Sincronizar estado local apenas após sucesso real no banco
+      const savedStateString = JSON.stringify(itemsToUse.map(i => ({ id: i.id, q: i.quantidade_reposicao })));
+      setLastSavedState(savedStateString);
+      
+      // Se itens foram passados externamente (do modal de lotes), atualizar estado local
+      if (items) {
+        setPurchaseItems(prev => prev.map(localItem => {
+          const updatedItem = items.find(i => i.id === localItem.id);
+          if (updatedItem) {
+            return {
+              ...localItem,
+              lote_selecionado: updatedItem.lote_selecionado,
+              vencimento_selecionado: updatedItem.vencimento_selecionado,
+              quantidade_reposicao: updatedItem.quantidade_reposicao
+            };
+          }
+          return localItem;
+        }));
+      }
+
+      // Forçar re-ordenação APÓS salvar
+      setSortTrigger(prev => prev + 1);
+    });
+  }, [purchaseItems, persistence.saveDraft, persistence.isSaving, targetUnidadeId]);
 
   const loadDraft = useCallback((draft: any) => {
     const loadedItems = persistence.loadDraft(draft);
@@ -192,7 +215,7 @@ export function usePurchaseState() {
     const newStateString = JSON.stringify(
       loadedItems.map(item => ({ 
         id: item.id, 
-        quantidade_reposicao: item.quantidade_reposicao 
+        q: item.quantidade_reposicao 
       }))
     );
     setLastSavedState(newStateString);
@@ -267,8 +290,13 @@ export function usePurchaseState() {
     setManualUnidadeId(unidadeId);
   }, []);
 
-  const saveDraftWrapper = useCallback((nome: string, items: PurchaseDraftItem[], unidade_id?: string) => {
+  const saveDraftWrapper = useCallback((nome: string, items: PurchaseDraftItem[], unidade_id?: string, onSuccess?: (data: any) => void) => {
     saveDraft(nome, items, unidade_id);
+    if (onSuccess) {
+      // Como o saveDraft interno agora lida com o callback de persistência,
+      // essa wrapper pode precisar de ajuste se quisermos expor o callback externo.
+      // Mas para o DraftManager, ele não passa callback.
+    }
   }, [saveDraft]);
 
   const loadDraftWrapper = useCallback((draft: any) => {

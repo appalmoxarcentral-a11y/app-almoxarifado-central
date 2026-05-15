@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { RascunhoCompra, PurchaseDraftItem, CreateDraftRequest, UpdateDraftRequest } from "@/types/purchase-draft";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 export function usePurchaseDraftPersistence() {
   const { user, hasPermission } = useAuth();
@@ -47,35 +47,50 @@ export function usePurchaseDraftPersistence() {
     const itemsToDeliver = dados_produtos.filter(item => (item.quantidade_reposicao || 0) > 0);
     
     if (itemsToDeliver.length > 0) {
-      console.log(`📦 Calculando estoque real para ${itemsToDeliver.length} itens na unidade: ${originId}`);
+      console.log(`📦 Validando estoque real (BATCH) para ${itemsToDeliver.length} itens na unidade: ${originId}`);
       
       const faltantes: string[] = [];
+      const codigos = itemsToDeliver.map(i => i.codigo);
 
+      // 1. Buscar todos os produtos de uma vez (Batch)
+      const { data: produtosData, error: prodError } = await supabase
+        .from('produtos')
+        .select('id, codigo, descricao')
+        .in('codigo', codigos);
+
+      if (prodError || !produtosData) {
+        console.error('❌ Erro ao buscar produtos para validação:', prodError);
+        return;
+      }
+
+      const produtoIds = produtosData.map(p => p.id);
+      const produtosMap = new Map(produtosData.map(p => [p.id, p.descricao]));
+      const codigoToIdMap = new Map(produtosData.map(p => [p.codigo, p.id]));
+
+      // 2. Buscar todo o estoque da unidade de uma vez (Batch)
+      const { data: estoqueData, error: estError } = await supabase
+        .from('produtos_estoque')
+        .select('produto_id, estoque_atual')
+        .eq('unidade_id', originId)
+        .in('produto_id', produtoIds);
+
+      if (estError) {
+        console.error('❌ Erro ao buscar estoque para validação:', estError);
+        return;
+      }
+
+      const estoqueMap = new Map(estoqueData?.map(e => [e.produto_id, e.estoque_atual]) || []);
+
+      // 3. Comparar quantidades
       for (const item of itemsToDeliver) {
-        // 1. Buscar produto pelo código para obter o ID correto (catálogo compartilhado)
-        const { data: produto } = await supabase
-          .from('produtos')
-          .select('id, descricao')
-          .eq('codigo', item.codigo)
-          .limit(1)
-          .single();
+        const produtoId = codigoToIdMap.get(item.codigo);
+        if (!produtoId) continue;
 
-        if (!produto) continue;
-
-        // 2. Buscar estoque real desta unidade na tabela de estoque por unidade
-        const { data: estoqueData } = await supabase
-          .from('produtos_estoque')
-          .select('estoque_atual')
-          .eq('produto_id', produto.id)
-          .eq('unidade_id', originId)
-          .maybeSingle();
-
-        const estoqueReal = estoqueData?.estoque_atual || 0;
-
-        console.log(`🔍 Produto: ${produto.descricao} | Estoque Real: ${estoqueReal}`);
+        const estoqueReal = estoqueMap.get(produtoId) || 0;
+        const descricao = produtosMap.get(produtoId);
 
         if (estoqueReal < (item.quantidade_reposicao || 0)) {
-          faltantes.push(`${produto.descricao} (Disponível: ${estoqueReal}, Necessário: ${item.quantidade_reposicao})`);
+          faltantes.push(`${descricao} (Disponível: ${estoqueReal}, Necessário: ${item.quantidade_reposicao})`);
         }
       }
 
@@ -84,6 +99,8 @@ export function usePurchaseDraftPersistence() {
         setStockError({ title: errorTitle, items: faltantes });
         throw new Error('STOCK_ERROR');
       }
+      
+      console.log('✅ Validação de estoque concluída com sucesso');
     }
   };
 
@@ -373,16 +390,18 @@ export function usePurchaseDraftPersistence() {
     }
   };
 
-  const saveDraft = (nome: string, items: PurchaseDraftItem[], unidade_id?: string) => {
+  const saveDraft = useCallback((nome: string, items: PurchaseDraftItem[], unidade_id?: string, onSuccess?: (data: any) => void) => {
     // Permitir salvar para ambos os tipos de usuários
     if (!canManageDrafts && !canAccessReports) {
       console.error('Usuário sem permissão para gerenciar rascunhos');
       return;
     }
+
+    const itemsWithQty = items.filter(item => (item.quantidade_reposicao || 0) > 0);
+    console.log(`💾 Salvando rascunho: "${nome}". Total itens: ${items.length}. Itens com reposição: ${itemsWithQty.length}`);
     
     if (currentDraftId) {
       // Se já temos um ID, estamos editando um rascunho existente
-      // Garantir que não sobrescrevemos a unidade_id se ela for passada (caso de edição global)
       const updatePayload: any = {
         id: currentDraftId,
         nome_rascunho: nome,
@@ -393,18 +412,26 @@ export function usePurchaseDraftPersistence() {
         updatePayload.unidade_id = unidade_id;
       }
 
-      updateDraftMutation.mutate(updatePayload);
+      updateDraftMutation.mutate(updatePayload, {
+        onSuccess: (data) => {
+          if (onSuccess) onSuccess(data);
+        }
+      });
     } else {
-      // Se o ID é nulo, é um NOVO rascunho (mesmo que baseado em outro)
+      // Se o ID é nulo, é um NOVO rascunho
       if (canManageDrafts) {
         createDraftMutation.mutate({
           nome_rascunho: nome,
           dados_produtos: items,
           unidade_id: unidade_id
-        } as any);
+        } as any, {
+          onSuccess: (data) => {
+            if (onSuccess) onSuccess(data);
+          }
+        });
       }
     }
-  };
+  }, [canManageDrafts, canAccessReports, currentDraftId, createDraftMutation, updateDraftMutation]);
 
   const authorizeDraft = useMutation({
     mutationFn: async (draftId: string) => {
