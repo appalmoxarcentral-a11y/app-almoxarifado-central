@@ -135,7 +135,7 @@ export function EntriesOnlyView({
                     <TrendingUp className="h-3 w-3 mr-1" /> Entrada
                   </Badge>
                 </TableCell>
-                <TableCell className="text-xs md:text-sm max-w-[150px] truncate">
+                <TableCell className="text-xs md:text-sm">
                   {entrada.produto?.descricao}
                 </TableCell>
                 <TableCell className="text-xs md:text-sm">{entrada.quantidade}</TableCell>

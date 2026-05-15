@@ -20,6 +20,12 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const userRef = React.useRef<User | null>(null);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
   const [originalUser, setOriginalUser] = useState<User | null>(null);
   const [isImpersonating, setIsImpersonating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -55,10 +61,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Função para carregar perfil
-  const loadProfile = useCallback(async (userId: string, email: string) => {
+  const loadProfile = useCallback(async (userId: string, email: string, showLoading = true) => {
     if (isImpersonating) return; // Não recarregar perfil se estiver impersonando
-    console.log('[AuthContext] Iniciando loadProfile para:', userId);
-    setIsLoading(true);
+    console.log('[AuthContext] Iniciando loadProfile para:', userId, { showLoading });
+    if (showLoading) setIsLoading(true);
     try {
       const { data: profile, error } = await supabase
         .from('profiles')
@@ -189,8 +195,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshProfile = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
-      setIsLoading(true);
-      await loadProfile(session.user.id, session.user.email!);
+      // refreshProfile geralmente é chamado após ações do usuário, 
+      // então podemos decidir se mostramos loading ou não.
+      // Para manter a fluidez, vamos evitar o loading global se já tivermos o user.
+      await loadProfile(session.user.id, session.user.email!, !userRef.current);
     }
   };
 
@@ -211,8 +219,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Escutar mudanças de auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        loadProfile(session.user.id, session.user.email!);
+      console.log('[AuthContext] Evento de Auth:', event);
+      
+      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') && session?.user) {
+        // Se já temos um usuário, não mostramos o loading state para evitar flicker/reload
+        const shouldShowLoading = !userRef.current;
+        loadProfile(session.user.id, session.user.email!, shouldShowLoading);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setIsLoading(false);

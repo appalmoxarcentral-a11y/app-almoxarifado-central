@@ -119,7 +119,7 @@ export function SearchableModal<T>({
           )}
           disabled={disabled}
         >
-          <span className="truncate">
+          <span className="">
             {displayLabel}
           </span>
           <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -196,17 +196,17 @@ export function SearchableModal<T>({
                     value={itemValue}
                     onSelect={() => handleSelect(item)}
                     className={cn(
-                      "flex items-center gap-2 sm:gap-3 p-1.5 sm:p-3 mb-0 sm:mb-1 rounded-lg sm:rounded-xl cursor-pointer transition-all text-sm sm:text-base",
+                      "flex items-start gap-2 sm:gap-3 p-1.5 sm:p-3 mb-0 sm:mb-1 rounded-lg sm:rounded-xl cursor-pointer transition-all text-sm sm:text-base",
                       isSelected ? "bg-primary/10 text-primary font-bold border border-primary/20" : "hover:bg-muted/50"
                     )}
                   >
                     <div className={cn(
-                      "flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 rounded-full border transition-all",
+                      "flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 rounded-full border transition-all mt-0.5 sm:mt-1 shrink-0",
                       isSelected ? "border-primary bg-primary text-white" : "border-muted-foreground/30"
                     )}>
                       {isSelected && <Check className="h-2.5 w-2.5 sm:h-3 sm:w-3" />}
                     </div>
-                    <span className="flex-1 truncate">{itemLabel}</span>
+                    <span className="flex-1">{itemLabel}</span>
                   </CommandItem>
                 )
               })}

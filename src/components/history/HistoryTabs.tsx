@@ -226,7 +226,7 @@ export function HistoryTabs({
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-xs md:text-sm max-w-[150px] truncate">
+                      <TableCell className="text-xs md:text-sm">
                         {mov.descricao_produto}
                       </TableCell>
                       <TableCell className={cn(
