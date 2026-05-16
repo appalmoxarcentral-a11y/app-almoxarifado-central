@@ -35,6 +35,28 @@ export function ProtectedRoute({ children, requiredPermission }: ProtectedRouteP
     return <Navigate to="/" replace />;
   }
 
+  // Lógica de Bloqueio de Assinatura
+  // Se estiver bloqueado:
+  // - ADMIN pode acessar /assinatura
+  // - COMUM (user) pode acessar APENAS / (Dashboard, onde verá a mensagem de bloqueio)
+  // - SUPER_ADMIN acessa tudo
+  if (user.subscription_blocked && !isSuperAdmin) {
+    if (isAdmin) {
+      if (location.pathname !== '/assinatura') {
+        return <Navigate to="/assinatura" replace />;
+      }
+      // Se estiver na rota correta, renderiza e ignora as outras validações
+      return <>{children}</>;
+    } else {
+      // Para usuários COMUM ('user')
+      if (location.pathname !== '/') {
+        return <Navigate to="/" replace />;
+      }
+      // Se estiver na rota correta, renderiza e ignora as outras validações
+      return <>{children}</>;
+    }
+  }
+
   // Lógica de Bloqueio de Unidade
   // Se o usuário não tiver unidade_id e não for Super Admin nem Admin acessando área administrativa, redireciona para seleção
   const isAccessingAdmin = location.pathname.startsWith('/admin');
@@ -45,15 +67,6 @@ export function ProtectedRoute({ children, requiredPermission }: ProtectedRouteP
   // Se o usuário já tem unidade_id e tenta acessar seleção de unidade, manda para home
   if (user.unidade_id && location.pathname === '/select-unidade') {
     return <Navigate to="/" replace />;
-  }
-
-  // Lógica de Bloqueio de Assinatura
-  // Se estiver bloqueado, só pode acessar a página de assinatura e o Dashboard
-  if (user.subscription_blocked && !isSuperAdmin) {
-    const allowedPaths = ['/assinatura', '/'];
-    if (!allowedPaths.includes(location.pathname)) {
-      return <Navigate to="/assinatura" replace />;
-    }
   }
 
   // Restrição da rota /admin para SUPER_ADMIN e ADMIN (conforme solicitado pelo usuário)

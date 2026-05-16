@@ -13,6 +13,7 @@ export function usePurchaseState() {
   const [hasAttemptedAutoLoad, setHasAttemptedAutoLoad] = useState(false);
   const [filters, setFilters] = useState<PurchaseFilters>({
     searchTerm: '',
+    searchType: 'todos',
     estoqueMinimo: undefined
   });
 
@@ -114,8 +115,22 @@ export function usePurchaseState() {
     const filtered = purchaseItems.filter(item => {
       if (filters.searchTerm) {
         const searchLower = filters.searchTerm.toLowerCase();
+        const type = filters.searchType || 'todos';
+
+        if (type === 'codigo') {
+          return item.codigo.toLowerCase().includes(searchLower);
+        }
+        if (type === 'descricao') {
+          return item.descricao.toLowerCase().includes(searchLower);
+        }
+        if (type === 'unidade') {
+          return item.unidade_medida && item.unidade_medida.toLowerCase().includes(searchLower);
+        }
+
+        // 'todos'
         return item.descricao.toLowerCase().includes(searchLower) ||
-               item.codigo.toLowerCase().includes(searchLower);
+               item.codigo.toLowerCase().includes(searchLower) ||
+               (item.unidade_medida && item.unidade_medida.toLowerCase().includes(searchLower));
       }
       if (filters.estoqueMinimo !== undefined) {
         if (item.estoque_atual > filters.estoqueMinimo) return false;
@@ -124,17 +139,45 @@ export function usePurchaseState() {
     });
 
     const sorted = [...filtered].sort((a, b) => {
-      // Hierarquia: Com Estoque (1) > Com Reposição (2) > Sem Estoque (3)
-      const getTier = (item: PurchaseItem) => {
-        if (item.estoque_atual > 0) return 1;
-        if ((item.quantidade_reposicao || 0) > 0) return 2;
-        return 3;
-      };
+      const aOrigem = a.estoque_origem || 0;
+      const bOrigem = b.estoque_origem || 0;
+      const aDestino = a.estoque_atual || 0;
+      const bDestino = b.estoque_atual || 0;
+      const aQtd = a.quantidade_reposicao || 0;
+      const bQtd = b.quantidade_reposicao || 0;
 
-      const tierA = getTier(a);
-      const tierB = getTier(b);
+      const aHasQtd = aQtd > 0;
+      const bHasQtd = bQtd > 0;
 
-      if (tierA !== tierB) return tierA - tierB;
+      // 1º Regra: Produtos COM quantidade de reposição preenchida devem ficar no topo
+      if (aHasQtd !== bHasQtd) {
+        return aHasQtd ? -1 : 1;
+      }
+
+      // 2º Regra: Se ambos têm quantidade, ordenar da maior para a menor quantidade pedida
+      if (aHasQtd && bHasQtd && aQtd !== bQtd) {
+        return bQtd - aQtd;
+      }
+
+      // 3º Regra: Produtos sem valores ou zerados na origem devem ficar no final da fila
+      const aOrigemZerado = aOrigem <= 0;
+      const bOrigemZerado = bOrigem <= 0;
+      
+      if (aOrigemZerado !== bOrigemZerado) {
+        return aOrigemZerado ? 1 : -1;
+      }
+
+      // 4º Regra: Valores maiores que zero na origem aparecem no topo (Decrescente)
+      if (!aOrigemZerado && !bOrigemZerado && aOrigem !== bOrigem) {
+        return bOrigem - aOrigem;
+      }
+
+      // 5º Regra: Menores saldos de destino aparecem primeiro (Crescente)
+      if (aDestino !== bDestino) {
+        return aDestino - bDestino;
+      }
+
+      // Fallback: Ordem alfabética
       return a.descricao.localeCompare(b.descricao);
     });
 

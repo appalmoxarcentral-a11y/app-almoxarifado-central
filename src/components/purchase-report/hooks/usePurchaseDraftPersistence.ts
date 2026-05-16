@@ -188,7 +188,15 @@ export function usePurchaseDraftPersistence() {
       console.log('📝 Criando novo rascunho:', nome_rascunho);
 
       const targetUnidadeId = unidade_id || (user as any).unidade_id;
-      const unidadeOrigemId = (user as any).unidade_id; // Unidade atual do usuário logado
+      // Determinar unidade de origem e destino
+      const CENTRAL_ID = '9dce634a-7ee1-46b2-92e6-916f5789875c';
+      const currentUserUnidadeId = (user as any).unidade_id;
+      
+      // Se quem está salvando não for a Central, a origem do pedido é a Central e o destino é a unidade do usuário.
+      // Se for a Central salvando para outra unidade, a origem é a Central e o destino é targetUnidadeId.
+      const isCentralUser = currentUserUnidadeId === CENTRAL_ID;
+      const unidadeOrigemId = CENTRAL_ID; 
+      const unidadeDestinoId = targetUnidadeId || currentUserUnidadeId;
 
       // Validar estoque se for usuário global
       await validateStockAvailability(dados_produtos, unidadeOrigemId);
@@ -201,7 +209,7 @@ export function usePurchaseDraftPersistence() {
           dados_produtos: dados_produtos as any,
           ativo: true,
           status: 'rascunho',
-          unidade_id: targetUnidadeId,
+          unidade_id: unidadeDestinoId,
           unidade_origem_id: unidadeOrigemId,
           tenant_id: user.tenant_id || '00000000-0000-0000-0000-000000000000'
         })
@@ -249,13 +257,8 @@ export function usePurchaseDraftPersistence() {
 
       console.log('✏️ Atualizando rascunho:', id);
 
-      // A unidade de origem SEMPRE será a unidade atual do usuário que está gerenciando/autorizando
-      // se ele tiver acesso global, pois é de lá que o estoque será deduzido.
-      const originId = (user as any).unidade_id;
-
-      if (!originId) {
-        throw new Error('Unidade atual do usuário não identificada.');
-      }
+      const CENTRAL_ID = '9dce634a-7ee1-46b2-92e6-916f5789875c';
+      const originId = CENTRAL_ID;
 
       // Validar estoque na unidade atual do usuário (origem)
       await validateStockAvailability(dados_produtos, originId);
@@ -470,16 +473,14 @@ export function usePurchaseDraftPersistence() {
 
   const confirmDelivery = useMutation({
     mutationFn: async (draft: RascunhoCompra) => {
-      if (!user?.id || !hasPermission('acesso_global_pedidos')) {
+      if (!hasPermission('acesso_global_pedidos')) {
         throw new Error('Sem permissão para confirmar entrega');
       }
 
-      const unidadeOrigemId = (user as any).unidade_id;
-      if (!unidadeOrigemId) {
-        throw new Error('Sua unidade atual não foi identificada.');
-      }
+      const CENTRAL_ID = '9dce634a-7ee1-46b2-92e6-916f5789875c';
+      const unidadeOrigemId = CENTRAL_ID;
 
-      console.log('📦 Validando estoque na sua unidade atual:', unidadeOrigemId);
+      console.log('📦 Validando estoque na unidade de origem:', unidadeOrigemId);
 
       // Validar estoque (agora considerando lotes múltiplos se houver)
       await validateStockAvailability(draft.dados_produtos, unidadeOrigemId);

@@ -26,6 +26,7 @@ export interface PurchaseReportData {
 
 export interface PurchaseFilters {
   searchTerm: string;
+  searchType: 'todos' | 'codigo' | 'descricao' | 'unidade';
   estoqueMinimo?: number;
   tenantId?: string;
 }

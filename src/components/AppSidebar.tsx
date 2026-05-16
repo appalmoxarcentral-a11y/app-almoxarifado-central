@@ -78,8 +78,15 @@ export function AppSidebar() {
     // Primeiro, checa permissão básica
     if (!hasPermission(item.permission)) return false;
     
-    // Se estiver bloqueado, apenas Dashboard é permitido
-    if (isSubscriptionBlocked && item.url !== '/') return false;
+    // Se estiver bloqueado
+    if (isSubscriptionBlocked) {
+      // COMUM vê APENAS o Dashboard
+      if (!isAdmin) {
+        return item.url === '/';
+      }
+      // ADMIN não vê nada do menu principal (vai usar o botão fixo de Assinatura abaixo)
+      return false;
+    }
     
     return true;
   });
@@ -120,8 +127,8 @@ export function AppSidebar() {
             </SidebarMenuItem>
           )}
 
-          {/* Assinatura (Sempre visível para Admin/SuperAdmin, ou para todos se estiver bloqueado) */}
-          {user?.tenant_id && (user?.tipo === 'ADMIN' || user?.tipo === 'SUPER_ADMIN' || isSubscriptionBlocked) && (
+          {/* Assinatura (Sempre visível para Admin/SuperAdmin. Oculto para COMUM se bloqueado) */}
+          {user?.tenant_id && (isAdmin) && (
             <SidebarMenuItem>
               <SidebarMenuButton asChild isActive={isActive('/assinatura')} className="cursor-pointer">
                 <Link to="/assinatura" className="flex items-center gap-2 text-red-500 font-semibold">

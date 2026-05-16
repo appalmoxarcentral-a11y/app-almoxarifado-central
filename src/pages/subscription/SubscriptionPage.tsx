@@ -203,6 +203,7 @@ export function SubscriptionPage() {
       const { data, error } = await supabase
         .from('plans')
         .update({
+          description: planToEdit.description,
           price: Number(planToEdit.price),
           max_users: Number(planToEdit.max_users),
           max_products: planToEdit.max_products === 0 ? null : Number(planToEdit.max_products),
@@ -292,6 +293,15 @@ export function SubscriptionPage() {
               <DialogTitle className="text-xl sm:text-2xl font-bold">Configurar Plano: {planToEdit.name}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4 sm:py-6">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Descrição do Plano</Label>
+                <Input 
+                  type="text" 
+                  className="bg-background border-border h-12 text-[16px]"
+                  value={planToEdit.description || ''} 
+                  onChange={(e) => setPlanToEdit({ ...planToEdit, description: e.target.value })}
+                />
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Preço Mensal (R$)</Label>

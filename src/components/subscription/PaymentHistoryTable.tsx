@@ -27,11 +27,55 @@ export function PaymentHistoryTable() {
       
       const { data, error } = await supabase
         .from('subscription_invoices')
-        .select('*')
+        .select('*, plans(name)')
         .eq('tenant_id', user.tenant_id)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
+
+      // Sincronização automática com o banco de dados
+      // Se a regra de negócio do frontend identificar que passou de 10 dias de atraso,
+      // nós forçamos a atualização no banco de dados para refletir o status 'pending'
+      if (data && data.length > 0) {
+        const now = new Date();
+        const updates = [];
+
+        for (let i = 0; i < data.length; i++) {
+          const inv = data[i];
+          
+          let displayDueDate = inv.due_date;
+          const previousInvoice = data[i + 1];
+          if (previousInvoice && previousInvoice.next_cycle_date) {
+            displayDueDate = previousInvoice.next_cycle_date;
+          }
+
+          if (inv.status === 'waiting' && displayDueDate) {
+            const due = new Date(displayDueDate);
+            if (now > due) {
+              const diffTime = now.getTime() - due.getTime();
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              
+              if (diffDays > 10) {
+                // Passou de 10 dias, deve ser 'pending' no banco de dados
+                // Usando RPC com Security Definer para garantir que não seja barrado pelo RLS
+                updates.push(
+                  supabase.rpc('force_sync_invoice_status', { 
+                    p_invoice_id: inv.id, 
+                    p_new_status: 'pending' 
+                  })
+                );
+                inv.status = 'pending'; // Atualiza localmente para a UI
+              }
+            }
+          }
+        }
+
+        if (updates.length > 0) {
+          console.log(`[PaymentHistoryTable] Sincronizando ${updates.length} faturas para 'pending' no banco de dados.`);
+          await Promise.all(updates);
+        }
+      }
+
       return data;
     },
     enabled: !!user?.tenant_id
@@ -70,14 +114,30 @@ export function PaymentHistoryTable() {
 
     const paymentDate = newStatus === 'paid' ? new Date().toISOString() : null;
     
+    // Preparar payload de atualização
+    const updatePayload: any = {
+      status: newStatus,
+      payment_date: paymentDate
+    };
+
+    // REGRA DE NEGÓCIO: Injeção de Dados Fictícios para Testes do Super Admin
+    // Se a fatura está sendo marcada como paga e não tem os dados do PIX (nunca foi enviada ao n8n),
+    // nós inserimos dados falsos para garantir que os gatilhos e integrações funcionem como se fosse real.
+    if (newStatus === 'paid') {
+      const invoice = invoices?.find(inv => inv.id === invoiceId);
+      if (invoice && !invoice.pix_id) {
+        updatePayload.pix_id = `TESTE_MANUAL_${Math.random().toString(36).substring(7)}`;
+        updatePayload.pix_code = "00020101021226800014br.gov.bcb.pix2558pix.mentoriajrs.com/teste-manual-super-admin";
+        updatePayload.pix_qr_code_url = "https://mentoriajrs.com/pix-teste.png";
+        console.log('[PaymentHistoryTable] Injetando dados PIX fictícios para homologação');
+      }
+    }
+
     // IMPORTANTE: Para o Super Admin conseguir editar, precisamos garantir que ele 
     // ignore o filtro de tenant_id se estiver editando uma fatura de outro tenant
     const { error } = await supabase
       .from('subscription_invoices')
-      .update({ 
-        status: newStatus,
-        payment_date: paymentDate
-      })
+      .update(updatePayload)
       .eq('id', invoiceId); // Removido filtro de tenant_id para Super Admin global access
 
     if (error) {
@@ -110,15 +170,48 @@ export function PaymentHistoryTable() {
     try {
       const n8nWebhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL;
       
-      // Fetch tenant details
+      // Fetch tenant and plan details
       const { data: tenant } = await supabase
         .from('tenants')
         .select('*')
         .eq('id', user?.tenant_id)
         .single();
 
+      // Buscando o nome do plano de forma independente para garantir que não venha vazio
+      let planName = invoice.plans?.name || '';
+      let planId = invoice.plan_id;
+
+      // Se não tem plan_id na fatura (faturas legadas), busca da assinatura ativa
+      if (!planId) {
+        const { data: subData } = await supabase
+          .from('subscriptions')
+          .select('plan_id')
+          .eq('id', invoice.subscription_id)
+          .single();
+        
+        if (subData) {
+          planId = subData.plan_id;
+        }
+      }
+
+      if (!planName && planId) {
+        const { data: planData } = await supabase
+          .from('plans')
+          .select('name')
+          .eq('id', planId)
+          .single();
+        if (planData) {
+          planName = planData.name;
+        }
+      }
+
       const payload = {
         invoice_id: invoice.id,
+        plan_id: planId,
+        plan_name: planName,
+        plano_ativo: planName,
+        plano: planName,
+        nome_plano: planName,
         tenant_id: user?.tenant_id,
         user_id: user?.id,
         amount: Number(invoice.amount),
@@ -298,6 +391,25 @@ export function PaymentHistoryTable() {
                 displayNextCycle = date.toISOString();
               }
 
+              let dynamicStatus = invoice.status;
+              if (invoice.status !== 'paid' && invoice.status !== 'failed' && displayDueDate) {
+                const now = new Date();
+                const due = new Date(displayDueDate);
+                
+                if (now > due) {
+                  const diffTime = now.getTime() - due.getTime();
+                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                  
+                  if (diffDays > 10) {
+                    dynamicStatus = 'pending'; // Pendente / Bloqueado
+                  } else {
+                    dynamicStatus = 'late'; // Atrasado
+                  }
+                } else {
+                  dynamicStatus = 'waiting'; // Aguardando
+                }
+              }
+
               return (
                 <TableRow key={invoice.id} className="border-border hover:bg-muted/30 transition-colors">
                   <TableCell className="text-foreground font-bold py-4">
@@ -314,8 +426,9 @@ export function PaymentHistoryTable() {
                       className={`
                         px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border-0
                         ${invoice.status === 'paid' ? 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20' : ''}
-                        ${invoice.status === 'pending' ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' : ''}
-                        ${invoice.status === 'waiting' ? 'bg-blue-500/10 text-blue-500 hover:bg-blue-500/20' : ''}
+                        ${dynamicStatus === 'pending' && invoice.status !== 'paid' ? 'bg-destructive/10 text-destructive hover:bg-destructive/20' : ''}
+                        ${dynamicStatus === 'late' && invoice.status !== 'paid' ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' : ''}
+                        ${dynamicStatus === 'waiting' && invoice.status !== 'paid' ? 'bg-blue-500/10 text-blue-500 hover:bg-blue-500/20' : ''}
                         ${user?.tipo === 'SUPER_ADMIN' ? 'cursor-pointer' : 'cursor-default'}
                         transition-all
                       `}
@@ -323,9 +436,10 @@ export function PaymentHistoryTable() {
                     >
                       <div className="flex items-center gap-1.5">
                         {invoice.status === 'paid' ? 'APROVADO' : 
-                         invoice.status === 'pending' ? 'PENDENTE' : 
-                         invoice.status === 'waiting' ? 'AGUARDANDO' : 
-                         invoice.status === 'failed' ? 'Falhou' : invoice.status}
+                         dynamicStatus === 'pending' ? 'PENDENTE' : 
+                         dynamicStatus === 'late' ? 'ATRASADO' : 
+                         dynamicStatus === 'waiting' ? 'AGUARDANDO' : 
+                         invoice.status === 'failed' ? 'FALHOU' : invoice.status}
                         {user?.tipo === 'SUPER_ADMIN' && <RotateCw className="h-2.5 w-2.5 opacity-50" />}
                       </div>
                     </Badge>

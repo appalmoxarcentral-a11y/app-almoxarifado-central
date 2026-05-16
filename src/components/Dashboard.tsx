@@ -185,31 +185,29 @@ export function Dashboard() {
       </div>
 
       {isSubscriptionBlocked && (
-        <div className="bg-destructive/10 p-4 rounded-lg border border-destructive/20 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-          <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
+        <div className="bg-destructive/10 p-5 md:p-8 rounded-2xl border-2 border-destructive/30 flex items-start md:items-center gap-4 animate-in fade-in slide-in-from-top-4 shadow-lg">
+          <div className="bg-destructive p-3 rounded-xl shadow-md shrink-0 mt-1 md:mt-0">
+            <AlertCircle className="h-6 w-6 md:h-8 md:w-8 text-destructive-foreground" />
+          </div>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-destructive">
-              Acesso Restrito: Sua unidade possui faturas pendentes.
-            </p>
-            <p className="text-xs text-destructive/80">
+            <h2 className="text-xl md:text-2xl font-black text-destructive uppercase tracking-tight leading-tight">
+              Acesso Restrito
+            </h2>
+            <p className="text-sm md:text-lg text-destructive/90 mt-1.5 font-medium">
+              As funcionalidades do sistema estão temporariamente bloqueadas devido a pendências financeiras.
+              <br/>
               {user?.tipo === 'ADMIN' 
-                ? "As funcionalidades do sistema estão bloqueadas. Regularize sua assinatura para liberar o acesso total."
-                : "Entre em contato com o administrador da sua unidade para regularizar a assinatura."}
+                ? "Acesse a tela de Assinaturas para regularizar o pagamento."
+                : "Por favor, entre em contato com o administrador da sua unidade para regularizar a assinatura."}
             </p>
           </div>
-          {user?.tipo === 'ADMIN' && (
-            <Badge 
-              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground cursor-pointer"
-              onClick={() => window.location.href = '/assinatura'}
-            >
-              Ir para Pagamento
-            </Badge>
-          )}
         </div>
       )}
 
-      {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+      {/* Cards de Estatísticas e resto do dashboard só aparecem se NÃO estiver bloqueado */}
+      {!isSubscriptionBlocked && (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
         <Card>
           <CardContent className="p-4 md:p-6">
             <div className="flex items-center gap-2">
@@ -382,6 +380,8 @@ export function Dashboard() {
           </CardContent>
         </Card>
       </div>
+      </>
+      )}
     </div>
   );
 }
