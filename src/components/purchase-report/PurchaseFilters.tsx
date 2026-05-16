@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Search, Filter } from 'lucide-react';
 import type { PurchaseFilters } from '@/types/purchase';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface PurchaseFiltersProps {
   filters: PurchaseFilters;
@@ -14,17 +15,38 @@ interface PurchaseFiltersProps {
   showOnlySearch?: boolean;
   showOnlyLowStock?: boolean;
 }
-
 export function PurchaseFilters({ filters, onFiltersChange, showOnlySearch, showOnlyLowStock }: PurchaseFiltersProps) {
   const isMobile = useIsMobile();
-  const handleSearchChange = (value: string) => {
-    onFiltersChange({ ...filters, searchTerm: value });
-  };
+  
+  // Estados locais para evitar lag na digitação
+  const [localSearch, setLocalSearch] = useState(filters.searchTerm);
+  const [localEstoque, setLocalEstoque] = useState(filters.estoqueMinimo?.toString() || '');
 
-  const handleEstoqueMinimoChange = (value: string) => {
-    const estoqueMinimo = value === '' ? undefined : parseInt(value);
-    onFiltersChange({ ...filters, estoqueMinimo });
-  };
+  const debouncedSearch = useDebounce(localSearch, 300);
+  const debouncedEstoque = useDebounce(localEstoque, 300);
+
+  // Sincronizar quando os filtros mudarem externamente (ex: carregar rascunho)
+  useEffect(() => {
+    setLocalSearch(filters.searchTerm);
+  }, [filters.searchTerm]);
+
+  useEffect(() => {
+    setLocalEstoque(filters.estoqueMinimo?.toString() || '');
+  }, [filters.estoqueMinimo]);
+
+  // Aplicar filtros debounced
+  useEffect(() => {
+    if (debouncedSearch !== filters.searchTerm) {
+      onFiltersChange({ ...filters, searchTerm: debouncedSearch });
+    }
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    const val = debouncedEstoque === '' ? undefined : parseInt(debouncedEstoque);
+    if (val !== filters.estoqueMinimo) {
+      onFiltersChange({ ...filters, estoqueMinimo: val });
+    }
+  }, [debouncedEstoque]);
 
   if (showOnlySearch) {
     return (
@@ -36,9 +58,9 @@ export function PurchaseFilters({ filters, onFiltersChange, showOnlySearch, show
             <Input
               id="search"
               placeholder="Nome ou código..."
-              value={filters.searchTerm}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="pl-10 h-10 bg-muted/20 border-muted-foreground/10 focus:border-primary"
+              value={localSearch}
+              onChange={(e) => setLocalSearch(e.target.value)}
+              className="pl-10 h-10 bg-muted/20 border-muted-foreground/10 focus:border-primary font-medium"
             />
           </div>
         </div>
@@ -55,9 +77,9 @@ export function PurchaseFilters({ filters, onFiltersChange, showOnlySearch, show
           type="number"
           min="0"
           placeholder="ex: 10"
-          value={filters.estoqueMinimo || ''}
-          onChange={(e) => handleEstoqueMinimoChange(e.target.value)}
-          className="h-11 bg-muted/20 border-muted-foreground/10 focus:border-primary"
+          value={localEstoque}
+          onChange={(e) => setLocalEstoque(e.target.value)}
+          className="h-11 bg-muted/20 border-muted-foreground/10 focus:border-primary font-bold text-lg"
         />
       </div>
     );
@@ -80,8 +102,8 @@ export function PurchaseFilters({ filters, onFiltersChange, showOnlySearch, show
               <Input
                 id="search"
                 placeholder="Nome ou código..."
-                value={filters.searchTerm}
-                onChange={(e) => handleSearchChange(e.target.value)}
+                value={localSearch}
+                onChange={(e) => setLocalSearch(e.target.value)}
                 className="pl-10 h-11 bg-muted/20 border-muted-foreground/10 focus:border-primary"
               />
             </div>
@@ -94,8 +116,8 @@ export function PurchaseFilters({ filters, onFiltersChange, showOnlySearch, show
               type="number"
               min="0"
               placeholder="ex: 10"
-              value={filters.estoqueMinimo || ''}
-              onChange={(e) => handleEstoqueMinimoChange(e.target.value)}
+              value={localEstoque}
+              onChange={(e) => setLocalEstoque(e.target.value)}
               className="h-11 bg-muted/20 border-muted-foreground/10 focus:border-primary"
             />
           </div>

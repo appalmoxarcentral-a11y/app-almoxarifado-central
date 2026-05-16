@@ -36,8 +36,13 @@ export interface PurchaseDraftItem {
   unidade_medida: string;
   estoque_atual: number;
   quantidade_reposicao?: number;
-  lote_selecionado?: string;
-  vencimento_selecionado?: string;
+  lotes_multiplos?: {
+    lote: string;
+    vencimento: string;
+    quantidade: number;
+  }[];
+  lote_selecionado?: string; // Mantido para compatibilidade simples
+  vencimento_selecionado?: string; // Mantido para compatibilidade simples
 }
 
 export interface CreateDraftRequest {

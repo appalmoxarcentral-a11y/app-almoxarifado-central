@@ -474,36 +474,83 @@ export function usePurchaseDraftPersistence() {
         throw new Error('Sem permissão para confirmar entrega');
       }
 
-      // A unidade de origem SEMPRE será a unidade atual do usuário que está entregando,
-      // pois é de lá que o estoque será deduzido fisicamente no momento da entrega.
       const unidadeOrigemId = (user as any).unidade_id;
-      
       if (!unidadeOrigemId) {
         throw new Error('Sua unidade atual não foi identificada.');
       }
 
       console.log('📦 Validando estoque na sua unidade atual:', unidadeOrigemId);
 
-      // Validar estoque
+      // Validar estoque (agora considerando lotes múltiplos se houver)
       await validateStockAvailability(draft.dados_produtos, unidadeOrigemId);
 
-      console.log('✅ Estoque validado. Confirmando entrega via Trigger...');
+      console.log('✅ Estoque validado. Iniciando processamento de entrega...');
 
-      // A atualização de estoque agora é feita via TRIGGER no banco de dados (processar_entrega_pedido)
-      const { error } = await supabase
+      // 1. Processar cada item do rascunho
+      for (const item of draft.dados_produtos) {
+        if ((item.quantidade_reposicao || 0) <= 0) continue;
+
+        const { data: produto } = await supabase
+          .from('produtos')
+          .select('id, descricao')
+          .eq('codigo', item.codigo)
+          .single();
+
+        if (!produto) continue;
+
+        const lotesParaProcessar = item.lotes_multiplos || (item.lote_selecionado ? [{
+          lote: item.lote_selecionado,
+          vencimento: item.vencimento_selecionado!,
+          quantidade: item.quantidade_reposicao!
+        }] : []);
+
+        for (const loteInfo of lotesParaProcessar) {
+          // A. Registrar SAÍDA no Almoxarifado Central (Origem)
+          const { error: errorSaida } = await supabase
+            .from('dispensacoes')
+            .insert({
+              produto_id: produto.id,
+              unidade_id: unidadeOrigemId,
+              quantidade: loteInfo.quantidade,
+              lote: loteInfo.lote,
+              procedimento: `REPOSIÇÃO PARA ${draft.unidade_nome || 'UNIDADE'}`,
+              data_dispensa: new Date().toISOString(),
+              usuario_id: user.id,
+              tenant_id: user.tenant_id
+            });
+
+          if (errorSaida) throw errorSaida;
+
+          // B. Registrar ENTRADA na Unidade de Destino
+          const { error: errorEntrada } = await supabase
+            .from('entradas_produtos')
+            .insert({
+              produto_id: produto.id,
+              unidade_id: draft.unidade_id,
+              quantidade: loteInfo.quantidade,
+              lote: `${loteInfo.lote} (Almoxarifado Central)`,
+              vencimento: loteInfo.vencimento,
+              data_entrada: new Date().toISOString(),
+              usuario_id: user.id,
+              tenant_id: user.tenant_id
+            });
+
+          if (errorEntrada) throw errorEntrada;
+        }
+      }
+
+      // 2. Atualizar status do rascunho
+      const { error: errorStatus } = await supabase
         .from('rascunhos_compras')
         .update({ 
           status: 'entregue',
           entregue_por_id: user.id,
           data_entrega: new Date().toISOString(),
-          unidade_origem_id: unidadeOrigemId // Garante que a origem no banco seja a unidade atual de quem entregou
+          unidade_origem_id: unidadeOrigemId
         })
         .eq('id', draft.id);
       
-      if (error) {
-        console.error('❌ Erro ao atualizar status do rascunho:', error);
-        throw error;
-      }
+      if (errorStatus) throw errorStatus;
     },
     onSuccess: () => {
       toast({ title: "Entrega Confirmada!", description: "O estoque da unidade foi atualizado automaticamente." });

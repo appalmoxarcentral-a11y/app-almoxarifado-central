@@ -17,12 +17,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Package, Calendar, AlertCircle } from 'lucide-react';
+import { Package, Calendar, AlertCircle, Plus, Trash2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { PurchaseDraftItem } from '@/types/purchase-draft';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface BatchSelectionModalProps {
   isOpen: boolean;
@@ -39,6 +42,12 @@ interface LoteInfo {
   quantidade: number;
 }
 
+interface LoteSelection {
+  lote: string;
+  vencimento: string;
+  quantidade: number;
+}
+
 export function BatchSelectionModal({
   isOpen,
   onClose,
@@ -47,29 +56,52 @@ export function BatchSelectionModal({
   originUnidadeId,
   isSaving = false
 }: BatchSelectionModalProps) {
-  const [selections, setSelections] = useState<Record<string, { lote: string; vencimento: string }>>({});
+  const { toast } = useToast();
+  const [selections, setSelections] = useState<Record<string, LoteSelection[]>>({});
 
   const itemsToProcess = useMemo(() => {
-    return items
-      .filter(item => (item.quantidade_reposicao || 0) > 0)
-      .sort((a, b) => {
-        const hasA = selections[a.id] ? 1 : 0;
-        const hasB = selections[b.id] ? 1 : 0;
-        if (hasA !== hasB) return hasA - hasB;
-        return a.descricao.localeCompare(b.descricao);
-      });
-  }, [items, selections]);
+    // 1. Filtrar APENAS os itens que têm quantidade de reposição > 0 na Tela 1
+    // Isso é essencial para performance, pois buscar lotes para 500+ itens trava o sistema.
+    const escolhidos = items.filter(item => (item.quantidade_reposicao || 0) > 0);
+    
+    // 2. Dentro dos escolhidos, separar os que ainda não têm lote para o topo
+    const escolhidosPendentes = escolhidos.filter(item => {
+      const hasLote = (item.lote_selecionado && item.vencimento_selecionado) || 
+                      (item.lotes_multiplos && item.lotes_multiplos.length > 0 && item.lotes_multiplos[0].lote);
+      return !hasLote;
+    });
+    
+    const escolhidosConcluidos = escolhidos.filter(item => {
+      const hasLote = (item.lote_selecionado && item.vencimento_selecionado) || 
+                      (item.lotes_multiplos && item.lotes_multiplos.length > 0 && item.lotes_multiplos[0].lote);
+      return hasLote;
+    });
+
+    // Retorna apenas os itens que o usuário está realmente processando
+    return [...escolhidosPendentes, ...escolhidosConcluidos];
+  }, [items]); // Ordem estática durante a edição no modal
 
   // Initialize selections with existing data if available
   useEffect(() => {
     if (isOpen) {
-      const initialSelections: Record<string, { lote: string; vencimento: string }> = {};
+      const initialSelections: Record<string, LoteSelection[]> = {};
       itemsToProcess.forEach(item => {
-        if (item.lote_selecionado && item.vencimento_selecionado) {
-          initialSelections[item.id] = {
+        if (item.lotes_multiplos && item.lotes_multiplos.length > 0) {
+          initialSelections[item.id] = [...item.lotes_multiplos];
+        } else if (item.lote_selecionado && item.vencimento_selecionado) {
+          initialSelections[item.id] = [{
             lote: item.lote_selecionado,
-            vencimento: item.vencimento_selecionado
-          };
+            vencimento: item.vencimento_selecionado,
+            quantidade: item.quantidade_reposicao || 0
+          }];
+        } else {
+          // Inicializa sempre com uma linha de seleção vazia para cada item
+          // A quantidade começa em 0 até que um lote seja selecionado
+          initialSelections[item.id] = [{ 
+            lote: '', 
+            vencimento: '', 
+            quantidade: 0 
+          }];
         }
       });
       setSelections(initialSelections);
@@ -138,21 +170,59 @@ export function BatchSelectionModal({
     enabled: isOpen && !!originUnidadeId && itemsToProcess.length > 0
   });
 
-  const handleSelect = (itemId: string, lote: string, vencimento: string) => {
+  const handleAddLote = (itemId: string) => {
     setSelections(prev => ({
       ...prev,
-      [itemId]: { lote, vencimento }
+      [itemId]: [...(prev[itemId] || []), { lote: '', vencimento: '', quantidade: 0 }]
     }));
+  };
+
+  const handleRemoveLote = (itemId: string, index: number) => {
+    setSelections(prev => ({
+      ...prev,
+      [itemId]: prev[itemId].filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleUpdateLote = (itemId: string, index: number, updates: Partial<LoteSelection>) => {
+    setSelections(prev => {
+      const itemLotes = allBatchesMap?.get(itemId) || [];
+      const currentSelection = { ...prev[itemId][index], ...updates };
+      
+      // Validação de estoque máximo por lote
+      if (currentSelection.lote && currentSelection.quantidade > 0) {
+        const selectedLoteInfo = itemLotes.find(l => l.lote === currentSelection.lote);
+        if (selectedLoteInfo && currentSelection.quantidade > selectedLoteInfo.quantidade) {
+          currentSelection.quantidade = selectedLoteInfo.quantidade;
+          toast({
+            title: "Quantidade ajustada ao saldo do lote",
+            description: `O saldo disponível para o lote ${selectedLoteInfo.lote} é de ${selectedLoteInfo.quantidade}.`,
+            variant: "destructive"
+          });
+        }
+      }
+
+      return {
+        ...prev,
+        [itemId]: prev[itemId].map((sel, i) => i === index ? currentSelection : sel)
+      };
+    });
   };
 
   const handleConfirm = () => {
     const updatedItems = items.map(item => {
-      const selection = selections[item.id];
-      if (selection) {
+      const itemSelections = selections[item.id];
+      if (itemSelections && itemSelections.length > 0) {
+        // Calcular a nova quantidade total baseada nos lotes selecionados
+        const totalDaSelecao = itemSelections.reduce((sum, s) => sum + s.quantidade, 0);
+        
         return {
           ...item,
-          lote_selecionado: selection.lote,
-          vencimento_selecionado: selection.vencimento
+          lotes_multiplos: itemSelections,
+          quantidade_reposicao: totalDaSelecao, // Atualiza a quantidade para bater com os lotes
+          // Mantém para compatibilidade, pega o primeiro lote se houver apenas um
+          lote_selecionado: itemSelections.length === 1 ? itemSelections[0].lote : undefined,
+          vencimento_selecionado: itemSelections.length === 1 ? itemSelections[0].vencimento : undefined
         };
       }
       return item;
@@ -160,81 +230,134 @@ export function BatchSelectionModal({
     onConfirm(updatedItems);
   };
 
-  const allSelected = itemsToProcess.every(item => selections[item.id]);
+  const isItemValid = (item: PurchaseDraftItem) => {
+    const itemSelections = selections[item.id] || [];
+    const hasQty = (item.quantidade_reposicao || 0) > 0;
+    
+    // Se o item não tem quantidade escolhida na tela 1, ele é válido (não precisa de lote)
+    if (!hasQty) return true;
+    
+    // Se tem quantidade, deve ter pelo menos um lote selecionado e preenchido
+    if (itemSelections.length === 0) return false;
+    return itemSelections.every(s => s.lote && s.vencimento && s.quantidade > 0);
+  };
+
+  const canSave = itemsToProcess.every(isItemValid);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0">
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
         <DialogHeader className="p-6 pb-0">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Package className="h-6 w-6 text-primary" />
             Seleção de Lotes para Reposição
           </DialogTitle>
           <DialogDescription className="text-sm">
-            Como você está no Almoxarifado Central, selecione os lotes que serão utilizados para esta reposição. 
-            Esta ação registrará a saída destes lotes da sua unidade.
+            Como você está no Almoxarifado Central, selecione os lotes e as quantidades para cada item. 
+            <strong> Dica:</strong> A quantidade total do pedido será ajustada automaticamente para somar os lotes escolhidos.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6 space-y-8">
           {itemsToProcess.map((item) => {
-            const lotes = allBatchesMap?.get(item.id) || [];
-            const isLoadingItem = isLoadingBatches;
+            const lotesDisponiveis = allBatchesMap?.get(item.id) || [];
+            const itemSelections = selections[item.id] || [];
+            const totalSelected = itemSelections.reduce((sum, s) => sum + s.quantidade, 0);
+            const isComplete = totalSelected > 0 && totalSelected === item.quantidade_reposicao;
+            const hasSelections = itemSelections.length > 0;
 
             return (
-              <div key={item.id} className="p-4 border rounded-xl bg-muted/20 space-y-3 transition-colors hover:border-primary/30">
+              <div key={item.id} className={cn(
+                "p-5 border-2 rounded-2xl space-y-4 transition-all",
+                totalSelected > 0 ? "bg-primary/5 border-primary/30" : "bg-muted/20 border-muted-foreground/10"
+              )}>
                 <div className="flex justify-between items-start">
-                  <div>
-                    <h4 className="font-bold text-foreground text-base">{item.descricao}</h4>
-                    <p className="text-xs text-muted-foreground">
-                      Código: <span className="font-mono">{item.codigo}</span> • Qtd. Reposição: <span className="font-bold text-primary text-sm">{item.quantidade_reposicao}</span>
-                    </p>
+                  <div className="space-y-1">
+                    <h4 className="font-black text-foreground text-lg uppercase tracking-tight">{item.descricao}</h4>
+                    <div className="flex items-center gap-3">
+                      <Badge variant="outline" className="font-mono text-[10px]">{item.codigo}</Badge>
+                      <span className="text-xs text-muted-foreground font-medium">
+                        Qtd. Original: <span className="font-bold">{item.quantidade_reposicao}</span> {item.unidade_medida}
+                      </span>
+                    </div>
                   </div>
-                  <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
-                    {item.unidade_medida}
-                  </Badge>
+                  <div className="text-right">
+                    <Badge variant={totalSelected > 0 ? "default" : "outline"} className={cn(
+                      "font-bold px-3 py-1",
+                      totalSelected > 0 ? "bg-emerald-600 hover:bg-emerald-600" : "text-muted-foreground"
+                    )}>
+                      {totalSelected > 0 ? `TOTAL SELECIONADO: ${totalSelected}` : "AGUARDANDO LOTE"}
+                    </Badge>
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Lote de Origem</Label>
-                  {isLoadingItem ? (
-                    <div className="h-10 w-full animate-pulse bg-muted rounded-lg" />
-                  ) : lotes.length > 0 ? (
-                    <Select 
-                      value={selections[item.id]?.lote ? `${selections[item.id].lote}|${selections[item.id].vencimento}` : undefined}
-                      onValueChange={(val) => {
-                        const [lote, venc] = val.split('|');
-                        handleSelect(item.id, lote, venc);
-                      }}
-                    >
-                      <SelectTrigger className="bg-background h-11 border-muted-foreground/20 focus:ring-primary">
-                        <SelectValue placeholder="Selecione um lote disponível..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {lotes.map((l, i) => (
-                          <SelectItem key={i} value={`${l.lote}|${l.vencimento}`} className="py-3">
-                            <div className="flex flex-col gap-1">
-                              <span className="font-bold text-sm">Lote: {l.lote}</span>
-                              <div className="text-[10px] text-muted-foreground flex items-center gap-3">
-                                <span className="flex items-center gap-1">
-                                  <Calendar className="h-3 w-3" /> 
-                                  Venc: {format(new Date(l.vencimento), 'dd/MM/yyyy')}
-                                </span>
-                                <span className="flex items-center gap-1 font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
-                                  Saldo: {l.quantidade}
-                                </span>
-                              </div>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <div className="flex items-center gap-2 p-3 bg-destructive/5 border border-destructive/20 rounded-lg text-destructive text-xs font-medium">
-                      <AlertCircle className="h-4 w-4 shrink-0" />
-                      Não há lotes com saldo positivo para este produto no Almoxarifado Central.
+                <div className="space-y-3">
+                  {itemSelections.map((sel, idx) => (
+                    <div key={idx} className="flex flex-col md:flex-row gap-3 items-end bg-background/50 p-3 rounded-xl border border-muted-foreground/5">
+                      <div className="flex-1 w-full space-y-1.5">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Lote de Origem</Label>
+                        <Select 
+                          value={sel.lote ? `${sel.lote}|${sel.vencimento}` : undefined}
+                          onValueChange={(val) => {
+                            const [lote, venc] = val.split('|');
+                            // Quando seleciona o lote pela primeira vez, traz a quantidade da imagem 1
+                            const novaQuantidade = sel.quantidade === 0 ? (item.quantidade_reposicao || 0) : sel.quantidade;
+                            
+                            handleUpdateLote(item.id, idx, { 
+                              lote, 
+                              vencimento: venc,
+                              quantidade: novaQuantidade
+                            });
+                          }}
+                        >
+                          <SelectTrigger className="bg-background h-10 border-muted-foreground/20">
+                            <SelectValue placeholder="Selecione um lote..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {lotesDisponiveis.map((l, i) => (
+                              <SelectItem key={i} value={`${l.lote}|${l.vencimento}`}>
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-sm">Lote: {l.lote}</span>
+                                  <span className="text-[10px] text-muted-foreground">Venc: {format(new Date(l.vencimento), 'dd/MM/yyyy')} • Saldo: {l.quantidade}</span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="w-full md:w-32 space-y-1.5">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Quantidade</Label>
+                        <Input
+                          type="number"
+                          value={sel.quantidade || ''}
+                          onChange={(e) => handleUpdateLote(item.id, idx, { quantidade: parseInt(e.target.value) || 0 })}
+                          className="h-10 text-center font-bold border-muted-foreground/20"
+                          placeholder="0"
+                        />
+                      </div>
+
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleRemoveLote(item.id, idx)}
+                        className="text-destructive hover:bg-destructive/10 h-10 w-10 shrink-0"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                  )}
+                  ))}
+
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleAddLote(item.id)}
+                    className="w-full border-dashed border-2 hover:border-primary hover:text-primary transition-all h-10 font-bold text-xs"
+                    disabled={isComplete || lotesDisponiveis.length <= 1}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-2" />
+                    ADICIONAR OUTRO LOTE PARA ESTE ITEM
+                  </Button>
                 </div>
               </div>
             );
@@ -248,14 +371,14 @@ export function BatchSelectionModal({
           )}
         </div>
 
-        <DialogFooter className="p-6 bg-background border-t">
+        <DialogFooter className="p-6 bg-background border-t shrink-0">
           <div className="flex w-full gap-3">
             <Button variant="outline" onClick={onClose} disabled={isSaving} className="flex-1">
               Cancelar
             </Button>
             <Button 
               onClick={handleConfirm}
-              disabled={!allSelected || itemsToProcess.length === 0 || isSaving}
+              disabled={!canSave || itemsToProcess.length === 0 || isSaving}
               className="flex-[2] bg-primary hover:bg-primary/90 font-bold"
             >
               {isSaving ? (

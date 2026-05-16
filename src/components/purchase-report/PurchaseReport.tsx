@@ -203,7 +203,7 @@ export function PurchaseReport() {
         </div>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-6 relative z-10">
         <PurchaseFilters 
           filters={filters}
           onFiltersChange={setFilters}

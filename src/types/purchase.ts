@@ -10,6 +10,11 @@ export interface PurchaseItem {
   unidade_destino_nome?: string;
   lote_selecionado?: string;
   vencimento_selecionado?: string;
+  lotes_multiplos?: {
+    lote: string;
+    vencimento: string;
+    quantidade: number;
+  }[];
 }
 
 export interface PurchaseReportData {

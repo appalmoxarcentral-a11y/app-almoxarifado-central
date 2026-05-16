@@ -71,18 +71,32 @@ export function usePurchaseState() {
     }
   }, [initialProducts, isProductsLoading, targetUnidadeId]);
 
-  const updatePurchaseQuantity = useCallback((productId: string, quantidade: number | undefined, lote?: string, vencimento?: string) => {
+  const updatePurchaseQuantity = useCallback((productId: string, quantidade: number | undefined, lotIndex?: number) => {
     setPurchaseItems(items => 
-      items.map(item => 
-        item.id === productId 
-          ? { 
-              ...item, 
-              quantidade_reposicao: quantidade,
-              lote_selecionado: lote !== undefined ? lote : item.lote_selecionado,
-              vencimento_selecionado: vencimento !== undefined ? vencimento : item.vencimento_selecionado
+      items.map(item => {
+        if (item.id === productId) {
+          // Se for uma atualização de um lote específico (fracionado)
+          if (lotIndex !== undefined && item.lotes_multiplos) {
+            const newLotes = [...item.lotes_multiplos];
+            if (newLotes[lotIndex]) {
+              newLotes[lotIndex] = { ...newLotes[lotIndex], quantidade: quantidade || 0 };
             }
-          : item
-      )
+            // Recalcula o total de reposição baseado na soma dos lotes
+            const newTotal = newLotes.reduce((sum, l) => sum + l.quantidade, 0);
+            return {
+              ...item,
+              quantidade_reposicao: newTotal,
+              lotes_multiplos: newLotes
+            };
+          }
+          // Atualização normal (não fracionada ou inicial)
+          return { 
+            ...item, 
+            quantidade_reposicao: quantidade 
+          };
+        }
+        return item;
+      })
     );
   }, []);
 
@@ -162,7 +176,8 @@ export function usePurchaseState() {
       estoque_atual: item.estoque_atual,
       quantidade_reposicao: item.quantidade_reposicao,
       lote_selecionado: item.lote_selecionado,
-      vencimento_selecionado: item.vencimento_selecionado
+      vencimento_selecionado: item.vencimento_selecionado,
+      lotes_multiplos: item.lotes_multiplos
     }));
 
     const finalUnidadeId = unidade_id || targetUnidadeId;
@@ -205,7 +220,8 @@ export function usePurchaseState() {
             ...currentItem,
             quantidade_reposicao: draftItem.quantidade_reposicao,
             lote_selecionado: draftItem.lote_selecionado,
-            vencimento_selecionado: draftItem.vencimento_selecionado
+            vencimento_selecionado: draftItem.vencimento_selecionado,
+            lotes_multiplos: draftItem.lotes_multiplos
           };
         }
         return currentItem;
@@ -263,7 +279,8 @@ export function usePurchaseState() {
             ...currentItem,
             quantidade_reposicao: draftItem.quantidade_reposicao,
             lote_selecionado: draftItem.lote_selecionado,
-            vencimento_selecionado: draftItem.vencimento_selecionado
+            vencimento_selecionado: draftItem.vencimento_selecionado,
+            lotes_multiplos: draftItem.lotes_multiplos
           };
         }
         return currentItem;
@@ -340,7 +357,8 @@ export function usePurchaseState() {
       estoque_atual: item.estoque_atual,
       quantidade_reposicao: item.quantidade_reposicao,
       lote_selecionado: item.lote_selecionado,
-      vencimento_selecionado: item.vencimento_selecionado
+      vencimento_selecionado: item.vencimento_selecionado,
+      lotes_multiplos: item.lotes_multiplos
     })),
     hasChanges
   };

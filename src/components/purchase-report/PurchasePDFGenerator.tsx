@@ -25,6 +25,22 @@ export function PurchasePDFGenerator({ items, unidadeNome: propUnidadeNome, disa
     // Definir nome da unidade (prioriza a prop que vem do pedido selecionado)
     const unidadeNome = propUnidadeNome || user?.unidade_nome || 'SMSA';
     
+    // "Explodir" itens que possuem múltiplos lotes para exibição individual no PDF
+    const displayedItems = [];
+    items.forEach(item => {
+      if (item.lotes_multiplos && item.lotes_multiplos.length > 1) {
+        item.lotes_multiplos.forEach(lote => {
+          displayedItems.push({
+            ...item,
+            lote_selecionado: lote.lote,
+            quantidade_reposicao: lote.quantidade
+          });
+        });
+      } else {
+        displayedItems.push(item);
+      }
+    });
+
     // Criar conteúdo HTML para impressão
     const printContent = `
       <!DOCTYPE html>
@@ -119,25 +135,27 @@ export function PurchasePDFGenerator({ items, unidadeNome: propUnidadeNome, disa
             <strong>Responsável:</strong> ${user?.nome || 'Não informado'}
           </div>
           <div>
-            <strong>Total de Itens:</strong> ${items.length}
+            <strong>Total de Linhas:</strong> ${displayedItems.length}
           </div>
         </div>
 
         <table>
           <thead>
             <tr>
-              <th style="width: 15%">Código</th>
-              <th style="width: 45%">Descrição do Produto</th>
-              <th style="width: 10%" class="text-center">Unidade</th>
-              <th style="width: 15%" class="text-center">Estoque Atual</th>
-              <th style="width: 15%" class="text-center">Qtd. Pedida</th>
+              <th style="width: 10%">Código</th>
+              <th style="width: 35%">Descrição do Produto</th>
+              <th style="width: 15%" class="text-center">Lote</th>
+              <th style="width: 10%" class="text-center">Unid.</th>
+              <th style="width: 15%" class="text-center">Estoque Destino</th>
+              <th style="width: 15%" class="text-center">Qtd. Enviada</th>
             </tr>
           </thead>
           <tbody>
-            ${items.map(item => `
+            ${displayedItems.map(item => `
               <tr>
                 <td class="codigo">${item.codigo}</td>
                 <td>${item.descricao}</td>
+                <td class="text-center">${item.lote_selecionado || '-'}</td>
                 <td class="text-center">${item.unidade_medida}</td>
                 <td class="text-center">${item.estoque_atual}</td>
                 <td class="text-center"><strong>${item.quantidade_reposicao}</strong></td>
