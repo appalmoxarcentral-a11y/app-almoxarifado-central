@@ -101,6 +101,8 @@ export function PurchaseTable({
   const renderQuantityField = (item: PurchaseItem & { originalId?: string; lotIndex?: number }) => {
     const hasAnnotation = Boolean(item.anotacao_reposicao?.trim());
     const fieldId = item.id;
+    const quantityText = item.quantidade_reposicao === undefined ? '' : String(item.quantidade_reposicao);
+    const inputWidthInCh = Math.min(Math.max((quantityText || '0').length + 4, 7), 14);
 
     return (
       <div className="relative w-fit mx-auto">
@@ -113,8 +115,9 @@ export function PurchaseTable({
                 placeholder="0"
                 value={item.quantidade_reposicao || ''}
                 onChange={(e) => handleQuantityChange(item.id, e.target.value, item.originalId, item.lotIndex)}
+                style={{ width: `calc(${inputWidthInCh}ch + 1.5rem)` }}
                 className={cn(
-                  "w-24 pr-8 text-center mx-auto bg-background border-muted-foreground/20 focus:border-primary transition-all font-bold",
+                  "min-w-[6.5rem] max-w-[12rem] pr-10 text-center mx-auto bg-background border-muted-foreground/20 focus:border-primary transition-all font-bold text-sm md:text-base font-mono tabular-nums",
                   hasAnnotation && "border-amber-300/60 bg-amber-400/10 hover:bg-amber-400/15 focus:bg-amber-400/10"
                 )}
                 title={hasAnnotation ? item.anotacao_reposicao : undefined}
@@ -125,7 +128,7 @@ export function PurchaseTable({
                     type="button"
                     aria-label={hasAnnotation ? "Editar anotacao da reposicao" : "Adicionar anotacao da reposicao"}
                     className={cn(
-                      "absolute right-1.5 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full flex items-center justify-center transition-all",
+                      "absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full flex items-center justify-center transition-all",
                       hasAnnotation
                         ? "bg-amber-400/20 text-amber-300 hover:bg-amber-400/30"
                         : "text-muted-foreground/60 hover:text-amber-300 hover:bg-amber-400/10"
