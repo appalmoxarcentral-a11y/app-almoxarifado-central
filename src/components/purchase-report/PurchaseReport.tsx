@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ShoppingCart, Calendar, Package, ShieldCheck, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -29,6 +29,8 @@ import { AlertCircle } from 'lucide-react';
 
 import { PaymentCelebration } from '../subscription/PaymentCelebration';
 import { addDays, isAfter, format } from 'date-fns';
+import type { Option } from '@/components/ui/multi-select';
+import type { PurchaseDraftItem } from '@/types/purchase-draft';
 
 export function PurchaseReport() {
   const isMobile = useIsMobile();
@@ -62,13 +64,34 @@ export function PurchaseReport() {
     authorizeDraft,
     confirmDelivery,
     hasChanges,
+    getChangedItemsSinceLastSave,
     stockError,
     clearStockError
   } = usePurchaseState();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
-  const [pendingSaveData, setPendingSaveData] = useState<{ nome: string, items: any[], unidade_id?: string } | null>(null);
+  const [pendingSaveData, setPendingSaveData] = useState<{
+    nome: string;
+    items: PurchaseDraftItem[];
+    reviewItems: PurchaseDraftItem[];
+    unidade_id?: string;
+  } | null>(null);
+
+  const unitMeasureOptions = useMemo<Option[]>(() => {
+    return Array.from(
+      new Set(
+        purchaseItems
+          .map(item => item.unidade_medida?.trim())
+          .filter(Boolean) as string[]
+      )
+    )
+      .sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }))
+      .map(unidade => ({
+        label: unidade,
+        value: unidade
+      }));
+  }, [purchaseItems]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -101,22 +124,24 @@ export function PurchaseReport() {
 
   const isCentralUnit = originUnidade?.nome?.toLowerCase().includes('almoxarifado central');
 
-  const handleInterceptSave = (nome: string, items: any[], unidade_id?: string) => {
-    // Se for Unidade Central e houver itens para reposição que ainda não têm lote selecionado
-    // OU se o usuário quiser revisar os lotes ao salvar.
+  const handleInterceptSave = (nome: string, items: PurchaseDraftItem[], unidade_id?: string) => {
     const itemsWithQty = items.filter(item => (item.quantidade_reposicao || 0) > 0);
+    const changedItems = getChangedItemsSinceLastSave(items);
     
-    if (isCentralUnit && itemsWithQty.length > 0) {
-      setPendingSaveData({ nome, items, unidade_id });
+    if (isCentralUnit && itemsWithQty.length > 0 && changedItems.length > 0) {
+      setPendingSaveData({ nome, items, reviewItems: changedItems, unidade_id });
       setIsBatchModalOpen(true);
     } else {
       saveDraft(nome, items, unidade_id);
     }
   };
 
-  const handleConfirmBatches = (updatedItems: any[]) => {
+  const handleConfirmBatches = (updatedItems: PurchaseDraftItem[]) => {
     if (pendingSaveData) {
-      saveDraft(pendingSaveData.nome, updatedItems, pendingSaveData.unidade_id);
+      const updatedMap = new Map(updatedItems.map(item => [item.id, item]));
+      const mergedItems = pendingSaveData.items.map(item => updatedMap.get(item.id) || item);
+
+      saveDraft(pendingSaveData.nome, mergedItems, pendingSaveData.unidade_id);
       setPendingSaveData(null);
     }
     setIsBatchModalOpen(false);
@@ -207,6 +232,7 @@ export function PurchaseReport() {
         <PurchaseFilters 
           filters={filters}
           onFiltersChange={setFilters}
+          unitMeasureOptions={unitMeasureOptions}
           showOnlyLowStock
         />
 
@@ -232,6 +258,7 @@ export function PurchaseReport() {
             <PurchaseFilters 
               filters={filters}
               onFiltersChange={setFilters}
+              unitMeasureOptions={unitMeasureOptions}
               showOnlySearch
             />
           </div>
@@ -362,7 +389,7 @@ export function PurchaseReport() {
         isOpen={isBatchModalOpen}
         onClose={() => setIsBatchModalOpen(false)}
         onConfirm={handleConfirmBatches}
-        items={pendingSaveData?.items || draftItems}
+        items={pendingSaveData?.reviewItems || draftItems}
         originUnidadeId={originUnidadeId || ''}
         isSaving={isSaving}
       />

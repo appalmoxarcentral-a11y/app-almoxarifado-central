@@ -88,6 +88,7 @@ export interface Product {
   codigo: string;
   unidade_medida: string; // Agora é string que referencia unidades_medida.codigo
   estoque_atual: number;
+  prioridade?: number;
   created_at: string;
 }
 

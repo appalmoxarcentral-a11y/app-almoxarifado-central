@@ -36,6 +36,7 @@ export interface PurchaseDraftItem {
   unidade_medida: string;
   estoque_atual: number;
   quantidade_reposicao?: number;
+  prioridade?: number;
   lotes_multiplos?: {
     lote: string;
     vencimento: string;

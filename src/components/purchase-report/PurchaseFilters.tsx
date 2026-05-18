@@ -14,20 +14,24 @@ import {
 import type { PurchaseFilters } from '@/types/purchase';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useDebounce } from '@/hooks/useDebounce';
+import { MultiSelect } from '@/components/ui/multi-select';
+import type { Option } from '@/components/ui/multi-select';
 
 interface PurchaseFiltersProps {
   filters: PurchaseFilters;
   onFiltersChange: (filters: PurchaseFilters) => void;
+  unitMeasureOptions?: Option[];
   showOnlySearch?: boolean;
   showOnlyLowStock?: boolean;
 }
-export function PurchaseFilters({ filters, onFiltersChange, showOnlySearch, showOnlyLowStock }: PurchaseFiltersProps) {
+export function PurchaseFilters({ filters, onFiltersChange, unitMeasureOptions = [], showOnlySearch, showOnlyLowStock }: PurchaseFiltersProps) {
   const isMobile = useIsMobile();
   
   // Estados locais para evitar lag na digitação
   const [localSearch, setLocalSearch] = useState(filters.searchTerm);
   const [localSearchType, setLocalSearchType] = useState(filters.searchType || 'todos');
   const [localEstoque, setLocalEstoque] = useState(filters.estoqueMinimo?.toString() || '');
+  const [localUnitMeasures, setLocalUnitMeasures] = useState<string[]>([]);
 
   const debouncedSearch = useDebounce(localSearch, 300);
   const debouncedEstoque = useDebounce(localEstoque, 300);
@@ -36,6 +40,12 @@ export function PurchaseFilters({ filters, onFiltersChange, showOnlySearch, show
   useEffect(() => {
     setLocalSearch(filters.searchTerm);
     setLocalSearchType(filters.searchType || 'todos');
+    setLocalUnitMeasures(
+      (filters.searchType === 'unidade' ? filters.searchTerm : '')
+        .split(/[,\n;|]+/)
+        .map(item => item.trim())
+        .filter(Boolean)
+    );
   }, [filters.searchTerm, filters.searchType]);
 
   useEffect(() => {
@@ -44,10 +54,27 @@ export function PurchaseFilters({ filters, onFiltersChange, showOnlySearch, show
 
   // Aplicar filtros debounced
   useEffect(() => {
+    if (localSearchType === 'unidade') return;
+
     if (debouncedSearch !== filters.searchTerm || localSearchType !== filters.searchType) {
       onFiltersChange({ ...filters, searchTerm: debouncedSearch, searchType: localSearchType as any });
     }
   }, [debouncedSearch, localSearchType]);
+
+  useEffect(() => {
+    if (localSearchType !== 'unidade') return;
+
+    const joinedValues = localUnitMeasures.join(', ');
+    if (joinedValues !== filters.searchTerm || localSearchType !== filters.searchType) {
+      onFiltersChange({ ...filters, searchTerm: joinedValues, searchType: localSearchType as any });
+    }
+  }, [localUnitMeasures, localSearchType]);
+
+  useEffect(() => {
+    if (localSearchType !== 'unidade' && localUnitMeasures.length > 0) {
+      setLocalUnitMeasures([]);
+    }
+  }, [localSearchType]);
 
   useEffect(() => {
     const val = debouncedEstoque === '' ? undefined : parseInt(debouncedEstoque);
@@ -76,21 +103,35 @@ export function PurchaseFilters({ filters, onFiltersChange, showOnlySearch, show
           </div>
           <div className="space-y-2 flex-1 w-full">
             <Label htmlFor="search" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Termo da Busca</Label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="search"
-                placeholder={
-                  localSearchType === 'codigo' ? 'Digite o código...' :
-                  localSearchType === 'descricao' ? 'Digite a descrição...' :
-                  localSearchType === 'unidade' ? 'Digite a unidade (ex: CX, FR)...' :
-                  'Nome, código ou unidade...'
-                }
-                value={localSearch}
-                onChange={(e) => setLocalSearch(e.target.value)}
-                className="pl-10 h-10 bg-muted/20 border-muted-foreground/10 focus:border-primary font-medium"
+            {localSearchType === 'unidade' ? (
+              <MultiSelect
+                options={unitMeasureOptions}
+                selected={localUnitMeasures}
+                onChange={setLocalUnitMeasures}
+                placeholder="Selecione uma ou mais unidades..."
+                className="min-h-10 bg-muted/20 border-muted-foreground/10 focus:border-primary font-medium"
               />
-            </div>
+            ) : (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="search"
+                  placeholder={
+                    localSearchType === 'codigo' ? 'Digite o código...' :
+                    localSearchType === 'descricao' ? 'Digite a descrição...' :
+                    'Nome, código ou unidade...'
+                  }
+                  value={localSearch}
+                  onChange={(e) => setLocalSearch(e.target.value)}
+                  className="pl-10 h-10 bg-muted/20 border-muted-foreground/10 focus:border-primary font-medium"
+                />
+              </div>
+            )}
+            {localSearchType === 'unidade' && (
+              <p className="text-[11px] text-muted-foreground">
+                Marque uma ou mais unidades de medida para filtrar a lista.
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -141,21 +182,35 @@ export function PurchaseFilters({ filters, onFiltersChange, showOnlySearch, show
 
           <div className="md:col-span-5 space-y-2">
             <Label htmlFor="search" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Termo da Busca</Label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="search"
-                placeholder={
-                  localSearchType === 'codigo' ? 'Digite o código...' :
-                  localSearchType === 'descricao' ? 'Digite a descrição...' :
-                  localSearchType === 'unidade' ? 'Digite a unidade...' :
-                  'Nome, código ou unidade...'
-                }
-                value={localSearch}
-                onChange={(e) => setLocalSearch(e.target.value)}
-                className="pl-10 h-11 bg-muted/20 border-muted-foreground/10 focus:border-primary"
+            {localSearchType === 'unidade' ? (
+              <MultiSelect
+                options={unitMeasureOptions}
+                selected={localUnitMeasures}
+                onChange={setLocalUnitMeasures}
+                placeholder="Selecione uma ou mais unidades..."
+                className="min-h-11 bg-muted/20 border-muted-foreground/10 focus:border-primary"
               />
-            </div>
+            ) : (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="search"
+                  placeholder={
+                    localSearchType === 'codigo' ? 'Digite o código...' :
+                    localSearchType === 'descricao' ? 'Digite a descrição...' :
+                    'Nome, código ou unidade...'
+                  }
+                  value={localSearch}
+                  onChange={(e) => setLocalSearch(e.target.value)}
+                  className="pl-10 h-11 bg-muted/20 border-muted-foreground/10 focus:border-primary"
+                />
+              </div>
+            )}
+            {localSearchType === 'unidade' && (
+              <p className="text-[11px] text-muted-foreground">
+                Marque uma ou mais unidades de medida para filtrar a lista.
+              </p>
+            )}
           </div>
 
           <div className="md:col-span-4 space-y-2">

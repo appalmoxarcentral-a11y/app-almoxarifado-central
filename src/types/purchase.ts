@@ -7,6 +7,7 @@ export interface PurchaseItem {
   estoque_atual: number;
   estoque_origem?: number;
   quantidade_reposicao?: number;
+  prioridade?: number;
   unidade_destino_nome?: string;
   lote_selecionado?: string;
   vencimento_selecionado?: string;

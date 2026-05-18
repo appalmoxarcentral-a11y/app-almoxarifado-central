@@ -67,6 +67,7 @@ export function usePurchaseData(overrideUnidadeId?: string) {
         unidade_medida: produto.unidade_medida,
         estoque_atual: estoqueDestinoMap.get(produto.id) || 0,
         estoque_origem: estoqueOrigemMap.get(produto.id) || 0,
+        prioridade: produto.prioridade,
         quantidade_reposicao: undefined
       })) as PurchaseItem[];
     }

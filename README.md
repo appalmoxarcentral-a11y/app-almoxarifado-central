@@ -64,5 +64,26 @@ Siga os passos abaixo para hospedar o projeto na Vercel:
 - O arquivo `vercel.json` está configurado para suportar Single Page Application (SPA).
 - O banco de dados utiliza **Row Level Security (RLS)** para isolamento de dados entre unidades de saúde (Multi-tenancy).
 
+## 📋 Regra De Negocio Da Tela De Pedidos
+
+- A organizacao descrita abaixo vale apenas para a tela principal de `Pedidos`.
+- O modal de selecao de lotes nao deve reutilizar essa mesma ordenacao.
+- Produtos com `prioridade` `1`, `2` e `3` devem aparecer no topo da lista.
+- Dentro do bloco prioritario, a ordenacao deve seguir primeiro um ciclo fixo:
+  - primeiro todos os itens com `Qtd. Reposicao > 0`
+  - depois itens com `Unid Destino > 0`
+  - depois itens com `Unid Origem > 0`
+  - em seguida reinicia o ciclo com os itens `= 0`:
+  - `Qtd. Reposicao = 0`
+  - `Unid Destino = 0`
+  - `Unid Origem = 0`
+  - por fim reinicia o ciclo com os itens `< 0`:
+  - `Qtd. Reposicao < 0`
+  - `Unid Destino < 0`
+  - `Unid Origem < 0`
+- Se dois itens estiverem na mesma etapa do ciclo, usar a prioridade como desempate: `1`, depois `2`, depois `3`.
+- Dentro de cada etapa do ciclo da mesma prioridade, os produtos devem ser organizados em ordem alfabetica de `A` a `Z`, usando a descricao.
+- Produtos fora das prioridades `1` a `3` permanecem abaixo do bloco prioritario, tambem em ordem alfabetica de `A` a `Z`.
+
 ---
 *Desenvolvido com foco em eficiência, clareza e escalabilidade.*
