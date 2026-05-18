@@ -1,5 +1,5 @@
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ShoppingCart, Calendar, Package, ShieldCheck, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -43,6 +43,7 @@ export function PurchaseReport() {
     filters,
     setFilters,
     updatePurchaseQuantity,
+    updatePurchaseAnnotation,
     setTargetUnidade,
     targetUnidadeId,
     manualUnidadeId,
@@ -71,6 +72,8 @@ export function PurchaseReport() {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
+  const stickyActionsRef = useRef<HTMLDivElement | null>(null);
+  const [tableStickyTop, setTableStickyTop] = useState(isMobile ? 56 : 64);
   const [pendingSaveData, setPendingSaveData] = useState<{
     nome: string;
     items: PurchaseDraftItem[];
@@ -162,6 +165,30 @@ export function PurchaseReport() {
   const isAuthorized = currentDraft?.status === 'autorizado';
   const isEntregue = currentDraft?.status === 'entregue';
 
+  useEffect(() => {
+    const updateStickyTop = () => {
+      const baseHeaderHeight = isMobile ? 56 : 64;
+      const actionsHeight = stickyActionsRef.current?.offsetHeight || 0;
+      setTableStickyTop(baseHeaderHeight + actionsHeight);
+    };
+
+    updateStickyTop();
+
+    if (!stickyActionsRef.current || typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', updateStickyTop);
+      return () => window.removeEventListener('resize', updateStickyTop);
+    }
+
+    const observer = new ResizeObserver(() => updateStickyTop());
+    observer.observe(stickyActionsRef.current);
+    window.addEventListener('resize', updateStickyTop);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateStickyTop);
+    };
+  }, [isMobile, filters.searchType, filters.searchTerm, currentDraftId, manualUnidadeId]);
+
   // Lógica de animação e prazos
   const [showCelebration, setShowCelebration] = useState(false);
   const [celebrationType, setCelebrationType] = useState<'autorizado' | 'entregue'>('autorizado');
@@ -252,7 +279,7 @@ export function PurchaseReport() {
         </div>
       </div>
 
-      <div className="sticky top-[56px] md:top-[64px] z-50 bg-background/95 backdrop-blur-md pb-4 pt-3 -mx-4 px-4 shadow-md border-b md:-mx-6 md:px-6">
+      <div ref={stickyActionsRef} className="sticky top-[56px] md:top-[64px] z-50 bg-background/95 backdrop-blur-md pb-4 pt-3 -mx-4 px-4 shadow-md border-b md:-mx-6 md:px-6">
         <div className="flex flex-col md:flex-row items-end gap-4">
           <div className="flex-1 w-full">
             <PurchaseFilters 
@@ -381,8 +408,14 @@ export function PurchaseReport() {
       <PurchaseTable
         items={filteredItems}
         onQuantityChange={updatePurchaseQuantity}
+        onAnnotationChange={updatePurchaseAnnotation}
         unidadeDestinoNome={currentDraft?.unidade_nome || manualUnidadeNome}
         isCentralUnit={isCentralUnit}
+        sortColumn={filters.sortColumn}
+        sortDirection={filters.sortDirection}
+        onSortColumnChange={(value) => setFilters(prev => ({ ...prev, sortColumn: value }))}
+        onSortDirectionChange={(value) => setFilters(prev => ({ ...prev, sortDirection: value }))}
+        stickyTopOffset={tableStickyTop}
       />
 
       <BatchSelectionModal

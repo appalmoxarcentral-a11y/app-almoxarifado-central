@@ -7,6 +7,7 @@ export interface PurchaseItem {
   estoque_atual: number;
   estoque_origem?: number;
   quantidade_reposicao?: number;
+  anotacao_reposicao?: string;
   prioridade?: number;
   unidade_destino_nome?: string;
   lote_selecionado?: string;
@@ -30,4 +31,6 @@ export interface PurchaseFilters {
   searchType: 'todos' | 'codigo' | 'descricao' | 'unidade';
   estoqueMinimo?: number;
   tenantId?: string;
+  sortColumn?: 'none' | 'unidade_medida' | 'estoque_origem' | 'estoque_atual' | 'quantidade_reposicao' | 'anotacoes';
+  sortDirection?: 'asc' | 'desc';
 }

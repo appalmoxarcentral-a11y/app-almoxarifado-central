@@ -15,7 +15,9 @@ export function usePurchaseState() {
   const [filters, setFilters] = useState<PurchaseFilters>({
     searchTerm: '',
     searchType: 'todos',
-    estoqueMinimo: undefined
+    estoqueMinimo: undefined,
+    sortColumn: 'none',
+    sortDirection: 'asc'
   });
 
   const [sortTrigger, setSortTrigger] = useState(0);
@@ -74,6 +76,7 @@ export function usePurchaseState() {
 
     return JSON.stringify({
       q: item.quantidade_reposicao || 0,
+      anotacao: 'anotacao_reposicao' in item ? (item as PurchaseDraftItem).anotacao_reposicao?.trim() || null : null,
       lote: item.lote_selecionado || null,
       vencimento: item.vencimento_selecionado || null,
       lotes: normalizedLotes
@@ -99,6 +102,7 @@ export function usePurchaseState() {
       return {
         ...localItem,
         quantidade_reposicao: updatedItem.quantidade_reposicao,
+        anotacao_reposicao: updatedItem.anotacao_reposicao,
         lote_selecionado: updatedItem.lote_selecionado,
         vencimento_selecionado: updatedItem.vencimento_selecionado,
         lotes_multiplos: updatedItem.lotes_multiplos
@@ -175,6 +179,16 @@ export function usePurchaseState() {
     );
   }, []);
 
+  const updatePurchaseAnnotation = useCallback((productId: string, anotacao: string | undefined) => {
+    setPurchaseItems(items =>
+      items.map(item =>
+        item.id === productId
+          ? { ...item, anotacao_reposicao: anotacao?.trim() ? anotacao.trim() : undefined }
+          : item
+      )
+    );
+  }, []);
+
   const initializePurchaseItems = useCallback((produtos: PurchaseItem[]) => {
     setPurchaseItems(produtos.map(produto => ({
       ...produto,
@@ -202,8 +216,14 @@ export function usePurchaseState() {
       return terms.some(term => normalizedUnit === term);
     };
 
+    const savedItemsMap = new Map(lastSavedItems.map(item => [item.id, item]));
+
+    const getSavedQuantityForOrdering = (item: PurchaseItem) => {
+      return savedItemsMap.get(item.id)?.quantidade_reposicao ?? 0;
+    };
+
     const getPriorityCycleBucket = (item: PurchaseItem) => {
-      const reposicao = item.quantidade_reposicao ?? 0;
+      const reposicao = getSavedQuantityForOrdering(item);
       const destino = item.estoque_atual ?? 0;
       const origem = item.estoque_origem ?? 0;
 
@@ -219,6 +239,10 @@ export function usePurchaseState() {
     };
 
     const filtered = purchaseItems.filter(item => {
+      if (filters.sortColumn === 'anotacoes' && !item.anotacao_reposicao?.trim()) {
+        return false;
+      }
+
       if (filters.searchTerm) {
         const searchLower = filters.searchTerm.toLowerCase();
         const type = filters.searchType || 'todos';
@@ -245,7 +269,7 @@ export function usePurchaseState() {
       return true;
     });
 
-    return [...filtered].sort((a, b) => {
+    const businessSorted = [...filtered].sort((a, b) => {
       const aPrioridade = a.prioridade ?? 0;
       const bPrioridade = b.prioridade ?? 0;
       const aIsPriority = aPrioridade >= 1 && aPrioridade <= 3;
@@ -271,7 +295,43 @@ export function usePurchaseState() {
 
       return a.descricao.localeCompare(b.descricao, 'pt-BR', { sensitivity: 'base' });
     });
-  }, [sortTrigger, purchaseItems, filters.searchTerm, filters.searchType, filters.estoqueMinimo]);
+
+    if (!filters.sortColumn || filters.sortColumn === 'none' || filters.sortColumn === 'anotacoes') {
+      return businessSorted;
+    }
+
+    const directionMultiplier = filters.sortDirection === 'desc' ? -1 : 1;
+
+    const getSortValue = (item: PurchaseItem) => {
+      switch (filters.sortColumn) {
+        case 'unidade_medida':
+          return item.unidade_medida ?? '';
+        case 'estoque_origem':
+          return item.estoque_origem ?? 0;
+        case 'estoque_atual':
+          return item.estoque_atual ?? 0;
+        case 'quantidade_reposicao':
+          return item.quantidade_reposicao ?? 0;
+        default:
+          return '';
+      }
+    };
+
+    return [...businessSorted].sort((a, b) => {
+      const aValue = getSortValue(a);
+      const bValue = getSortValue(b);
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        const stringComparison = aValue.localeCompare(bValue, 'pt-BR', { sensitivity: 'base' });
+        if (stringComparison !== 0) return stringComparison * directionMultiplier;
+      } else {
+        const numberComparison = Number(aValue) - Number(bValue);
+        if (numberComparison !== 0) return numberComparison * directionMultiplier;
+      }
+
+      return a.descricao.localeCompare(b.descricao, 'pt-BR', { sensitivity: 'base' });
+    });
+  }, [sortTrigger, purchaseItems, filters.searchTerm, filters.searchType, filters.estoqueMinimo, filters.sortColumn, filters.sortDirection, lastSavedItems]);
 
   const itemsForPDF = useMemo(() => {
     return purchaseItems.filter(item => 
@@ -286,6 +346,7 @@ export function usePurchaseState() {
       .map(item => ({
         id: item.id,
         q: item.quantidade_reposicao || 0,
+        anotacao: item.anotacao_reposicao?.trim() || null,
         lote: item.lote_selecionado || null,
         vencimento: item.vencimento_selecionado || null,
         lotes: (item.lotes_multiplos || []).map(lote => ({
@@ -310,6 +371,7 @@ export function usePurchaseState() {
       estoque_atual: item.estoque_atual,
       prioridade: item.prioridade,
       quantidade_reposicao: item.quantidade_reposicao,
+      anotacao_reposicao: item.anotacao_reposicao,
       lote_selecionado: item.lote_selecionado,
       vencimento_selecionado: item.vencimento_selecionado,
       lotes_multiplos: item.lotes_multiplos
@@ -350,6 +412,7 @@ export function usePurchaseState() {
           return {
             ...currentItem,
             quantidade_reposicao: draftItem.quantidade_reposicao,
+            anotacao_reposicao: draftItem.anotacao_reposicao,
             lote_selecionado: draftItem.lote_selecionado,
             vencimento_selecionado: draftItem.vencimento_selecionado,
             lotes_multiplos: draftItem.lotes_multiplos
@@ -405,6 +468,7 @@ export function usePurchaseState() {
           return {
             ...currentItem,
             quantidade_reposicao: draftItem.quantidade_reposicao,
+            anotacao_reposicao: draftItem.anotacao_reposicao,
             lote_selecionado: draftItem.lote_selecionado,
             vencimento_selecionado: draftItem.vencimento_selecionado,
             lotes_multiplos: draftItem.lotes_multiplos
@@ -458,6 +522,7 @@ export function usePurchaseState() {
     filters,
     setFilters,
     updatePurchaseQuantity,
+    updatePurchaseAnnotation,
     initializePurchaseItems,
     setTargetUnidade,
     targetUnidadeId,
@@ -486,6 +551,7 @@ export function usePurchaseState() {
       estoque_atual: item.estoque_atual,
       prioridade: item.prioridade,
       quantidade_reposicao: item.quantidade_reposicao,
+      anotacao_reposicao: item.anotacao_reposicao,
       lote_selecionado: item.lote_selecionado,
       vencimento_selecionado: item.vencimento_selecionado,
       lotes_multiplos: item.lotes_multiplos
