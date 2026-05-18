@@ -20,6 +20,7 @@ export interface Tenant {
   document?: string;
   slug: string;
   created_at: string;
+  subscription_access_override?: 'force_active' | 'force_blocked' | null;
 }
 
 export interface Plan {

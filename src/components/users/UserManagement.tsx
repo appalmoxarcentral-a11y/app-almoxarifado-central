@@ -39,6 +39,15 @@ export function UserManagement() {
   const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
 
+  const resolveTenantId = (selectedUnidadeId?: string | null, userType?: 'SUPER_ADMIN' | 'ADMIN' | 'COMUM') => {
+    if (userType === 'SUPER_ADMIN') {
+      return null;
+    }
+
+    const unidadeSelecionada = unidades?.find((unidade) => unidade.id === selectedUnidadeId);
+    return unidadeSelecionada?.tenant_id || currentUser?.tenant_id || editingUser?.tenant_id || null;
+  };
+
   // Opções de módulos para o MultiSelect
   const moduloOptions: Option[] = [
     { label: 'Cadastro de Pacientes', value: 'cadastro_pacientes' },
@@ -72,11 +81,17 @@ export function UserManagement() {
   const { data: unidades } = useQuery({
     queryKey: ['unidades_saude'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('unidades_saude')
-        .select('*')
+        .select('id, nome, tenant_id, ativo')
         .eq('ativo', true)
         .order('nome');
+
+      if (currentUser?.tipo !== 'SUPER_ADMIN' && currentUser?.tenant_id) {
+        query = query.eq('tenant_id', currentUser.tenant_id);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     }
@@ -90,7 +105,7 @@ export function UserManagement() {
         .from('profiles')
         .select(`
           *,
-          unidade:unidades_saude(nome)
+          unidade:unidades_saude(nome, tenant_id)
         `)
         .order('full_name');
 
@@ -105,7 +120,7 @@ export function UserManagement() {
         permissoes: (p.permissions as unknown as UserPermissions) || {},
         ativo: true,
         created_at: p.created_at,
-        tenant_id: p.tenant_id || '00000000-0000-0000-0000-000000000000',
+        tenant_id: p.tenant_id || (p.unidade as any)?.tenant_id || undefined,
         unidade_id: p.unidade_id,
         unidade_nome: (p.unidade as any)?.nome
       })) as any[] || [];
@@ -129,6 +144,12 @@ export function UserManagement() {
   const saveUserMutation = useMutation({
     mutationFn: async (userData: any) => {
       if (editingUser) {
+        const resolvedTenantId = resolveTenantId(userData.unidade_id, userData.tipo);
+
+        if (userData.tipo !== 'SUPER_ADMIN' && !resolvedTenantId) {
+          throw new Error('Nao foi possivel determinar a organizacao do usuario. Selecione uma unidade valida.');
+        }
+
         // Atualizar perfil existente
         const { error } = await supabase
           .from('profiles')
@@ -136,7 +157,8 @@ export function UserManagement() {
             full_name: userData.nome,
             role: userData.tipo === 'SUPER_ADMIN' ? 'super_admin' : userData.tipo === 'ADMIN' ? 'admin' : 'user',
             permissions: userData.permissoes,
-            unidade_id: userData.unidade_id || null
+            unidade_id: userData.tipo === 'SUPER_ADMIN' ? null : userData.unidade_id || null,
+            tenant_id: resolvedTenantId
           })
           .eq('id', editingUser.id);
 

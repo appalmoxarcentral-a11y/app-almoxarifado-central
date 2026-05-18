@@ -41,7 +41,7 @@ export function Onboarding() {
       // 2. Atualizar Profile com tenant_id
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ tenant_id: tenant.id })
+        .update({ tenant_id: tenant.id, role: 'admin' })
         .eq('id', user.id);
 
       if (profileError) throw profileError;
@@ -97,9 +97,9 @@ export function Onboarding() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Configurar Empresa</CardTitle>
+          <CardTitle>Criar Empresa</CardTitle>
           <CardDescription>
-            Crie sua organização para começar a usar o sistema.
+            Este passo existe apenas para o primeiro cadastro da empresa. O primeiro usuario cria a organizacao e vira administrador inicial do sistema.
           </CardDescription>
         </CardHeader>
         <CardContent>

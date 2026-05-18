@@ -61,11 +61,11 @@ export function ProductEntryFormFields({
           items={produtos || []}
           value={selectedProduct}
           selectedItemLabel={selectedProductLabel}
-          onSelect={(produto) => setSelectedProduct(produto.id, `${produto.descricao} (${produto.codigo})`)}
+          onSelect={(produto) => setSelectedProduct(produto.id, `${produto.descricao} (${produto.codigo}) - ${produto.unidade_medida}`)}
           onSearchChange={onSearchChange}
           getItemValue={(produto) => produto.id}
-          getItemLabel={(produto) => `${produto.descricao} (${produto.codigo})`}
-          getItemSearchText={(produto) => `${produto.descricao} ${produto.codigo}`}
+          getItemLabel={(produto) => `${produto.descricao} (${produto.codigo}) - ${produto.unidade_medida}`}
+          getItemSearchText={(produto) => `${produto.descricao} ${produto.codigo} ${produto.unidade_medida}`}
           placeholder="Selecione um produto..."
           searchPlaceholder="Buscar por nome ou código..."
           emptyMessage="Nenhum produto encontrado"

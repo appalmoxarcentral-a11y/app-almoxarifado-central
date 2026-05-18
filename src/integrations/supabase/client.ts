@@ -5,6 +5,31 @@ import type { Database } from './types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+function parseJwtRole(token: string | undefined): string | null {
+  if (!token) return null;
+
+  try {
+    const [, payload] = token.split('.');
+    if (!payload) return null;
+
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '='));
+    const parsed = JSON.parse(decoded) as { role?: string };
+
+    return parsed.role ?? null;
+  } catch {
+    return null;
+  }
+}
+
+const supabaseJwtRole = parseJwtRole(SUPABASE_PUBLISHABLE_KEY);
+
+if (supabaseJwtRole === 'service_role') {
+  throw new Error(
+    'Configuracao insegura do Supabase: VITE_SUPABASE_PUBLISHABLE_KEY nao pode usar service_role no frontend.'
+  );
+}
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 

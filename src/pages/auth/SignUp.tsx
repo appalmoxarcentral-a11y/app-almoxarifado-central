@@ -62,6 +62,7 @@ export function SignUp() {
           data: {
             full_name: nome,
             phone: telefone,
+            role: 'admin',
           },
         },
       });
@@ -103,7 +104,7 @@ export function SignUp() {
         <CardHeader>
           <CardTitle className="text-center text-foreground">Criar Conta</CardTitle>
           <CardDescription className="text-center text-muted-foreground">
-            Comece a gerenciar seu estoque hoje mesmo.
+            O primeiro cadastro cria o administrador inicial. A empresa sera criada no proximo passo.
           </CardDescription>
         </CardHeader>
         <CardContent>

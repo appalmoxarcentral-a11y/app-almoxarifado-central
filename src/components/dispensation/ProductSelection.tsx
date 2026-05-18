@@ -93,8 +93,8 @@ export function ProductSelection({
               onSelect={handleProductSelect}
               onSearchChange={onSearchChange}
               getItemValue={(product) => product.id}
-              getItemLabel={(product) => `${product.descricao} (Estoque: ${product.estoque_atual} ${product.unidade_medida})`}
-              getItemSearchText={(product) => `${product.descricao} ${product.codigo}`}
+              getItemLabel={(product) => `${product.descricao} (${product.codigo}) - ${product.unidade_medida} (Estoque: ${product.estoque_atual})`}
+              getItemSearchText={(product) => `${product.descricao} ${product.codigo} ${product.unidade_medida}`}
               placeholder="Selecione um produto"
               searchPlaceholder="Digite nome ou código do produto..."
               emptyMessage="Nenhum produto encontrado"

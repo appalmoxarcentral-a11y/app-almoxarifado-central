@@ -29,10 +29,26 @@ export function ProtectedRoute({ children, requiredPermission }: ProtectedRouteP
   // Permitir acesso ao admin para usuários ADMIN mesmo sem tenant_id (Super Admin Global)
   const isSuperAdmin = user.tipo === 'SUPER_ADMIN' || isImpersonating;
   const isAdmin = user.tipo === 'ADMIN' || isSuperAdmin;
+  const isCommonUser = user.tipo === 'COMUM';
 
   // Se o usuário já tem tenant_id e tenta acessar onboarding, manda para home
   if (user.tenant_id && location.pathname === '/onboarding') {
     return <Navigate to="/" replace />;
+  }
+
+  // Onboarding existe apenas para o primeiro administrador sem empresa criada.
+  if (!user.tenant_id && !isSuperAdmin) {
+    if (isAdmin) {
+      if (location.pathname !== '/onboarding') {
+        return <Navigate to="/onboarding" replace />;
+      }
+      return <>{children}</>;
+    }
+
+    // Usuário comum sem tenant nao deve criar empresa.
+    if (location.pathname === '/onboarding') {
+      return <Navigate to={user.unidade_id ? '/' : '/select-unidade'} replace />;
+    }
   }
 
   // Lógica de Bloqueio de Assinatura
@@ -67,6 +83,11 @@ export function ProtectedRoute({ children, requiredPermission }: ProtectedRouteP
   // Se o usuário já tem unidade_id e tenta acessar seleção de unidade, manda para home
   if (user.unidade_id && location.pathname === '/select-unidade') {
     return <Navigate to="/" replace />;
+  }
+
+  // Usuario comum nao deve acessar a tela de criacao da empresa.
+  if (isCommonUser && location.pathname === '/onboarding') {
+    return <Navigate to={user.unidade_id ? '/' : '/select-unidade'} replace />;
   }
 
   // Restrição da rota /admin para SUPER_ADMIN e ADMIN (conforme solicitado pelo usuário)

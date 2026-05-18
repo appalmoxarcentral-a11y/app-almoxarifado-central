@@ -103,13 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           ? { ...defaultPermissions, ...(profile.permissions as unknown as Partial<UserPermissions>) }
           : defaultPermissions;
 
-        // Se não tiver tenant_id, tentar usar o Legacy Tenant
-        let tenantId = profile.tenant_id;
-        
-        if (!tenantId) {
-           // Fallback para legacy para todos se não tiver tenant (evita erros de RLS)
-           tenantId = '00000000-0000-0000-0000-000000000000';
-        }
+        let tenantId = profile.tenant_id || undefined;
 
         const role = (profile.role || '').toLowerCase();
 
@@ -122,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Tenta buscar com o novo campo, mas falha graciosamente se a migration não foi rodada
             const { data: unidadeData, error: unidadeError } = await supabase
               .from('unidades_saude')
-              .select('nome, usar_tipo_dispensacao, habilitar_receptor')
+              .select('nome, usar_tipo_dispensacao, habilitar_receptor, tenant_id')
               .eq('id', profile.unidade_id)
               .maybeSingle();
             
@@ -130,17 +124,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               console.warn('[AuthContext] Erro ao buscar unidade com usar_tipo_dispensacao, tentando apenas nome:', unidadeError.message);
               const { data: fallbackData } = await supabase
                 .from('unidades_saude')
-                .select('nome')
+                .select('nome, tenant_id')
                 .eq('id', profile.unidade_id)
                 .maybeSingle();
               
               if (fallbackData) {
                 unidadeNome = fallbackData.nome;
+
+                if (!tenantId && fallbackData.tenant_id) {
+                  const { error: repairError } = await supabase
+                    .from('profiles')
+                    .update({ tenant_id: fallbackData.tenant_id })
+                    .eq('id', profile.id);
+
+                  if (repairError) {
+                    console.warn('[AuthContext] Falha ao reparar tenant_id via unidade:', repairError.message);
+                  } else {
+                    tenantId = fallbackData.tenant_id;
+                    console.log('[AuthContext] tenant_id reparado automaticamente a partir da unidade (fallback).');
+                  }
+                }
               }
             } else if (unidadeData) {
               unidadeNome = unidadeData.nome;
               usarTipoDispensacao = !!unidadeData.usar_tipo_dispensacao;
               habilitarReceptor = !!unidadeData.habilitar_receptor;
+
+              if (!tenantId && unidadeData.tenant_id) {
+                const { error: repairError } = await supabase
+                  .from('profiles')
+                  .update({ tenant_id: unidadeData.tenant_id })
+                  .eq('id', profile.id);
+
+                if (repairError) {
+                  console.warn('[AuthContext] Falha ao reparar tenant_id via unidade:', repairError.message);
+                } else {
+                  tenantId = unidadeData.tenant_id;
+                  console.log('[AuthContext] tenant_id reparado automaticamente a partir da unidade.');
+                }
+              }
             }
           } catch (e) {
             console.error('[AuthContext] Falha crítica ao buscar unidade:', e);
@@ -149,7 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Garantir que Super Admin nunca seja bloqueado
         let isBlocked = false;
-        if (role !== 'super_admin') {
+        if (role !== 'super_admin' && tenantId) {
           const { data: blockedCheck } = await supabase
             .rpc('is_tenant_blocked', { p_tenant_id: tenantId });
           isBlocked = !!blockedCheck;
@@ -164,7 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           permissoes: userPermissions,
           ativo: true,
           created_at: profile.created_at,
-          tenant_id: tenantId || undefined,
+          tenant_id: tenantId,
           unidade_id: profile.unidade_id || undefined,
           unidade_nome: unidadeNome,
           usar_tipo_dispensacao: usarTipoDispensacao,

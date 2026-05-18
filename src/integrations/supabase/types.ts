@@ -404,6 +404,7 @@ export type Database = {
           city: string | null
           state: string | null
           postal_code: string | null
+          subscription_access_override: string | null
         }
         Insert: {
           id?: string
@@ -417,6 +418,7 @@ export type Database = {
           city?: string | null
           state?: string | null
           postal_code?: string | null
+          subscription_access_override?: string | null
         }
         Update: {
           id?: string
@@ -430,6 +432,7 @@ export type Database = {
           city?: string | null
           state?: string | null
           postal_code?: string | null
+          subscription_access_override?: string | null
         }
         Relationships: []
       }
@@ -617,6 +620,18 @@ export type Database = {
       hash_senha: {
         Args: { senha_texto: string }
         Returns: string
+      }
+      is_tenant_blocked: {
+        Args: { p_tenant_id: string }
+        Returns: boolean
+      }
+      set_tenant_subscription_access_override: {
+        Args: { p_override: string | null; p_tenant_id: string }
+        Returns: void
+      }
+      sync_invoice_status: {
+        Args: { p_tenant_id: string }
+        Returns: void
       }
       verificar_senha: {
         Args: { usuario_email: string; senha_input: string }

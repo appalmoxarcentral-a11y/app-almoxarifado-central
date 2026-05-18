@@ -17,6 +17,7 @@ interface SubscriptionFormProps {
   planId: string;
   planPrice: number;
   subscriptionId?: string;
+  subscriptionStatus?: string;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -33,7 +34,7 @@ interface FormData {
   postal_code: string;
 }
 
-export function SubscriptionForm({ planName, planId, planPrice, subscriptionId, isOpen, onClose }: SubscriptionFormProps) {
+export function SubscriptionForm({ planName, planId, planPrice, subscriptionId, subscriptionStatus, isOpen, onClose }: SubscriptionFormProps) {
   const { user, refreshProfile } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -229,6 +230,17 @@ export function SubscriptionForm({ planName, planId, planPrice, subscriptionId, 
         .eq('id', user.tenant_id);
 
       if (tenantError) throw tenantError;
+
+      // Se a assinatura anterior estava cancelada, limpamos qualquer override legado
+      // para que o tenant volte a seguir a regra normal de acesso ao reativar o plano.
+      if (subscriptionStatus === 'canceled') {
+        const { error: tenantOverrideError } = await supabase
+          .from('tenants')
+          .update({ subscription_access_override: null })
+          .eq('id', user.tenant_id);
+
+        if (tenantOverrideError) throw tenantOverrideError;
+      }
 
       // 1.5 Prepare Dates for Subscription and Invoice
       // Faturamento: Hoje (Data da adesão)

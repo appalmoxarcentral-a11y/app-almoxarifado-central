@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, AlertCircle, Edit2, RotateCw, CreditCard } from 'lucide-react';
+import { Check, AlertCircle, Edit2, RotateCw, CreditCard, Lock, LockOpen } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { SubscriptionForm } from '@/components/subscription/SubscriptionForm';
@@ -13,9 +13,19 @@ import { PaymentCelebration } from '@/components/subscription/PaymentCelebration
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export function SubscriptionPage() {
-  const { user, isImpersonating } = useAuth();
+  const { user, isImpersonating, refreshProfile } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedPlan, setSelectedPlan] = React.useState<{ id: string; name: string; price: number } | null>(null);
@@ -24,6 +34,8 @@ export function SubscriptionPage() {
   const [showCelebration, setShowCelebration] = React.useState(false);
   const [planToEdit, setPlanToEdit] = React.useState<any>(null);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = React.useState(false);
+  const [isCancellingSubscription, setIsCancellingSubscription] = React.useState(false);
   
   // Ref para armazenar o ID da última fatura paga conhecida ao abrir a página
   // Isso evita que a animação dispare ao dar refresh, mas permite disparar em tempo real
@@ -85,6 +97,23 @@ export function SubscriptionPage() {
     retry: false
   });
 
+  const { data: tenantDetails, isLoading: isLoadingTenant } = useQuery({
+    queryKey: ['tenant-subscription-settings', user?.tenant_id],
+    queryFn: async () => {
+      if (!user?.tenant_id) return null;
+
+      const { data, error } = await supabase
+        .from('tenants')
+        .select('id, name, subscription_access_override')
+        .eq('id', user.tenant_id)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.tenant_id,
+  });
+
   const { data: plans, isLoading: isLoadingPlans } = useQuery({
     queryKey: ['available-plans'],
     queryFn: async () => {
@@ -101,6 +130,9 @@ export function SubscriptionPage() {
     queryKey: ['my-invoices', user?.tenant_id],
     queryFn: async () => {
       if (!user?.tenant_id) return [];
+
+      await supabase.rpc('is_tenant_blocked', { p_tenant_id: user.tenant_id });
+
       const { data, error } = await supabase
         .from('subscription_invoices')
         .select('*')
@@ -259,7 +291,91 @@ export function SubscriptionPage() {
     }
   };
 
-  if (isLoadingSub || isLoadingPlans || isLoadingUsage || isLoadingInvoices) {
+  const handleSetAccessOverride = async (override: 'force_active' | 'force_blocked' | null) => {
+    if (!user?.tenant_id) return;
+
+    try {
+      const { error } = await supabase.rpc('set_tenant_subscription_access_override', {
+        p_tenant_id: user.tenant_id,
+        p_override: override,
+      });
+
+      if (error) throw error;
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['tenant-subscription-settings', user.tenant_id] }),
+        queryClient.invalidateQueries({ queryKey: ['my-invoices', user.tenant_id] }),
+        queryClient.invalidateQueries({ queryKey: ['my-subscription', user.tenant_id] }),
+      ]);
+
+      await refreshProfile();
+
+      toast({
+        title: 'Override atualizado',
+        description:
+          override === 'force_active'
+            ? 'A assinatura foi liberada manualmente para este tenant.'
+            : override === 'force_blocked'
+              ? 'A assinatura foi bloqueada manualmente para este tenant.'
+              : 'O tenant voltou a seguir a regra automática por status de faturas.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao atualizar override',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!user?.tenant_id || !currentSubscription?.id || isCancellingSubscription) return;
+
+    setIsCancellingSubscription(true);
+    try {
+      const { error: tenantError } = await supabase
+        .from('tenants')
+        .update({ subscription_access_override: null })
+        .eq('id', user.tenant_id);
+
+      if (tenantError) throw tenantError;
+
+      const { error: subError } = await supabase
+        .from('subscriptions')
+        .update({
+          status: 'canceled',
+          current_period_end: new Date().toISOString(),
+        })
+        .eq('id', currentSubscription.id)
+        .eq('tenant_id', user.tenant_id);
+
+      if (subError) throw subError;
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['tenant-subscription-settings', user.tenant_id] }),
+        queryClient.invalidateQueries({ queryKey: ['my-invoices', user.tenant_id] }),
+        queryClient.invalidateQueries({ queryKey: ['my-subscription', user.tenant_id] }),
+      ]);
+
+      await refreshProfile();
+      setIsCancelDialogOpen(false);
+
+      toast({
+        title: 'Assinatura cancelada',
+        description: 'O acesso ficará bloqueado enquanto a assinatura estiver cancelada. Para reativar, gere uma nova cobrança do plano desejado.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao cancelar assinatura',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCancellingSubscription(false);
+    }
+  };
+
+  if (isLoadingSub || isLoadingPlans || isLoadingUsage || isLoadingInvoices || isLoadingTenant) {
     return <div className="flex justify-center p-8 text-white">Carregando informações da assinatura...</div>;
   }
 
@@ -267,6 +383,41 @@ export function SubscriptionPage() {
   const isSuperAdmin = user?.tipo === 'SUPER_ADMIN' || isImpersonating;
   const isAdmin = user?.tipo === 'ADMIN' || isSuperAdmin;
   const isSubscriptionBlocked = user?.subscription_blocked && !isSuperAdmin;
+  const accessOverride = tenantDetails?.subscription_access_override ?? null;
+  const currentSubscriptionStatus = currentSubscription?.status ?? null;
+  const isCanceledSubscription = currentSubscriptionStatus === 'canceled';
+  const isActiveSubscription = currentSubscriptionStatus === 'active';
+  const canManageSubscription = !!currentSubscription && (isAdmin || isSuperAdmin);
+  const blockedReason = React.useMemo(() => {
+    if (accessOverride === 'force_blocked') return 'manual';
+    if (isCanceledSubscription) return 'canceled';
+    if (isSubscriptionBlocked) return 'pending';
+    return null;
+  }, [accessOverride, isCanceledSubscription, isSubscriptionBlocked]);
+
+  const subscriptionStatusMeta = React.useMemo(() => {
+    if (currentSubscriptionStatus === 'canceled') {
+      return {
+        label: 'Cancelada',
+        dotClassName: 'bg-destructive',
+        badgeLabel: 'Assinatura Suspensa',
+      };
+    }
+
+    if (currentSubscriptionStatus === 'trialing') {
+      return {
+        label: 'Trial',
+        dotClassName: 'bg-amber-500',
+        badgeLabel: 'Período de Trial',
+      };
+    }
+
+    return {
+      label: currentSubscriptionStatus === 'active' ? 'Ativo' : currentSubscriptionStatus || 'Sem status',
+      dotClassName: 'bg-secondary',
+      badgeLabel: 'Plano Ativo',
+    };
+  }, [currentSubscriptionStatus]);
 
   return (
     <div className="space-y-6 md:space-y-10 p-4 md:p-8 w-full max-w-7xl mx-auto pb-32 md:pb-10 selection:bg-primary/20 overflow-x-hidden box-border relative">
@@ -280,6 +431,7 @@ export function SubscriptionPage() {
           planName={selectedPlan.name}
           planPrice={selectedPlan.price}
           subscriptionId={currentSubscription?.id}
+          subscriptionStatus={currentSubscription?.status}
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
         />
@@ -353,6 +505,31 @@ export function SubscriptionPage() {
         </Dialog>
       )}
 
+      <AlertDialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar assinatura atual?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação marca a assinatura como cancelada e bloqueia manualmente o acesso do tenant.
+              O histórico de cobranças será preservado. Para voltar a usar o sistema, será necessário reativar um plano.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isCancellingSubscription}>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                handleCancelSubscription();
+              }}
+              disabled={isCancellingSubscription}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isCancellingSubscription ? 'Cancelando...' : 'Confirmar cancelamento'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 border-b border-border pb-6 md:pb-10">
         <div className="flex items-center gap-3 md:gap-5">
           <div className="p-2.5 md:p-3 bg-primary/10 rounded-xl md:rounded-2xl shrink-0">
@@ -392,14 +569,86 @@ export function SubscriptionPage() {
                 <div className="flex-1">
                     <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight leading-tight">Acesso Restrito</h2>
                     <p className="text-sm md:text-lg opacity-90 mt-1.5 md:mt-2 font-medium">
-                        {isAdmin 
-                            ? "Sua unidade possui faturas em aberto. Regularize o pagamento para restaurar o acesso total ao sistema."
-                            : "O acesso da sua unidade foi limitado devido a pendências financeiras. Entre em contato com o administrador."
+                        {blockedReason === 'canceled'
+                          ? (isAdmin
+                              ? "Esta assinatura foi cancelada. Gere uma nova cobrança para reativar o acesso total ao sistema."
+                              : "A assinatura da sua unidade foi cancelada. Entre em contato com o administrador para reativar o acesso.")
+                          : blockedReason === 'manual'
+                            ? (isAdmin
+                                ? "O acesso desta unidade foi bloqueado manualmente. Revise o controle administrativo da assinatura para liberar novamente."
+                                : "O acesso da sua unidade foi bloqueado manualmente. Entre em contato com o administrador.")
+                            : isAdmin
+                              ? "Sua unidade possui faturas em aberto. Regularize o pagamento para restaurar o acesso total ao sistema."
+                              : "O acesso da sua unidade foi limitado devido a pendências financeiras. Entre em contato com o administrador."
                         }
                     </p>
                 </div>
             </div>
         </div>
+      )}
+
+      {isSuperAdmin && user?.tenant_id && (
+        <Card className="border-amber-500/20 bg-amber-500/[0.04] shadow-lg rounded-2xl">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg md:text-xl font-black tracking-tight">Controle Manual de Acesso</CardTitle>
+            <CardDescription>
+              Override administrativo do tenant. Os status `waiting`, `pending` e `paid` continuam livres para testes e para atualizações automáticas do n8n.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge
+                variant="outline"
+                className={
+                  accessOverride === 'force_active'
+                    ? 'border-emerald-500/40 text-emerald-600 bg-emerald-500/10'
+                    : accessOverride === 'force_blocked'
+                      ? 'border-destructive/40 text-destructive bg-destructive/10'
+                      : 'border-border text-muted-foreground bg-background/40'
+                }
+              >
+                {accessOverride === 'force_active'
+                  ? 'LIBERADO MANUALMENTE'
+                  : accessOverride === 'force_blocked'
+                    ? 'BLOQUEADO MANUALMENTE'
+                    : 'MODO AUTOMÁTICO'}
+              </Badge>
+              <span className="text-sm text-muted-foreground">
+                Tenant: <span className="font-semibold text-foreground">{tenantDetails?.name || 'Tenant atual'}</span>
+              </span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                type="button"
+                variant={accessOverride === 'force_active' ? 'default' : 'outline'}
+                className="sm:flex-1"
+                onClick={() => handleSetAccessOverride('force_active')}
+              >
+                <LockOpen className="h-4 w-4" />
+                Liberar Manualmente
+              </Button>
+              <Button
+                type="button"
+                variant={accessOverride === 'force_blocked' ? 'destructive' : 'outline'}
+                className="sm:flex-1"
+                onClick={() => handleSetAccessOverride('force_blocked')}
+              >
+                <Lock className="h-4 w-4" />
+                Bloquear Manualmente
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                className="sm:flex-1"
+                onClick={() => handleSetAccessOverride(null)}
+              >
+                <RotateCw className="h-4 w-4" />
+                Voltar ao Automático
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {currentSubscription && (
@@ -411,7 +660,7 @@ export function SubscriptionPage() {
               <div className="space-y-4 md:space-y-6">
                 <div className="flex items-center gap-3">
                   <Badge variant="secondary" className="px-2.5 py-0.5 md:px-4 md:py-1.5 rounded-full uppercase tracking-[0.1em] text-[9px] md:text-xs font-black bg-primary/10 text-primary border-none">
-                    Plano Ativo
+                    {subscriptionStatusMeta.badgeLabel}
                   </Badge>
                   <h2 className="text-2xl md:text-5xl font-black text-foreground tracking-tighter">{currentPlanName}</h2>
                 </div>
@@ -420,8 +669,10 @@ export function SubscriptionPage() {
                   <div className="flex flex-col">
                     <span className="text-muted-foreground uppercase text-[9px] md:text-xs font-black tracking-widest mb-1">Status</span>
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
-                      <span className="text-secondary font-black capitalize tracking-tight">{currentSubscription.status === 'active' ? 'Ativo' : currentSubscription.status}</span>
+                      <div className={`w-2 h-2 rounded-full ${subscriptionStatusMeta.dotClassName} ${isActiveSubscription ? 'animate-pulse' : ''}`} />
+                      <span className={`font-black capitalize tracking-tight ${isCanceledSubscription ? 'text-destructive' : 'text-secondary'}`}>
+                        {subscriptionStatusMeta.label}
+                      </span>
                     </div>
                   </div>
                   <div className="flex flex-col border-l border-border pl-4 md:pl-10">
@@ -434,6 +685,17 @@ export function SubscriptionPage() {
                     </span>
                   </div>
                 </div>
+
+                {isCanceledSubscription && (
+                  <div className="max-w-xl rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3">
+                    <p className="text-sm font-semibold text-destructive">
+                      Assinatura cancelada. Enquanto esse status permanecer, o tenant ficará bloqueado.
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Para reativar, escolha um plano abaixo e gere uma nova cobrança. Os status `waiting` e `paid` mantêm o acesso ativo; `pending` e `canceled` bloqueiam.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="flex-1 max-w-full lg:max-w-3xl bg-muted/30 border border-border/40 rounded-xl md:rounded-3xl p-4 md:p-8 backdrop-blur-sm shadow-inner">
@@ -468,6 +730,24 @@ export function SubscriptionPage() {
                 </div>
               </div>
             </div>
+            {canManageSubscription && (
+              <div className="mt-6 flex flex-col gap-3 border-t border-border/60 pt-6 sm:flex-row sm:justify-end">
+                {isCanceledSubscription ? (
+                  <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                    Assinatura cancelada. Gere uma nova cobrança no plano desejado para reativar.
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    className="sm:w-auto"
+                    onClick={() => setIsCancelDialogOpen(true)}
+                  >
+                    Cancelar Assinatura
+                  </Button>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -485,9 +765,16 @@ export function SubscriptionPage() {
           const exceedsPatients = !!(usageStats && plan.max_patients && Number(usageStats.patients) > Number(plan.max_patients));
           const isIneligible = exceedsUsers || exceedsProducts || exceedsPatients;
 
-          // Se for o plano atual e NÃO houver fatura pendente, desativamos o botão pois ele já está em uso
-          const isPlanActiveAndInUse = isCurrent && currentSubscription?.status === 'active';
-          const canGenerateNewInvoiceForCurrent = isCurrent && !hasPendingInvoice && !isPlanActiveAndInUse;
+          const isCurrentPlanCanceled = isCurrent && isCanceledSubscription;
+          const isPlanActiveAndInUse = isCurrent && isActiveSubscription;
+          const isCurrentPlanUnavailable = isCurrent && !isCurrentPlanCanceled;
+          const actionLabel = isCurrentPlanCanceled
+            ? 'Reativar Plano'
+            : isCurrent
+              ? 'Plano Ativo'
+              : isIneligible
+                ? 'Limites Excedidos'
+                : 'Ativar Plano';
 
           return (
             <Card key={plan.id} className={`group flex flex-col bg-card border-border transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 rounded-2xl md:rounded-[2rem] overflow-hidden ${isCurrent ? 'ring-2 md:ring-4 ring-primary border-transparent shadow-xl md:shadow-2xl' : 'shadow-lg border-2'}`}>
@@ -549,18 +836,16 @@ export function SubscriptionPage() {
               <CardFooter className="p-5 md:p-8 pt-0">
                 <Button 
                   className={`w-full h-12 md:h-16 text-sm md:text-lg font-black uppercase tracking-[0.05em] md:tracking-[0.1em] transition-all duration-300 rounded-xl md:rounded-2xl shadow-lg md:shadow-xl active:scale-[0.98] ${
-                    isCurrent
+                    isCurrentPlanUnavailable
                       ? 'bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 cursor-not-allowed opacity-50' 
                       : isIneligible 
                         ? 'bg-muted text-muted-foreground cursor-not-allowed border-none' 
                         : 'bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-primary/20 active:shadow-none'
                   }`}
-                  disabled={isCurrent || isIneligible || (!isAdmin && !isSuperAdmin)}
+                  disabled={isCurrentPlanUnavailable || isIneligible || (!isAdmin && !isSuperAdmin)}
                   onClick={() => handleSubscribe(plan.id, plan.name, plan.price)}
                 >
-                  {isCurrent 
-                    ? 'Plano Ativo' 
-                    : isIneligible ? 'Limites Excedidos' : 'Ativar Plano'}
+                  {actionLabel}
                 </Button>
               </CardFooter>
             </Card>

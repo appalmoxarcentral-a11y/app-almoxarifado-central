@@ -11,6 +11,39 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PaymentDetailsDialog } from './PaymentDetailsDialog';
 
+function getInvoiceUiStatus(invoice: { status: string; due_date?: string | null }) {
+  if (invoice.status === 'paid' || invoice.status === 'failed' || invoice.status === 'pending') {
+    return invoice.status;
+  }
+
+  if (!invoice.due_date) {
+    return invoice.status;
+  }
+
+  const now = new Date();
+  const dueDate = new Date(invoice.due_date);
+
+  if (Number.isNaN(dueDate.getTime())) {
+    return invoice.status;
+  }
+
+  if (now <= dueDate) {
+    return 'waiting';
+  }
+
+  const diffTime = now.getTime() - dueDate.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  return diffDays > 10 ? 'pending' : 'late';
+}
+
+function getNextManualStatus(currentStatus: string) {
+  if (currentStatus === 'waiting') return 'pending';
+  if (currentStatus === 'pending') return 'paid';
+  if (currentStatus === 'paid') return 'waiting';
+  return 'paid';
+}
+
 export function PaymentHistoryTable() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -32,49 +65,6 @@ export function PaymentHistoryTable() {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-
-      // Sincronização automática com o banco de dados
-      // Se a regra de negócio do frontend identificar que passou de 10 dias de atraso,
-      // nós forçamos a atualização no banco de dados para refletir o status 'pending'
-      if (data && data.length > 0) {
-        const now = new Date();
-        const updates = [];
-
-        for (let i = 0; i < data.length; i++) {
-          const inv = data[i];
-          
-          let displayDueDate = inv.due_date;
-          const previousInvoice = data[i + 1];
-          if (previousInvoice && previousInvoice.next_cycle_date) {
-            displayDueDate = previousInvoice.next_cycle_date;
-          }
-
-          if (inv.status === 'waiting' && displayDueDate) {
-            const due = new Date(displayDueDate);
-            if (now > due) {
-              const diffTime = now.getTime() - due.getTime();
-              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-              
-              if (diffDays > 10) {
-                // Passou de 10 dias, deve ser 'pending' no banco de dados
-                // Usando RPC com Security Definer para garantir que não seja barrado pelo RLS
-                updates.push(
-                  supabase.rpc('force_sync_invoice_status', { 
-                    p_invoice_id: inv.id, 
-                    p_new_status: 'pending' 
-                  })
-                );
-                inv.status = 'pending'; // Atualiza localmente para a UI
-              }
-            }
-          }
-        }
-
-        if (updates.length > 0) {
-          console.log(`[PaymentHistoryTable] Sincronizando ${updates.length} faturas para 'pending' no banco de dados.`);
-          await Promise.all(updates);
-        }
-      }
 
       return data;
     },
@@ -102,13 +92,7 @@ export function PaymentHistoryTable() {
       return;
     }
 
-    // Lógica Simplificada: Alternar entre Pendente/Aguardando e Pago
-    // Se clicar em qualquer um que não seja pago, vira PAGO.
-    // Se clicar em PAGO, volta para PENDENTE (a automação cuidará de voltar para Aguardando se não estiver vencido)
-    let newStatus = 'paid';
-    if (currentStatus === 'paid') {
-      newStatus = 'pending';
-    }
+    const newStatus = getNextManualStatus(currentStatus);
 
     console.log('[PaymentHistoryTable] Mudança manual Super Admin:', { de: currentStatus, para: newStatus });
 
@@ -148,7 +132,11 @@ export function PaymentHistoryTable() {
         variant: "destructive",
       });
     } else {
-      const statusLabel = newStatus === 'paid' ? 'Pago' : newStatus === 'pending' ? 'Pendente' : 'Aguardando';
+      const statusLabel =
+        newStatus === 'paid' ? 'Pago' :
+        newStatus === 'pending' ? 'Pendente' :
+        newStatus === 'waiting' ? 'Aguardando' :
+        newStatus;
       toast({
         title: "Status atualizado",
         description: `Fatura marcada como ${statusLabel}.`,
@@ -391,24 +379,10 @@ export function PaymentHistoryTable() {
                 displayNextCycle = date.toISOString();
               }
 
-              let dynamicStatus = invoice.status;
-              if (invoice.status !== 'paid' && invoice.status !== 'failed' && displayDueDate) {
-                const now = new Date();
-                const due = new Date(displayDueDate);
-                
-                if (now > due) {
-                  const diffTime = now.getTime() - due.getTime();
-                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                  
-                  if (diffDays > 10) {
-                    dynamicStatus = 'pending'; // Pendente / Bloqueado
-                  } else {
-                    dynamicStatus = 'late'; // Atrasado
-                  }
-                } else {
-                  dynamicStatus = 'waiting'; // Aguardando
-                }
-              }
+              const dynamicStatus = getInvoiceUiStatus({
+                status: invoice.status,
+                due_date: invoice.due_date ?? displayDueDate,
+              });
 
               return (
                 <TableRow key={invoice.id} className="border-border hover:bg-muted/30 transition-colors">

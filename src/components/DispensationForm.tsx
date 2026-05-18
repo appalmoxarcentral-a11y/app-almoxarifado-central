@@ -191,7 +191,7 @@ export function DispensationForm() {
     const productObj = product || produtos?.find(p => p.id === productId);
     if (productObj) {
       setSelectedProductData(productObj);
-      setSelectedProductLabel(`${productObj.descricao} (Estoque: ${productObj.estoque_atual} ${productObj.unidade_medida})`);
+      setSelectedProductLabel(`${productObj.descricao} (${productObj.codigo}) - ${productObj.unidade_medida} (Estoque: ${productObj.estoque_atual})`);
     }
   };
 

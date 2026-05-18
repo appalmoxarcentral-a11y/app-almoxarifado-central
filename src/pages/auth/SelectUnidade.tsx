@@ -19,6 +19,7 @@ interface Unidade {
   bairro: string;
   cidade: string;
   ativo: boolean;
+  tenant_id: string | null;
 }
 
 export function SelectUnidade() {
@@ -70,11 +71,19 @@ export function SelectUnidade() {
     
     try {
       setSelecting(unidadeId);
+
+      const unidadeSelecionada = unidades.find((unidade) => unidade.id === unidadeId);
+      if (!unidadeSelecionada) {
+        throw new Error('Unidade selecionada nao encontrada.');
+      }
       
-      // 1. Atualizar o perfil do usuário com a unidade selecionada
+      // 1. Atualizar o perfil do usuário com a unidade e a organização corretas
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ unidade_id: unidadeId })
+        .update({
+          unidade_id: unidadeId,
+          tenant_id: unidadeSelecionada.tenant_id || user.tenant_id || null,
+        })
         .eq('id', user.id);
 
       if (profileError) throw profileError;
