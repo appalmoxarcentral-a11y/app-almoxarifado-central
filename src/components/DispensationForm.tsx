@@ -40,6 +40,9 @@ export function DispensationForm() {
   const [patientSearch, setPatientSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
   const [procedureSearch, setProcedureSearch] = useState('');
+  const [dispensacaoSearch, setDispensacaoSearch] = useState('');
+  const [dispensacoesPage, setDispensacoesPage] = useState(1);
+  const [dispensacoesLimit, setDispensacoesLimit] = useState(10);
   const isMobile = useIsMobile();
 
   const {
@@ -50,15 +53,20 @@ export function DispensationForm() {
     produtosInfinite,
     lotes,
     dispensacoes,
+    totalDispensacoes,
+    totalPagesDispensacoes,
     isLoadingDispensacoes
   } = useDispensationQueries({
     selectedProduct, 
     patientSearch, 
     productSearch,
     procedureSearch,
+    dispensacaoSearch,
     unidadeId: user?.unidade_id,
     tenantId: user?.tenant_id,
-    isHealthWorker: user?.habilitar_receptor ? isServidor : undefined
+    isHealthWorker: user?.habilitar_receptor ? isServidor : undefined,
+    page: dispensacoesPage,
+    limit: dispensacoesLimit
   });
 
   const handleSuccessfulDispensation = () => {
@@ -258,6 +266,20 @@ export function DispensationForm() {
         {/* Recent Dispensations */}
         <RecentDispensations
           dispensacoes={dispensacoes}
+          searchValue={dispensacaoSearch}
+          onSearchChange={(value) => {
+            setDispensacaoSearch(value);
+            setDispensacoesPage(1);
+          }}
+          currentPage={dispensacoesPage}
+          totalPages={totalPagesDispensacoes}
+          totalCount={totalDispensacoes}
+          pageSize={dispensacoesLimit}
+          onPageChange={setDispensacoesPage}
+          onPageSizeChange={(value) => {
+            setDispensacoesLimit(value);
+            setDispensacoesPage(1);
+          }}
           isLoading={isLoadingDispensacoes}
           onDelete={handleDeleteDispensation}
         />
@@ -356,6 +378,20 @@ export function DispensationForm() {
 
         <RecentDispensations
           dispensacoes={dispensacoes}
+          searchValue={dispensacaoSearch}
+          onSearchChange={(value) => {
+            setDispensacaoSearch(value);
+            setDispensacoesPage(1);
+          }}
+          currentPage={dispensacoesPage}
+          totalPages={totalPagesDispensacoes}
+          totalCount={totalDispensacoes}
+          pageSize={dispensacoesLimit}
+          onPageChange={setDispensacoesPage}
+          onPageSizeChange={(value) => {
+            setDispensacoesLimit(value);
+            setDispensacoesPage(1);
+          }}
           isLoading={isLoadingDispensacoes}
           onDelete={handleDeleteDispensation}
         />

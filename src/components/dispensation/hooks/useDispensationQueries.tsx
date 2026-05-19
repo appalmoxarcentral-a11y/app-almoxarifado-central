@@ -2,6 +2,9 @@
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Product, Patient, Dispensation } from '@/types';
+import { format, subDays } from 'date-fns';
+import { startOfMonth } from 'date-fns/startOfMonth';
+import { endOfMonth } from 'date-fns/endOfMonth';
 
 const PAGE_SIZE = 50;
 
@@ -17,10 +20,70 @@ interface UseDispensationQueriesProps {
   productSearch?: string;
   procedureSearch?: string;
   sectorSearch?: string;
+  dispensacaoSearch?: string;
   unidadeId?: string;
   tenantId?: string;
   isHealthWorker?: boolean;
+  page?: number;
+  limit?: number;
 }
+
+const MONTH_ABBREVIATIONS: Record<string, number> = {
+  jan: 0,
+  fev: 1,
+  mar: 2,
+  abr: 3,
+  mai: 4,
+  jun: 5,
+  jul: 6,
+  ago: 7,
+  set: 8,
+  out: 9,
+  nov: 10,
+  dez: 11,
+};
+
+const normalizeTerm = (term: string) =>
+  term
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+
+const parseDispensationDateFilter = (rawTerm: string) => {
+  const term = normalizeTerm(rawTerm);
+  const today = new Date();
+
+  if (term === '7 dias' || term === 'ultimos 7 dias' || term === 'ultimos7dias') {
+    return {
+      from: format(subDays(today, 6), 'yyyy-MM-dd'),
+      to: format(today, 'yyyy-MM-dd')
+    };
+  }
+
+  if (term === '15 dias' || term === 'ultimos 15 dias' || term === 'ultimos15dias') {
+    return {
+      from: format(subDays(today, 14), 'yyyy-MM-dd'),
+      to: format(today, 'yyyy-MM-dd')
+    };
+  }
+
+  const monthIndex = MONTH_ABBREVIATIONS[term];
+  if (monthIndex !== undefined) {
+    const monthDate = new Date(today.getFullYear(), monthIndex, 1);
+    return {
+      from: format(startOfMonth(monthDate), 'yyyy-MM-dd'),
+      to: format(endOfMonth(monthDate), 'yyyy-MM-dd')
+    };
+  }
+
+  return null;
+};
+
+const buildInFilter = (ids: string[]) => {
+  if (ids.length === 0) return null;
+  return `(${ids.map((id) => `"${id}"`).join(',')})`;
+};
 
 export function useDispensationQueries({
   selectedProduct = '',
@@ -28,9 +91,12 @@ export function useDispensationQueries({
   productSearch = '',
   procedureSearch = '',
   sectorSearch = '',
+  dispensacaoSearch = '',
   unidadeId,
   tenantId,
-  isHealthWorker
+  isHealthWorker,
+  page = 1,
+  limit = 10
 }: UseDispensationQueriesProps = {}) {
   // Buscar pacientes com paginação infinita
   const pacientesInfiniteQuery = useInfiniteQuery({
@@ -142,7 +208,7 @@ export function useDispensationQueries({
   // Buscar produtos com estoque e paginação infinita
   const produtosInfiniteQuery = useInfiniteQuery({
     queryKey: ['produtos-estoque-global', productSearch, unidadeId, tenantId],
-    enabled: !!tenantId,
+    enabled: !!unidadeId,
     initialPageParam: 0,
     queryFn: async ({ pageParam = 0 }) => {
       console.log(`[Queries] Buscando produtos (Página: ${pageParam}) para unidade: ${unidadeId || 'não informada'}`);
@@ -154,25 +220,29 @@ export function useDispensationQueries({
         const { data: entradasIds } = await supabase
           .from('entradas_produtos')
           .select('produto_id')
-          .eq('unidade_id', unidadeId)
-          .eq('tenant_id', tenantId);
+          .eq('unidade_id', unidadeId);
         
         if (entradasIds) {
           productIds = [...new Set(entradasIds.map(e => e.produto_id))];
         }
       }
 
+      if (unidadeId && productIds.length === 0) {
+        return [];
+      }
+
       // 2. Buscar detalhes dos produtos
       let query = supabase
         .from('produtos')
         .select('*')
-        .order('descricao')
-        .eq('tenant_id', tenantId);
+        .order('descricao');
+
+      if (unidadeId && productIds.length > 0) {
+        query = query.in('id', productIds);
+      }
       
       if (productSearch) {
         query = query.or(`descricao.ilike.%${productSearch}%,codigo.ilike.%${productSearch}%`);
-      } else if (productIds.length > 0) {
-        query = query.in('id', productIds);
       }
 
       const from = pageParam * PAGE_SIZE;
@@ -217,9 +287,9 @@ export function useDispensationQueries({
   // Buscar lotes do produto selecionado
   const lotesQuery = useQuery({
     queryKey: ['lotes-produto', selectedProduct, unidadeId, tenantId],
-    enabled: !!selectedProduct && !!tenantId,
+    enabled: !!selectedProduct && !!unidadeId,
     queryFn: async () => {
-      if (!selectedProduct || !tenantId) return [];
+      if (!selectedProduct || !unidadeId) return [];
       
       console.log(`[Queries] Buscando lotes para produto: ${selectedProduct} na unidade: ${unidadeId}`);
       
@@ -227,14 +297,9 @@ export function useDispensationQueries({
         .from('entradas_produtos')
         .select('lote, vencimento, created_at')
         .eq('produto_id', selectedProduct)
-        .eq('tenant_id', tenantId);
+        .eq('unidade_id', unidadeId);
       
       query = query.order('created_at', { ascending: true });
-
-      // Filtrar lotes por unidade para evitar mostrar lotes de outras unidades
-      if (unidadeId) {
-        query = query.eq('unidade_id', unidadeId);
-      }
       
       const { data, error } = await query;
       
@@ -257,10 +322,45 @@ export function useDispensationQueries({
 
   // Buscar dispensações recentes
   const dispensacoesQuery = useQuery({
-    queryKey: ['dispensacoes', unidadeId, tenantId],
+    queryKey: ['dispensacoes', unidadeId, tenantId, page, limit, dispensacaoSearch],
     enabled: !!tenantId,
     queryFn: async () => {
-      if (!tenantId) return [];
+      if (!tenantId) {
+        return {
+          items: [] as Dispensation[],
+          totalCount: 0,
+          totalPages: 1
+        };
+      }
+
+      const trimmedSearch = dispensacaoSearch.trim();
+      const normalizedSearch = normalizeTerm(trimmedSearch);
+      const dateFilter = parseDispensationDateFilter(trimmedSearch);
+      const useTextSearch = trimmedSearch.length > 0 && !dateFilter;
+      let matchingProductIds: string[] = [];
+      let matchingPatientIds: string[] = [];
+
+      if (useTextSearch) {
+        const [productResult, patientResult] = await Promise.all([
+          supabase
+            .from('produtos')
+            .select('id')
+            .or(`descricao.ilike.%${trimmedSearch}%,codigo.ilike.%${trimmedSearch}%`)
+            .limit(100),
+          supabase
+            .from('pacientes')
+            .select('id')
+            .eq('tenant_id', tenantId)
+            .or(`nome.ilike.%${trimmedSearch}%,sus_cpf.ilike.%${trimmedSearch}%`)
+            .limit(100)
+        ]);
+
+        if (productResult.error) throw productResult.error;
+        if (patientResult.error) throw patientResult.error;
+
+        matchingProductIds = productResult.data?.map((item) => item.id) || [];
+        matchingPatientIds = patientResult.data?.map((item) => item.id) || [];
+      }
       
       let query = supabase
         .from('dispensacoes')
@@ -280,19 +380,48 @@ export function useDispensationQueries({
           tenant:tenant_id (
             name
           )
-        `)
+        `, { count: 'exact' })
         .eq('tenant_id', tenantId)
-        .order('created_at', { ascending: false })
-        .limit(10);
+        .order('created_at', { ascending: false });
 
       if (unidadeId) {
         query = query.eq('unidade_id', unidadeId);
       }
+
+      if (dateFilter) {
+        query = query
+          .gte('data_dispensa', dateFilter.from)
+          .lte('data_dispensa', dateFilter.to);
+      }
+
+      if (useTextSearch) {
+        const orFilters = [`lote.ilike.%${trimmedSearch}%`];
+        const productInFilter = buildInFilter(matchingProductIds);
+        const patientInFilter = buildInFilter(matchingPatientIds);
+
+        if (productInFilter) {
+          orFilters.push(`produto_id.in.${productInFilter}`);
+        }
+
+        if (patientInFilter) {
+          orFilters.push(`paciente_id.in.${patientInFilter}`);
+        }
+
+        query = query.or(orFilters.join(','));
+      }
+
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+      query = query.range(from, to);
       
-      const { data, error } = await query;
+      const { data, error, count } = await query;
       
       if (error) throw error;
-      return data as Dispensation[];
+      return {
+        items: data as Dispensation[],
+        totalCount: count || 0,
+        totalPages: Math.ceil((count || 0) / limit)
+      };
     }
   });
 
@@ -314,7 +443,9 @@ export function useDispensationQueries({
       isLoading: produtosInfiniteQuery.isLoading
     },
     lotes: lotesQuery.data,
-    dispensacoes: dispensacoesQuery.data,
+    dispensacoes: dispensacoesQuery.data?.items || [],
+    totalDispensacoes: dispensacoesQuery.data?.totalCount || 0,
+    totalPagesDispensacoes: dispensacoesQuery.data?.totalPages || 1,
     isLoadingDispensacoes: dispensacoesQuery.isLoading
   };
 }
