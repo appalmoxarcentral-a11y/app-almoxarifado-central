@@ -1,4 +1,12 @@
 
+export interface PurchaseLotSelection {
+  lote: string;
+  vencimento: string;
+  quantidade: number;
+  saldo_origem_lote?: number;
+  saldo_destino_lote?: number;
+}
+
 export interface PurchaseItem {
   id: string;
   codigo: string;
@@ -12,11 +20,7 @@ export interface PurchaseItem {
   unidade_destino_nome?: string;
   lote_selecionado?: string;
   vencimento_selecionado?: string;
-  lotes_multiplos?: {
-    lote: string;
-    vencimento: string;
-    quantidade: number;
-  }[];
+  lotes_multiplos?: PurchaseLotSelection[];
 }
 
 export interface PurchaseReportData {

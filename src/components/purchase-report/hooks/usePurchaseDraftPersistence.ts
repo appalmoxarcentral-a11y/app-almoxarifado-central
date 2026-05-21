@@ -50,7 +50,7 @@ export function usePurchaseDraftPersistence() {
       console.log(`📦 Validando estoque real (BATCH) para ${itemsToDeliver.length} itens na unidade: ${originId}`);
       
       const faltantes: string[] = [];
-      const codigos = itemsToDeliver.map(i => i.codigo);
+      const codigos = [...new Set(itemsToDeliver.map(i => i.codigo))];
 
       // 1. Buscar todos os produtos de uma vez (Batch)
       const { data: produtosData, error: prodError } = await supabase
@@ -67,7 +67,7 @@ export function usePurchaseDraftPersistence() {
       const produtosMap = new Map(produtosData.map(p => [p.id, p.descricao]));
       const codigoToIdMap = new Map(produtosData.map(p => [p.codigo, p.id]));
 
-      // 2. Buscar todo o estoque da unidade de uma vez (Batch)
+      // 2. Buscar todo o estoque consolidado da unidade de uma vez (fallback para itens sem lote)
       const { data: estoqueData, error: estError } = await supabase
         .from('produtos_estoque')
         .select('produto_id, estoque_atual')
@@ -82,7 +82,87 @@ export function usePurchaseDraftPersistence() {
       const estoqueMap = new Map(estoqueData?.map(e => [e.produto_id, e.estoque_atual]) || []);
 
       // 3. Comparar quantidades
+      // 3. Buscar saldos por lote para tratar cada lote como item independente.
+      const { data: entradasData, error: entradasError } = await supabase
+        .from('entradas_produtos')
+        .select('produto_id, lote, vencimento, quantidade')
+        .eq('unidade_id', originId)
+        .in('produto_id', produtoIds);
+
+      if (entradasError) {
+        console.error('❌ Erro ao buscar entradas para validação por lote:', entradasError);
+        return;
+      }
+
+      const { data: saidasData, error: saidasError } = await supabase
+        .from('dispensacoes')
+        .select('produto_id, lote, quantidade')
+        .eq('unidade_id', originId)
+        .in('produto_id', produtoIds);
+
+      if (saidasError) {
+        console.error('❌ Erro ao buscar saídas para validação por lote:', saidasError);
+        return;
+      }
+
+      const saldoPorProdutoLote = new Map<string, number>();
+
+      for (const entrada of entradasData || []) {
+        const loteKey = `${entrada.produto_id}::${entrada.lote}`;
+        saldoPorProdutoLote.set(loteKey, (saldoPorProdutoLote.get(loteKey) || 0) + entrada.quantidade);
+      }
+
+      for (const saida of saidasData || []) {
+        const loteKey = `${saida.produto_id}::${saida.lote}`;
+        saldoPorProdutoLote.set(loteKey, (saldoPorProdutoLote.get(loteKey) || 0) - saida.quantidade);
+      }
+
+      const necessidadePorProdutoLote = new Map<string, { descricao: string; lote: string; necessario: number }>();
+      const itensSemLote: PurchaseDraftItem[] = [];
+
       for (const item of itemsToDeliver) {
+        const produtoId = codigoToIdMap.get(item.codigo);
+        if (!produtoId) continue;
+
+        const descricao = produtosMap.get(produtoId) || item.descricao;
+        const lotesSelecionados = item.lotes_multiplos?.filter(lote => lote.lote && lote.quantidade > 0)
+          || (item.lote_selecionado && item.vencimento_selecionado && (item.quantidade_reposicao || 0) > 0
+            ? [{
+                lote: item.lote_selecionado,
+                vencimento: item.vencimento_selecionado,
+                quantidade: item.quantidade_reposicao || 0
+              }]
+            : []);
+
+        if (lotesSelecionados.length === 0) {
+          itensSemLote.push(item);
+          continue;
+        }
+
+        for (const loteInfo of lotesSelecionados) {
+          const loteKey = `${produtoId}::${loteInfo.lote}`;
+          const existente = necessidadePorProdutoLote.get(loteKey);
+
+          necessidadePorProdutoLote.set(loteKey, {
+            descricao,
+            lote: loteInfo.lote,
+            necessario: (existente?.necessario || 0) + loteInfo.quantidade
+          });
+        }
+      }
+
+      for (const [loteKey, necessidade] of necessidadePorProdutoLote.entries()) {
+        const saldoDisponivel = saldoPorProdutoLote.get(loteKey) || 0;
+
+        if (saldoDisponivel < necessidade.necessario) {
+          faltantes.push(
+            `${necessidade.descricao} - Lote ${necessidade.lote} (Disponível: ${saldoDisponivel}, Necessário: ${necessidade.necessario})`
+          );
+        }
+      }
+
+      // 4. Fallback para itens ainda sem lote definido
+      for (const item of itensSemLote) {
         const produtoId = codigoToIdMap.get(item.codigo);
         if (!produtoId) continue;
 
@@ -477,6 +557,18 @@ export function usePurchaseDraftPersistence() {
         throw new Error('Sem permissão para confirmar entrega');
       }
 
+      if (draft.status === 'entregue') {
+        throw new Error('Este pedido já foi entregue');
+      }
+
+      if (draft.status !== 'autorizado') {
+        throw new Error('O pedido só pode ser finalizado ao confirmar uma entrega autorizada');
+      }
+
+      if (!draft.unidade_id) {
+        throw new Error('Pedido sem unidade de destino definida');
+      }
+
       const CENTRAL_ID = '9dce634a-7ee1-46b2-92e6-916f5789875c';
       const unidadeOrigemId = CENTRAL_ID;
 
@@ -553,22 +645,22 @@ export function usePurchaseDraftPersistence() {
       
       if (errorStatus) throw errorStatus;
     },
-    onSuccess: () => {
-      toast({ title: "Entrega Confirmada!", description: "O estoque da unidade foi atualizado automaticamente." });
-      
-      // Invalidar caches para refletir as mudanças em todo o sistema
-      queryClient.invalidateQueries({ queryKey: ['rascunhos-compras-todos'] });
-      queryClient.invalidateQueries({ queryKey: ['purchase-products'] });
-      
-      // Invalida estatísticas do dashboard e históricos
-      queryClient.invalidateQueries({ queryKey: ['produto-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['entradas-mes'] });
-      queryClient.invalidateQueries({ queryKey: ['dispensacoes-mes'] });
-      queryClient.invalidateQueries({ queryKey: ['movimentacoes-recentes'] });
-      queryClient.invalidateQueries({ queryKey: ['historico-entradas'] });
-      queryClient.invalidateQueries({ queryKey: ['historico-dispensacoes'] });
-      queryClient.invalidateQueries({ queryKey: ['produtos-vencendo'] });
-      queryClient.invalidateQueries({ queryKey: ['produtos-baixo-estoque'] });
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['rascunhos-compras-todos'] }),
+        queryClient.invalidateQueries({ queryKey: ['purchase-products'] }),
+        queryClient.invalidateQueries({ queryKey: ['purchase-lot-balances'] }),
+        queryClient.invalidateQueries({ queryKey: ['produto-stats'] }),
+        queryClient.invalidateQueries({ queryKey: ['entradas-mes'] }),
+        queryClient.invalidateQueries({ queryKey: ['dispensacoes-mes'] }),
+        queryClient.invalidateQueries({ queryKey: ['movimentacoes-recentes'] }),
+        queryClient.invalidateQueries({ queryKey: ['historico-entradas'] }),
+        queryClient.invalidateQueries({ queryKey: ['historico-dispensacoes'] }),
+        queryClient.invalidateQueries({ queryKey: ['produtos-vencendo'] }),
+        queryClient.invalidateQueries({ queryKey: ['produtos-baixo-estoque'] })
+      ]);
+
+      toast({ title: "Entrega Confirmada!", description: "Pedido finalizado e estoques atualizados na unidade de destino." });
     },
     onError: (err: any) => {
       if (err.message === 'STOCK_ERROR') return;

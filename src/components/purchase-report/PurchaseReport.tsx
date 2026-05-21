@@ -31,6 +31,9 @@ import { PaymentCelebration } from '../subscription/PaymentCelebration';
 import { addDays, isAfter, format } from 'date-fns';
 import type { Option } from '@/components/ui/multi-select';
 import type { PurchaseDraftItem } from '@/types/purchase-draft';
+import type { PurchaseItem } from '@/types/purchase';
+import { countDisplayLines } from './display-utils';
+import { buildLotBalanceLookup, createLotLookupKey } from './lot-balance-utils';
 
 export function PurchaseReport() {
   const isMobile = useIsMobile();
@@ -114,6 +117,7 @@ export function PurchaseReport() {
   
   // A unidade de origem é quem fornece o estoque
   const originUnidadeId = currentDraft?.unidade_origem_id || user?.unidade_id;
+  const destinationUnidadeId = targetUnidadeId || user?.unidade_id;
   const { data: originUnidade } = useQuery({
     queryKey: ['unidade-origem-info', originUnidadeId],
     refetchOnWindowFocus: false,
@@ -127,12 +131,121 @@ export function PurchaseReport() {
 
   const isCentralUnit = originUnidade?.nome?.toLowerCase().includes('almoxarifado central');
 
+  const multiLotProductIds = useMemo(() => {
+    return Array.from(new Set(
+      purchaseItems
+        .filter(item => (item.lotes_multiplos || []).some(lote => lote.lote && lote.vencimento && lote.quantidade > 0))
+        .map(item => item.id)
+    ));
+  }, [purchaseItems]);
+
+  const { data: lotBalanceLookups } = useQuery({
+    queryKey: ['purchase-lot-balances', originUnidadeId, destinationUnidadeId, multiLotProductIds],
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      if (!originUnidadeId || !destinationUnidadeId || multiLotProductIds.length === 0) {
+        return {
+          origin: new Map<string, number>(),
+          destination: new Map<string, number>()
+        };
+      }
+
+      const unitIds = Array.from(new Set([originUnidadeId, destinationUnidadeId]));
+
+      const [{ data: entradas, error: entradasError }, { data: saidas, error: saidasError }] = await Promise.all([
+        supabase
+          .from('entradas_produtos')
+          .select('produto_id, lote, vencimento, quantidade, unidade_id')
+          .in('unidade_id', unitIds)
+          .in('produto_id', multiLotProductIds),
+        supabase
+          .from('dispensacoes')
+          .select('produto_id, lote, quantidade, unidade_id')
+          .in('unidade_id', unitIds)
+          .in('produto_id', multiLotProductIds)
+      ]);
+
+      if (entradasError) throw entradasError;
+      if (saidasError) throw saidasError;
+
+      const buildLookupForUnit = (unidadeId: string) => buildLotBalanceLookup(
+        (entradas || []).filter(entry => entry.unidade_id === unidadeId),
+        (saidas || []).filter(exit => exit.unidade_id === unidadeId)
+      );
+
+      return {
+        origin: buildLookupForUnit(originUnidadeId),
+        destination: buildLookupForUnit(destinationUnidadeId)
+      };
+    },
+    enabled: isCentralUnit && !!originUnidadeId && !!destinationUnidadeId && multiLotProductIds.length > 0
+  });
+
+  const enrichItemsWithLotBalances = useMemo(() => {
+    return (items: PurchaseItem[]) => items.map(item => {
+      if (!item.lotes_multiplos || item.lotes_multiplos.length === 0) {
+        return item;
+      }
+
+      const nextLots = item.lotes_multiplos.map(lote => {
+        if (!lote.lote || !lote.vencimento) {
+          return lote;
+        }
+
+        const lotKey = createLotLookupKey(item.id, lote.lote, lote.vencimento);
+        const saldoOrigem = lotBalanceLookups?.origin.get(lotKey);
+        const saldoDestino = lotBalanceLookups?.destination.get(lotKey);
+        return {
+          ...lote,
+          saldo_origem_lote: saldoOrigem ?? lote.saldo_origem_lote,
+          saldo_destino_lote: saldoDestino ?? lote.saldo_destino_lote
+        };
+      });
+
+      return {
+        ...item,
+        lotes_multiplos: nextLots
+      };
+    });
+  }, [lotBalanceLookups]);
+
+  const filteredItemsWithLotBalances = useMemo(() => {
+    return enrichItemsWithLotBalances(filteredItems);
+  }, [enrichItemsWithLotBalances, filteredItems]);
+
+  const itemsForPDFWithLotBalances = useMemo(() => {
+    return enrichItemsWithLotBalances(itemsForPDF);
+  }, [enrichItemsWithLotBalances, itemsForPDF]);
+
+  const displayLineCount = useMemo(() => countDisplayLines(itemsForPDFWithLotBalances), [itemsForPDFWithLotBalances]);
+
+  const hasPendingBatchReview = (item: PurchaseDraftItem) => {
+    const requestedQty = item.quantidade_reposicao || 0;
+    if (requestedQty <= 0) return false;
+
+    const selectedLots = item.lotes_multiplos?.filter(lote =>
+      lote.lote && lote.vencimento && lote.quantidade > 0
+    ) || [];
+
+    if (selectedLots.length > 0) {
+      const totalSelected = selectedLots.reduce((sum, lote) => sum + lote.quantidade, 0);
+      return totalSelected !== requestedQty;
+    }
+
+    return !(item.lote_selecionado && item.vencimento_selecionado);
+  };
+
   const handleInterceptSave = (nome: string, items: PurchaseDraftItem[], unidade_id?: string) => {
     const itemsWithQty = items.filter(item => (item.quantidade_reposicao || 0) > 0);
     const changedItems = getChangedItemsSinceLastSave(items);
-    
-    if (isCentralUnit && itemsWithQty.length > 0 && changedItems.length > 0) {
-      setPendingSaveData({ nome, items, reviewItems: changedItems, unidade_id });
+    const itemsWithPendingBatchReview = itemsWithQty.filter(hasPendingBatchReview);
+    const reviewItems = itemsWithQty.filter(item => {
+      const isChanged = changedItems.some(changedItem => changedItem.id === item.id);
+      return isChanged || hasPendingBatchReview(item);
+    });
+
+    if (isCentralUnit && itemsWithQty.length > 0 && (changedItems.length > 0 || itemsWithPendingBatchReview.length > 0)) {
+      setPendingSaveData({ nome, items, reviewItems, unidade_id });
       setIsBatchModalOpen(true);
     } else {
       saveDraft(nome, items, unidade_id);
@@ -264,17 +377,17 @@ export function PurchaseReport() {
         />
 
         <div className="grid grid-cols-2 gap-4 w-full md:w-auto">
-          <div className={`text-center p-3 rounded-xl min-w-[120px] transition-colors ${itemsForPDF.length > 0 ? 'bg-blue-600/10 border border-blue-600/20' : 'bg-muted/50 border border-muted/10'}`}>
-            <div className={`text-2xl font-black ${itemsForPDF.length > 0 ? 'text-blue-600' : 'text-muted-foreground'}`}>
-              {itemsForPDF.length}
+          <div className={`text-center p-3 rounded-xl min-w-[120px] transition-colors ${displayLineCount > 0 ? 'bg-blue-600/10 border border-blue-600/20' : 'bg-muted/50 border border-muted/10'}`}>
+            <div className={`text-2xl font-black ${displayLineCount > 0 ? 'text-blue-600' : 'text-muted-foreground'}`}>
+              {displayLineCount}
             </div>
-            <div className={`text-[10px] uppercase font-bold tracking-wider ${itemsForPDF.length > 0 ? 'text-blue-600' : 'text-muted-foreground'}`}>Produtos</div>
+            <div className={`text-[10px] uppercase font-bold tracking-wider ${displayLineCount > 0 ? 'text-blue-600' : 'text-muted-foreground'}`}>Produtos</div>
           </div>
-          <div className={`text-center p-3 rounded-xl min-w-[120px] transition-colors ${itemsForPDF.length > 0 ? 'bg-green-600/10 border border-green-600/20' : 'bg-muted/50 border border-muted/10'}`}>
-            <div className={`text-2xl font-black ${itemsForPDF.length > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
-              {itemsForPDF.reduce((sum, item) => sum + (item.quantidade_reposicao || 0), 0)}
+          <div className={`text-center p-3 rounded-xl min-w-[120px] transition-colors ${displayLineCount > 0 ? 'bg-green-600/10 border border-green-600/20' : 'bg-muted/50 border border-muted/10'}`}>
+            <div className={`text-2xl font-black ${displayLineCount > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
+              {itemsForPDFWithLotBalances.reduce((sum, item) => sum + (item.quantidade_reposicao || 0), 0)}
             </div>
-            <div className={`text-[10px] uppercase font-bold tracking-wider ${itemsForPDF.length > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>Total Unidades</div>
+            <div className={`text-[10px] uppercase font-bold tracking-wider ${displayLineCount > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>Total Unidades</div>
           </div>
         </div>
       </div>
@@ -331,7 +444,7 @@ export function PurchaseReport() {
               </div>
               <div className="col-span-1">
                 <PurchasePDFGenerator 
-                  items={itemsForPDF} 
+                  items={itemsForPDFWithLotBalances} 
                   unidadeNome={currentDraft?.unidade_nome || manualUnidadeNome}
                   className="w-full h-11 md:h-10 bg-primary hover:bg-primary/90 text-white font-black shadow-lg rounded-xl transition-all active:scale-95"
                 />
@@ -406,7 +519,7 @@ export function PurchaseReport() {
       )}
 
       <PurchaseTable
-        items={filteredItems}
+        items={filteredItemsWithLotBalances}
         onQuantityChange={updatePurchaseQuantity}
         onAnnotationChange={updatePurchaseAnnotation}
         unidadeDestinoNome={currentDraft?.unidade_nome || manualUnidadeNome}

@@ -5,12 +5,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Package } from 'lucide-react';
+import { buildLotBalancesByProduct, normalizeLotLabel } from '@/components/purchase-report/lot-balance-utils';
 
-interface ProductWithStock {
+interface ProductLotWithStock {
   id: string;
   codigo: string;
   descricao: string;
   unidade_medida: string;
+  lote: string;
+  vencimento: string;
   estoque_atual: number;
 }
 
@@ -27,6 +30,10 @@ export function StockOnlyTable() {
 
       const unidadeId = profile?.unidade_id;
 
+      if (!unidadeId) {
+        return [] as ProductLotWithStock[];
+      }
+
       // 2. Buscar todos os produtos do catálogo
       const { data: produtosData, error: prodError } = await supabase
         .from('produtos')
@@ -34,40 +41,67 @@ export function StockOnlyTable() {
       
       if (prodError) throw prodError;
 
-      // 3. Calcular estoque real desta unidade para cada produto
-      if (unidadeId && produtosData) {
-        const produtosComEstoqueReal = await Promise.all(produtosData.map(async (produto) => {
-          // Buscar soma de entradas nesta unidade
-          const { data: entradas } = await supabase
-            .from('entradas_produtos')
-            .select('quantidade')
-            .eq('produto_id', produto.id)
-            .eq('unidade_id', unidadeId);
-          
-          const totalEntradas = entradas?.reduce((sum, item) => sum + (item.quantidade || 0), 0) || 0;
-
-          // Buscar soma de saídas nesta unidade
-          const { data: dispensacoes } = await supabase
-            .from('dispensacoes')
-            .select('quantidade')
-            .eq('produto_id', produto.id)
-            .eq('unidade_id', unidadeId);
-          
-          const totalSaidas = dispensacoes?.reduce((sum, item) => sum + (item.quantidade || 0), 0) || 0;
-
-          return {
-            ...produto,
-            estoque_atual: totalEntradas - totalSaidas
-          };
-        }));
-
-        // Filtrar apenas produtos que possuem estoque (>= 1) nesta unidade
-        return produtosComEstoqueReal
-          .filter(p => p.estoque_atual >= 1)
-          .sort((a, b) => a.estoque_atual - b.estoque_atual);
+      const produtoIds = produtosData?.map(produto => produto.id) || [];
+      if (produtoIds.length === 0) {
+        return [] as ProductLotWithStock[];
       }
 
-      return [] as ProductWithStock[];
+      // 3. Buscar entradas e saídas da unidade e calcular saldo por lote
+      const [{ data: entradas, error: entradasError }, { data: dispensacoes, error: dispensacoesError }] = await Promise.all([
+        supabase
+          .from('entradas_produtos')
+          .select('produto_id, lote, vencimento, quantidade')
+          .eq('unidade_id', unidadeId)
+          .in('produto_id', produtoIds),
+        supabase
+          .from('dispensacoes')
+          .select('produto_id, lote, quantidade')
+          .eq('unidade_id', unidadeId)
+          .in('produto_id', produtoIds)
+      ]);
+
+      if (entradasError) throw entradasError;
+      if (dispensacoesError) throw dispensacoesError;
+
+      const productMap = new Map(produtosData.map(produto => [produto.id, produto]));
+      const balancesByProduct = buildLotBalancesByProduct(entradas || [], dispensacoes || []);
+      const rows: ProductLotWithStock[] = [];
+
+      for (const [produtoId, lots] of balancesByProduct.entries()) {
+        const produto = productMap.get(produtoId);
+        if (!produto) continue;
+
+        for (const lot of lots) {
+          rows.push({
+            ...produto,
+            lote: lot.lote,
+            vencimento: lot.vencimento,
+            estoque_atual: lot.quantidade
+          });
+        }
+      }
+
+      const groupedRows = new Map<string, ProductLotWithStock[]>();
+
+      rows.forEach(row => {
+        const existing = groupedRows.get(row.codigo) || [];
+        existing.push(row);
+        groupedRows.set(row.codigo, existing);
+      });
+
+      const sortedGroups = Array.from(groupedRows.values())
+        .map(group => group.sort((a, b) =>
+          a.estoque_atual - b.estoque_atual ||
+          normalizeLotLabel(a.lote).localeCompare(normalizeLotLabel(b.lote), 'pt-BR', { sensitivity: 'base' }) ||
+          a.vencimento.localeCompare(b.vencimento)
+        ))
+        .sort((groupA, groupB) =>
+          groupA[0].estoque_atual - groupB[0].estoque_atual ||
+          groupA[0].codigo.localeCompare(groupB[0].codigo, 'pt-BR', { sensitivity: 'base' }) ||
+          groupA[0].descricao.localeCompare(groupB[0].descricao, 'pt-BR', { sensitivity: 'base' })
+        );
+
+      return sortedGroups.flat();
     },
   });
 
@@ -80,7 +114,7 @@ export function StockOnlyTable() {
       <div className="flex items-center gap-2">
         <Package className="h-5 w-5 text-blue-600" />
         <h3 className="text-lg font-semibold">
-          Produtos em Estoque ({produtosEmEstoque?.length || 0} produtos)
+          Produtos em Estoque ({produtosEmEstoque?.length || 0} lotes)
         </h3>
       </div>
       
@@ -100,6 +134,9 @@ export function StockOnlyTable() {
             
             <div>
               <p className="text-sm font-bold uppercase">{produto.descricao}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Lote: <span className="font-medium text-foreground">{produto.lote}</span>
+              </p>
               <div className="flex justify-between items-end mt-2">
                 <div className="text-xs text-muted-foreground">
                   Unidade: <span className="font-medium text-foreground">{produto.unidade_medida}</span>
@@ -125,6 +162,7 @@ export function StockOnlyTable() {
             <TableRow>
               <TableHead className="min-w-[100px]">Código</TableHead>
               <TableHead className="min-w-[200px]">Produto</TableHead>
+              <TableHead className="min-w-[120px]">Lote</TableHead>
               <TableHead className="min-w-[80px]">Estoque</TableHead>
               <TableHead className="min-w-[100px]">Unidade</TableHead>
               <TableHead className="min-w-[100px]">Status</TableHead>
@@ -138,6 +176,9 @@ export function StockOnlyTable() {
                 </TableCell>
                 <TableCell className="text-xs md:text-sm">
                   {produto.descricao}
+                </TableCell>
+                <TableCell className="text-xs md:text-sm font-mono">
+                  {produto.lote}
                 </TableCell>
                 <TableCell className="text-xs md:text-sm font-semibold">
                   {produto.estoque_atual}
@@ -158,7 +199,7 @@ export function StockOnlyTable() {
             ))}
             {(!produtosEmEstoque || produtosEmEstoque.length === 0) && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                   Nenhum produto em estoque encontrado
                 </TableCell>
               </TableRow>

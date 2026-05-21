@@ -1,3 +1,11 @@
+export interface PurchaseDraftLotSelection {
+  lote: string;
+  vencimento: string;
+  quantidade: number;
+  saldo_origem_lote?: number;
+  saldo_destino_lote?: number;
+}
+
 export interface RascunhoCompra {
   id: string;
   usuario_id: string;
@@ -7,7 +15,7 @@ export interface RascunhoCompra {
   data_criacao: string;
   data_atualizacao: string;
   ativo: boolean;
-  status: 'pendente' | 'autorizado' | 'entregue';
+  status: 'rascunho' | 'pendente' | 'autorizado' | 'entregue';
   autorizado_por_id?: string;
   data_autorizacao?: string;
   entregue_por_id?: string;
@@ -38,11 +46,7 @@ export interface PurchaseDraftItem {
   quantidade_reposicao?: number;
   anotacao_reposicao?: string;
   prioridade?: number;
-  lotes_multiplos?: {
-    lote: string;
-    vencimento: string;
-    quantidade: number;
-  }[];
+  lotes_multiplos?: PurchaseDraftLotSelection[];
   lote_selecionado?: string; // Mantido para compatibilidade simples
   vencimento_selecionado?: string; // Mantido para compatibilidade simples
 }

@@ -45,6 +45,7 @@ import type { RascunhoCompra, PurchaseDraftItem } from '@/types/purchase-draft';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { countDisplayLines } from './display-utils';
 
 interface DraftManagerProps {
   drafts: RascunhoCompra[];
@@ -251,7 +252,7 @@ export function DraftManager({
     : drafts;
 
   const getItemsWithQuantity = (draftItems: PurchaseDraftItem[]) => {
-    return draftItems.filter(item => item.quantidade_reposicao && item.quantidade_reposicao > 0).length;
+    return countDisplayLines(draftItems);
   };
 
   return (

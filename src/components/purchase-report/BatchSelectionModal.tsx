@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -20,12 +20,13 @@ import { Badge } from '@/components/ui/badge';
 import { Package, Calendar, AlertCircle, Plus, Trash2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import type { PurchaseDraftItem } from '@/types/purchase-draft';
+import type { PurchaseDraftItem, PurchaseDraftLotSelection } from '@/types/purchase-draft';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { buildLotBalancesByProduct } from './lot-balance-utils';
 
 interface BatchSelectionModalProps {
   isOpen: boolean;
@@ -42,11 +43,7 @@ interface LoteInfo {
   quantidade: number;
 }
 
-interface LoteSelection {
-  lote: string;
-  vencimento: string;
-  quantidade: number;
-}
+type LoteSelection = PurchaseDraftLotSelection;
 
 export function BatchSelectionModal({
   isOpen,
@@ -58,34 +55,19 @@ export function BatchSelectionModal({
 }: BatchSelectionModalProps) {
   const { toast } = useToast();
   const [selections, setSelections] = useState<Record<string, LoteSelection[]>>({});
+  const [orderedItemIds, setOrderedItemIds] = useState<string[]>([]);
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  const itemsToProcess = useMemo(() => {
-    // 1. Filtrar APENAS os itens que têm quantidade de reposição > 0 na Tela 1
-    // Isso é essencial para performance, pois buscar lotes para 500+ itens trava o sistema.
-    const escolhidos = items.filter(item => (item.quantidade_reposicao || 0) > 0);
-    
-    // 2. Dentro dos escolhidos, separar os que ainda não têm lote para o topo
-    const escolhidosPendentes = escolhidos.filter(item => {
-      const hasLote = (item.lote_selecionado && item.vencimento_selecionado) || 
-                      (item.lotes_multiplos && item.lotes_multiplos.length > 0 && item.lotes_multiplos[0].lote);
-      return !hasLote;
-    });
-    
-    const escolhidosConcluidos = escolhidos.filter(item => {
-      const hasLote = (item.lote_selecionado && item.vencimento_selecionado) || 
-                      (item.lotes_multiplos && item.lotes_multiplos.length > 0 && item.lotes_multiplos[0].lote);
-      return hasLote;
-    });
-
-    // Retorna apenas os itens que o usuário está realmente processando
-    return [...escolhidosPendentes, ...escolhidosConcluidos];
-  }, [items]); // Ordem estática durante a edição no modal
+  const processableItems = useMemo(() => {
+    // Buscar lotes apenas para itens que realmente serão processados mantém o modal responsivo.
+    return items.filter(item => (item.quantidade_reposicao || 0) > 0);
+  }, [items]);
 
   // Initialize selections with existing data if available
   useEffect(() => {
     if (isOpen) {
       const initialSelections: Record<string, LoteSelection[]> = {};
-      itemsToProcess.forEach(item => {
+      processableItems.forEach(item => {
         if (item.lotes_multiplos && item.lotes_multiplos.length > 0) {
           initialSelections[item.id] = [...item.lotes_multiplos];
         } else if (item.lote_selecionado && item.vencimento_selecionado) {
@@ -96,23 +78,23 @@ export function BatchSelectionModal({
           }];
         } else {
           // Inicializa sempre com uma linha de seleção vazia para cada item
-          // A quantidade começa em 0 até que um lote seja selecionado
+          // A quantidade começa igual ao pedido para deixar pendente apenas a escolha do lote.
           initialSelections[item.id] = [{ 
             lote: '', 
             vencimento: '', 
-            quantidade: 0 
+            quantidade: item.quantidade_reposicao || 0
           }];
         }
       });
       setSelections(initialSelections);
     }
-  }, [isOpen, items]);
+  }, [isOpen, processableItems]);
 
   // Fetch all batches for all items in a single request (Batch)
   const { data: allBatchesMap, isLoading: isLoadingBatches } = useQuery({
-    queryKey: ['lotes-multi-items', itemsToProcess.map(i => i.id), originUnidadeId],
+    queryKey: ['lotes-multi-items', processableItems.map(i => i.id).sort(), originUnidadeId],
     queryFn: async () => {
-      const itemIds = itemsToProcess.map(i => i.id);
+      const itemIds = processableItems.map(i => i.id);
       if (itemIds.length === 0) return new Map();
 
       console.log(`🔍 Buscando lotes em massa para ${itemIds.length} itens na unidade ${originUnidadeId}`);
@@ -136,44 +118,157 @@ export function BatchSelectionModal({
 
       if (saiError) throw saiError;
 
-      // 3. Processar saldos por produto e lote
-      const resultMap = new Map<string, LoteInfo[]>();
+      return buildLotBalancesByProduct(entradas || [], saidas || []) as Map<string, LoteInfo[]>;
+    },
+    enabled: isOpen && !!originUnidadeId && processableItems.length > 0
+  });
 
-      itemIds.forEach(id => {
-        const itemEntradas = entradas?.filter(e => e.produto_id === id) || [];
-        const itemSaidas = saidas?.filter(s => s.produto_id === id) || [];
+  const findSelectedLotInfo = React.useCallback((itemId: string, selection: Pick<LoteSelection, 'lote' | 'vencimento'>) => {
+    const itemLotes = allBatchesMap?.get(itemId) || [];
+    return itemLotes.find(l =>
+      l.lote === selection.lote && l.vencimento === selection.vencimento
+    );
+  }, [allBatchesMap]);
 
-        const grouped: Record<string, LoteInfo> = {};
+  const getItemPendingIssues = React.useCallback((item: PurchaseDraftItem, selectionsMap?: Record<string, LoteSelection[]>) => {
+    const requestedQty = item.quantidade_reposicao || 0;
+    const itemSelections = selectionsMap?.[item.id] || selections[item.id] || [];
+    const pendingIssues = new Set<string>();
+    const quantityByLot = new Map<string, { selected: number; available: number }>();
+    let totalSelected = 0;
 
-        itemEntradas.forEach(e => {
-          const key = `${e.lote}-${e.vencimento}`;
-          if (!grouped[key]) {
-            grouped[key] = { lote: e.lote, vencimento: e.vencimento, quantidade: 0 };
-          }
-          grouped[key].quantidade += e.quantidade;
-        });
+    if (requestedQty <= 0) {
+      return {
+        totalSelected,
+        isValid: true,
+        pendingIssues: [] as string[]
+      };
+    }
 
-        itemSaidas.forEach(s => {
-          // Heurística de lote (como no código anterior)
-          Object.values(grouped).forEach(g => {
-            if (g.lote === s.lote) {
-              g.quantidade -= s.quantidade;
-            }
-          });
-        });
+    if (itemSelections.length === 0) {
+      pendingIssues.add('Escolha um lote');
+    }
 
-        resultMap.set(id, Object.values(grouped).filter(g => g.quantidade > 0));
+    itemSelections.forEach(selection => {
+      if (selection.quantidade && selection.quantidade > 0) {
+        totalSelected += selection.quantidade;
+      }
+
+      if (!selection.lote || !selection.vencimento) {
+        pendingIssues.add('Escolha um lote');
+        return;
+      }
+
+      if (!selection.quantidade || selection.quantidade <= 0) {
+        pendingIssues.add('Informe uma quantidade valida');
+        return;
+      }
+
+      const selectedLotInfo = findSelectedLotInfo(item.id, selection);
+      if (!selectedLotInfo) {
+        pendingIssues.add('Selecione um lote disponivel');
+        return;
+      }
+
+      const lotKey = `${selection.lote}|${selection.vencimento}`;
+      const currentLot = quantityByLot.get(lotKey);
+      quantityByLot.set(lotKey, {
+        selected: (currentLot?.selected || 0) + selection.quantidade,
+        available: selectedLotInfo.quantidade
       });
 
-      return resultMap;
-    },
-    enabled: isOpen && !!originUnidadeId && itemsToProcess.length > 0
-  });
+      if (selection.quantidade > selectedLotInfo.quantidade) {
+        pendingIssues.add('Quantidade maior que o estoque do lote');
+      }
+    });
+
+    quantityByLot.forEach(({ selected, available }) => {
+      if (selected > available) {
+        pendingIssues.add('Quantidade maior que o estoque do lote');
+      }
+    });
+
+    if (totalSelected !== requestedQty) {
+      pendingIssues.add('Total selecionado diferente do pedido');
+    }
+
+    return {
+      totalSelected,
+      isValid: pendingIssues.size === 0,
+      pendingIssues: Array.from(pendingIssues)
+    };
+  }, [findSelectedLotInfo, selections]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setOrderedItemIds([]);
+      return;
+    }
+
+    const initialSelections: Record<string, LoteSelection[]> = {};
+    processableItems.forEach(item => {
+      if (item.lotes_multiplos && item.lotes_multiplos.length > 0) {
+        initialSelections[item.id] = [...item.lotes_multiplos];
+      } else if (item.lote_selecionado && item.vencimento_selecionado) {
+        initialSelections[item.id] = [{
+          lote: item.lote_selecionado,
+          vencimento: item.vencimento_selecionado,
+          quantidade: item.quantidade_reposicao || 0
+        }];
+      } else {
+        initialSelections[item.id] = [{
+          lote: '',
+          vencimento: '',
+          quantidade: item.quantidade_reposicao || 0
+        }];
+      }
+    });
+
+    const frozenOrder = [...processableItems]
+      .sort((a, b) => {
+        const aState = getItemPendingIssues(a, initialSelections);
+        const bState = getItemPendingIssues(b, initialSelections);
+
+        if (aState.isValid !== bState.isValid) {
+          return aState.isValid ? 1 : -1;
+        }
+
+        if (aState.pendingIssues.length !== bState.pendingIssues.length) {
+          return bState.pendingIssues.length - aState.pendingIssues.length;
+        }
+
+        return a.descricao.localeCompare(b.descricao, 'pt-BR', { sensitivity: 'base' });
+      })
+      .map(item => item.id);
+
+    setOrderedItemIds(frozenOrder);
+  }, [getItemPendingIssues, isOpen, processableItems]);
+
+  const itemsToProcess = useMemo(() => {
+    if (orderedItemIds.length === 0) {
+      return processableItems;
+    }
+
+    const itemMap = new Map(processableItems.map(item => [item.id, item]));
+    return orderedItemIds
+      .map(itemId => itemMap.get(itemId))
+      .filter((item): item is PurchaseDraftItem => !!item);
+  }, [orderedItemIds, processableItems]);
+
+  const keepItemInView = React.useCallback((itemId: string) => {
+    const itemElement = itemRefs.current[itemId];
+    if (!itemElement) return;
+
+    itemElement.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest'
+    });
+  }, []);
 
   const handleAddLote = (itemId: string) => {
     setSelections(prev => ({
       ...prev,
-      [itemId]: [...(prev[itemId] || []), { lote: '', vencimento: '', quantidade: 0 }]
+      [itemId]: [...(prev[itemId] || []), { lote: '', vencimento: '', quantidade: 0, saldo_origem_lote: undefined }]
     }));
   };
 
@@ -186,12 +281,15 @@ export function BatchSelectionModal({
 
   const handleUpdateLote = (itemId: string, index: number, updates: Partial<LoteSelection>) => {
     setSelections(prev => {
-      const itemLotes = allBatchesMap?.get(itemId) || [];
       const currentSelection = { ...prev[itemId][index], ...updates };
+      const selectedLoteInfo = currentSelection.lote && currentSelection.vencimento
+        ? findSelectedLotInfo(itemId, currentSelection)
+        : undefined;
+
+      currentSelection.saldo_origem_lote = selectedLoteInfo?.quantidade;
       
       // Validação de estoque máximo por lote
       if (currentSelection.lote && currentSelection.quantidade > 0) {
-        const selectedLoteInfo = itemLotes.find(l => l.lote === currentSelection.lote);
         if (selectedLoteInfo && currentSelection.quantidade > selectedLoteInfo.quantidade) {
           currentSelection.quantidade = selectedLoteInfo.quantidade;
           toast({
@@ -210,19 +308,43 @@ export function BatchSelectionModal({
   };
 
   const handleConfirm = () => {
+    const hasPendingItems = processableItems.some(item => !getItemPendingIssues(item).isValid);
+    if (hasPendingItems) {
+      toast({
+        title: 'Existem pendencias para resolver',
+        description: 'Ajuste os itens destacados no topo antes de confirmar e salvar.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     const updatedItems = items.map(item => {
       const itemSelections = selections[item.id];
       if (itemSelections && itemSelections.length > 0) {
+        const normalizedSelections = itemSelections
+          .filter(selection => selection.lote && selection.vencimento && selection.quantidade > 0)
+          .map(selection => {
+            const matchedLot = findSelectedLotInfo(item.id, selection);
+            return {
+              ...selection,
+              saldo_origem_lote: matchedLot?.quantidade ?? selection.saldo_origem_lote
+            };
+          });
+
+        if (normalizedSelections.length === 0) {
+          return item;
+        }
+
         // Calcular a nova quantidade total baseada nos lotes selecionados
-        const totalDaSelecao = itemSelections.reduce((sum, s) => sum + s.quantidade, 0);
+        const totalDaSelecao = normalizedSelections.reduce((sum, s) => sum + s.quantidade, 0);
         
         return {
           ...item,
-          lotes_multiplos: itemSelections,
+          lotes_multiplos: normalizedSelections,
           quantidade_reposicao: totalDaSelecao, // Atualiza a quantidade para bater com os lotes
           // Mantém para compatibilidade, pega o primeiro lote se houver apenas um
-          lote_selecionado: itemSelections.length === 1 ? itemSelections[0].lote : undefined,
-          vencimento_selecionado: itemSelections.length === 1 ? itemSelections[0].vencimento : undefined
+          lote_selecionado: normalizedSelections.length === 1 ? normalizedSelections[0].lote : undefined,
+          vencimento_selecionado: normalizedSelections.length === 1 ? normalizedSelections[0].vencimento : undefined
         };
       }
       return item;
@@ -231,18 +353,10 @@ export function BatchSelectionModal({
   };
 
   const isItemValid = (item: PurchaseDraftItem) => {
-    const itemSelections = selections[item.id] || [];
-    const hasQty = (item.quantidade_reposicao || 0) > 0;
-    
-    // Se o item não tem quantidade escolhida na tela 1, ele é válido (não precisa de lote)
-    if (!hasQty) return true;
-    
-    // Se tem quantidade, deve ter pelo menos um lote selecionado e preenchido
-    if (itemSelections.length === 0) return false;
-    return itemSelections.every(s => s.lote && s.vencimento && s.quantidade > 0);
+    return getItemPendingIssues(item).isValid;
   };
 
-  const canSave = itemsToProcess.every(isItemValid);
+  const canSave = processableItems.length > 0 && processableItems.every(isItemValid);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -262,15 +376,25 @@ export function BatchSelectionModal({
           {itemsToProcess.map((item) => {
             const lotesDisponiveis = allBatchesMap?.get(item.id) || [];
             const itemSelections = selections[item.id] || [];
-            const totalSelected = itemSelections.reduce((sum, s) => sum + s.quantidade, 0);
-            const isComplete = totalSelected > 0 && totalSelected === item.quantidade_reposicao;
-            const hasSelections = itemSelections.length > 0;
+            const { totalSelected, isValid, pendingIssues } = getItemPendingIssues(item);
+            const isComplete = isValid;
+            const hasPendingIssues = pendingIssues.length > 0;
 
             return (
-              <div key={item.id} className={cn(
-                "p-5 border-2 rounded-2xl space-y-4 transition-all",
-                totalSelected > 0 ? "bg-primary/5 border-primary/30" : "bg-muted/20 border-muted-foreground/10"
-              )}>
+              <div
+                key={item.id}
+                ref={(element) => {
+                  itemRefs.current[item.id] = element;
+                }}
+                className={cn(
+                  "p-5 border-2 rounded-2xl space-y-4 transition-all scroll-mt-24",
+                  hasPendingIssues
+                    ? "bg-amber-500/5 border-amber-500/30"
+                    : totalSelected > 0
+                      ? "bg-emerald-500/5 border-emerald-500/30"
+                      : "bg-muted/20 border-muted-foreground/10"
+                )}
+              >
                 <div className="flex justify-between items-start">
                   <div className="space-y-1">
                     <h4 className="font-black text-foreground text-lg uppercase tracking-tight">{item.descricao}</h4>
@@ -282,12 +406,25 @@ export function BatchSelectionModal({
                     </div>
                   </div>
                   <div className="text-right">
-                    <Badge variant={totalSelected > 0 ? "default" : "outline"} className={cn(
+                    <Badge variant={hasPendingIssues ? "secondary" : totalSelected > 0 ? "default" : "outline"} className={cn(
                       "font-bold px-3 py-1",
-                      totalSelected > 0 ? "bg-emerald-600 hover:bg-emerald-600" : "text-muted-foreground"
+                      hasPendingIssues
+                        ? "bg-amber-500/15 text-amber-700 hover:bg-amber-500/15 dark:text-amber-300"
+                        : totalSelected > 0
+                          ? "bg-emerald-600 hover:bg-emerald-600"
+                          : "text-muted-foreground"
                     )}>
-                      {totalSelected > 0 ? `TOTAL SELECIONADO: ${totalSelected}` : "AGUARDANDO LOTE"}
+                      {hasPendingIssues
+                        ? `PENDENTE: ${pendingIssues[0]}`
+                        : totalSelected > 0
+                          ? `TOTAL SELECIONADO: ${totalSelected}`
+                          : "AGUARDANDO LOTE"}
                     </Badge>
+                    {hasPendingIssues && pendingIssues.length > 1 && (
+                      <p className="mt-2 max-w-xs text-xs font-medium text-amber-700 dark:text-amber-300">
+                        {pendingIssues.slice(1).join(' • ')}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -298,11 +435,17 @@ export function BatchSelectionModal({
                         <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Lote de Origem</Label>
                         <Select 
                           value={sel.lote ? `${sel.lote}|${sel.vencimento}` : undefined}
+                          onOpenChange={(open) => {
+                            if (open) {
+                              keepItemInView(item.id);
+                            }
+                          }}
                           onValueChange={(val) => {
                             const [lote, venc] = val.split('|');
                             // Quando seleciona o lote pela primeira vez, traz a quantidade da imagem 1
                             const novaQuantidade = sel.quantidade === 0 ? (item.quantidade_reposicao || 0) : sel.quantidade;
                             
+                            keepItemInView(item.id);
                             handleUpdateLote(item.id, idx, { 
                               lote, 
                               vencimento: venc,
@@ -331,7 +474,11 @@ export function BatchSelectionModal({
                         <Input
                           type="number"
                           value={sel.quantidade || ''}
-                          onChange={(e) => handleUpdateLote(item.id, idx, { quantidade: parseInt(e.target.value) || 0 })}
+                          onFocus={() => keepItemInView(item.id)}
+                          onChange={(e) => {
+                            keepItemInView(item.id);
+                            handleUpdateLote(item.id, idx, { quantidade: parseInt(e.target.value) || 0 });
+                          }}
                           className="h-10 text-center font-bold border-muted-foreground/20"
                           placeholder="0"
                         />
@@ -351,7 +498,10 @@ export function BatchSelectionModal({
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={() => handleAddLote(item.id)}
+                    onClick={() => {
+                      keepItemInView(item.id);
+                      handleAddLote(item.id);
+                    }}
                     className="w-full border-dashed border-2 hover:border-primary hover:text-primary transition-all h-10 font-bold text-xs"
                     disabled={isComplete || lotesDisponiveis.length <= 1}
                   >
@@ -391,6 +541,12 @@ export function BatchSelectionModal({
               )}
             </Button>
           </div>
+          {!canSave && itemsToProcess.length > 0 && (
+            <div className="flex w-full items-center gap-2 pt-3 text-xs font-medium text-amber-700 dark:text-amber-300">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              Resolva as pendencias destacadas no topo para habilitar a confirmacao do pedido.
+            </div>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

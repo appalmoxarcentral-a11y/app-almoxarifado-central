@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
+import { expandItemsForDisplay } from './display-utils';
 
 interface PurchaseTableProps {
   items: PurchaseItem[];
@@ -62,29 +63,10 @@ export function PurchaseTable({
 
   // "Explodir" itens que possuem múltiplos lotes para exibição individual
   const displayedItems = React.useMemo(() => {
-    const flattened: (PurchaseItem & { isMultiLot?: boolean; lotIndex?: number })[] = [];
-    
-    items.forEach(item => {
-      if (item.lotes_multiplos && item.lotes_multiplos.length > 1) {
-        item.lotes_multiplos.forEach((lote, idx) => {
-          flattened.push({
-            ...item,
-            id: `${item.id}-lote-${idx}`, // ID único para a linha da tabela
-            originalId: item.id, // Referência para ações
-            lote_selecionado: lote.lote,
-            vencimento_selecionado: lote.vencimento,
-            quantidade_reposicao: lote.quantidade,
-            isMultiLot: true,
-            lotIndex: idx
-          } as any);
-        });
-      } else {
-        flattened.push(item);
-      }
-    });
-    
-    return flattened;
+    return expandItemsForDisplay(items) as (PurchaseItem & { isMultiLot?: boolean; lotIndex?: number; originalId?: string })[];
   }, [items]);
+
+  const getOriginDisplayValue = (item: PurchaseItem) => item.estoque_origem || 0;
 
   const handleQuantityChange = (productId: string, value: string, originalId?: string, lotIndex?: number) => {
     const quantity = value === '' ? undefined : parseInt(value);
@@ -277,12 +259,12 @@ export function PurchaseTable({
                     <Badge 
                       variant="outline" 
                       className={`font-bold ${
-                        (item.estoque_origem || 0) <= 10 ? 'bg-red-500/10 text-red-500 border-red-500/20' : 
-                        (item.estoque_origem || 0) <= 50 ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 
+                        getOriginDisplayValue(item as any) <= 10 ? 'bg-red-500/10 text-red-500 border-red-500/20' : 
+                        getOriginDisplayValue(item as any) <= 50 ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 
                         'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                       }`}
                     >
-                      {(item as any).isMultiLot ? item.quantidade_reposicao : (item.estoque_origem || 0)} na Origem
+                      {getOriginDisplayValue(item as any)} na Origem
                       {item.lote_selecionado && <span className="ml-1 opacity-60 text-[8px] font-normal">({item.lote_selecionado})</span>}
                     </Badge>
                   )}
@@ -382,10 +364,10 @@ export function PurchaseTable({
                     <td className="p-3 text-center">
                       <div className="flex flex-col items-center gap-1">
                         <span className={`font-bold text-base ${
-                          ((item as any).isMultiLot ? item.quantidade_reposicao : (item.estoque_origem || 0)) <= 10 ? 'text-red-500' : 
-                          ((item as any).isMultiLot ? item.quantidade_reposicao : (item.estoque_origem || 0)) <= 50 ? 'text-amber-500' : 'text-emerald-500'
+                          getOriginDisplayValue(item as any) <= 10 ? 'text-red-500' : 
+                          getOriginDisplayValue(item as any) <= 50 ? 'text-amber-500' : 'text-emerald-500'
                         }`}>
-                          {(item as any).isMultiLot ? item.quantidade_reposicao : (item.estoque_origem || 0)}
+                          {getOriginDisplayValue(item as any)}
                         </span>
                         {item.lote_selecionado && (
                           <Badge variant="secondary" className="text-[9px] h-4 py-0 px-1 bg-primary/10 text-primary border-primary/20">

@@ -10,6 +10,7 @@ import { usePurchaseData } from './usePurchaseData';
 export function usePurchaseState() {
   const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([]);
   const [lastSavedState, setLastSavedState] = useState<string>('');
+  const [lastAutoSavedState, setLastAutoSavedState] = useState<string>('');
   const [lastSavedItems, setLastSavedItems] = useState<PurchaseDraftItem[]>([]);
   const [hasAttemptedAutoLoad, setHasAttemptedAutoLoad] = useState(false);
   const [filters, setFilters] = useState<PurchaseFilters>({
@@ -57,6 +58,22 @@ export function usePurchaseState() {
   const cloneDraftItems = useCallback((items: PurchaseDraftItem[]) => {
     return items.map(item => ({
       ...item,
+      lotes_multiplos: item.lotes_multiplos?.map(lote => ({ ...lote }))
+    }));
+  }, []);
+
+  const buildDraftItems = useCallback((items: Array<PurchaseItem | PurchaseDraftItem>) => {
+    return items.map(item => ({
+      id: item.id,
+      codigo: item.codigo,
+      descricao: item.descricao,
+      unidade_medida: item.unidade_medida,
+      estoque_atual: item.estoque_atual,
+      prioridade: item.prioridade,
+      quantidade_reposicao: item.quantidade_reposicao,
+      anotacao_reposicao: item.anotacao_reposicao,
+      lote_selecionado: item.lote_selecionado,
+      vencimento_selecionado: item.vencimento_selecionado,
       lotes_multiplos: item.lotes_multiplos?.map(lote => ({ ...lote }))
     }));
   }, []);
@@ -158,10 +175,16 @@ export function usePurchaseState() {
           if (lotIndex !== undefined && item.lotes_multiplos) {
             const newLotes = [...item.lotes_multiplos];
             if (newLotes[lotIndex]) {
+              if (newLotes[lotIndex].quantidade === (quantidade || 0)) {
+                return item;
+              }
               newLotes[lotIndex] = { ...newLotes[lotIndex], quantidade: quantidade || 0 };
             }
             // Recalcula o total de reposição baseado na soma dos lotes
             const newTotal = newLotes.reduce((sum, l) => sum + l.quantidade, 0);
+            if (item.quantidade_reposicao === newTotal) {
+              return item;
+            }
             return {
               ...item,
               quantidade_reposicao: newTotal,
@@ -169,6 +192,9 @@ export function usePurchaseState() {
             };
           }
           // Atualização normal (não fracionada ou inicial)
+          if (item.quantidade_reposicao === quantidade) {
+            return item;
+          }
           return { 
             ...item, 
             quantidade_reposicao: quantidade 
@@ -339,6 +365,8 @@ export function usePurchaseState() {
     );
   }, [purchaseItems]);
 
+  const draftItemsSnapshot = useMemo(() => buildDraftItems(purchaseItems), [buildDraftItems, purchaseItems]);
+
   // Detectar mudanças comparando estado atual com último salvo
   const currentStateString = useMemo(() => JSON.stringify(
     purchaseItems
@@ -359,23 +387,45 @@ export function usePurchaseState() {
   
   const hasChanges = currentStateString !== lastSavedState && persistence.currentDraftId !== null;
 
+  useEffect(() => {
+    const currentDraft = persistence.getCurrentDraft();
+    const canAutoPersist =
+      hasAttemptedAutoLoad &&
+      !!persistence.currentDraftId &&
+      !!currentDraft?.nome_rascunho &&
+      currentDraft?.status !== 'autorizado' &&
+      currentDraft?.status !== 'entregue';
+
+    if (!canAutoPersist || persistence.isSaving) {
+      return;
+    }
+
+    if (currentStateString === lastAutoSavedState) {
+      return;
+    }
+
+    persistence.saveDraft(
+      currentDraft.nome_rascunho,
+      draftItemsSnapshot,
+      targetUnidadeId || undefined,
+      () => {
+        setLastAutoSavedState(currentStateString);
+      }
+    );
+  }, [
+    currentStateString,
+    draftItemsSnapshot,
+    hasAttemptedAutoLoad,
+    lastAutoSavedState,
+    persistence,
+    targetUnidadeId
+  ]);
+
   const saveDraft = useCallback((nome: string, items?: PurchaseDraftItem[], unidade_id?: string) => {
     if (persistence.isSaving) return;
 
     // 1. Determinar quais itens usar
-    const itemsToUse = items || purchaseItems.map(item => ({
-      id: item.id,
-      codigo: item.codigo,
-      descricao: item.descricao,
-      unidade_medida: item.unidade_medida,
-      estoque_atual: item.estoque_atual,
-      prioridade: item.prioridade,
-      quantidade_reposicao: item.quantidade_reposicao,
-      anotacao_reposicao: item.anotacao_reposicao,
-      lote_selecionado: item.lote_selecionado,
-      vencimento_selecionado: item.vencimento_selecionado,
-      lotes_multiplos: item.lotes_multiplos
-    }));
+    const itemsToUse = items || draftItemsSnapshot;
 
     const finalUnidadeId = unidade_id || targetUnidadeId;
 
@@ -390,6 +440,7 @@ export function usePurchaseState() {
       // Sincronizar estado local apenas após sucesso real no banco
       const savedStateString = serializeDraftState(itemsToUse);
       setLastSavedState(savedStateString);
+      setLastAutoSavedState(savedStateString);
       setLastSavedItems(cloneDraftItems(itemsToUse));
       
       // Se itens foram passados externamente (do modal de lotes), atualizar estado local
@@ -400,7 +451,7 @@ export function usePurchaseState() {
       // Forçar re-ordenação APÓS salvar
       setSortTrigger(prev => prev + 1);
     });
-  }, [purchaseItems, persistence.saveDraft, persistence.isSaving, targetUnidadeId, serializeDraftState, syncLocalItemsFromDraft, cloneDraftItems]);
+  }, [draftItemsSnapshot, persistence.saveDraft, persistence.isSaving, targetUnidadeId, serializeDraftState, syncLocalItemsFromDraft, cloneDraftItems]);
 
   const loadDraft = useCallback((draft: any) => {
     const loadedItems = persistence.loadDraft(draft);
@@ -424,6 +475,7 @@ export function usePurchaseState() {
     
     const newStateString = serializeDraftState(loadedItems);
     setLastSavedState(newStateString);
+    setLastAutoSavedState(newStateString);
     setLastSavedItems(cloneDraftItems(loadedItems));
     setSortTrigger(prev => prev + 1); // Re-ordena ao carregar
     
@@ -479,6 +531,7 @@ export function usePurchaseState() {
     });
     
     setLastSavedState('');
+    setLastAutoSavedState('');
     setLastSavedItems([]);
     setSortTrigger(prev => prev + 1);
     return loadedItems;
@@ -492,6 +545,7 @@ export function usePurchaseState() {
       quantidade_reposicao: undefined
     })));
     setLastSavedState('');
+    setLastAutoSavedState('');
     setLastSavedItems([]);
     setSortTrigger(prev => prev + 1);
   }, [persistence.createNewDraft]);
@@ -526,6 +580,7 @@ export function usePurchaseState() {
     initializePurchaseItems,
     setTargetUnidade,
     targetUnidadeId,
+    manualUnidadeId,
     manualUnidadeNome,
     // Draft management
     ...persistence,
@@ -543,19 +598,7 @@ export function usePurchaseState() {
     confirmDelivery: persistence.confirmDelivery,
     stockError: persistence.stockError,
     clearStockError: persistence.clearStockError,
-    draftItems: purchaseItems.map(item => ({
-      id: item.id,
-      codigo: item.codigo,
-      descricao: item.descricao,
-      unidade_medida: item.unidade_medida,
-      estoque_atual: item.estoque_atual,
-      prioridade: item.prioridade,
-      quantidade_reposicao: item.quantidade_reposicao,
-      anotacao_reposicao: item.anotacao_reposicao,
-      lote_selecionado: item.lote_selecionado,
-      vencimento_selecionado: item.vencimento_selecionado,
-      lotes_multiplos: item.lotes_multiplos
-    })),
+    draftItems: draftItemsSnapshot,
     hasChanges,
     getChangedItemsSinceLastSave
   };

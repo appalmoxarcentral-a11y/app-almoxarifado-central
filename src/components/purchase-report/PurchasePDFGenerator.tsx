@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import type { PurchaseItem } from '@/types/purchase';
+import { countDisplayLines, expandItemsForDisplay } from './display-utils';
 
 interface PurchasePDFGeneratorProps {
   items: PurchaseItem[];
@@ -20,26 +21,17 @@ interface PurchasePDFGeneratorProps {
 export function PurchasePDFGenerator({ items, unidadeNome: propUnidadeNome, disabled, variant, className }: PurchasePDFGeneratorProps) {
   const { user } = useAuth();
   const isMobile = useIsMobile();
+  const displayedCount = React.useMemo(() => {
+    return countDisplayLines(items);
+  }, [items]);
 
   const generatePDF = () => {
     // Definir nome da unidade (prioriza a prop que vem do pedido selecionado)
     const unidadeNome = propUnidadeNome || user?.unidade_nome || 'SMSA';
     
     // "Explodir" itens que possuem múltiplos lotes para exibição individual no PDF
-    const displayedItems = [];
-    items.forEach(item => {
-      if (item.lotes_multiplos && item.lotes_multiplos.length > 1) {
-        item.lotes_multiplos.forEach(lote => {
-          displayedItems.push({
-            ...item,
-            lote_selecionado: lote.lote,
-            quantidade_reposicao: lote.quantidade
-          });
-        });
-      } else {
-        displayedItems.push(item);
-      }
-    });
+    const displayedItems = expandItemsForDisplay(items);
+    const getOriginDisplayValue = (item: PurchaseItem) => item.estoque_origem ?? '-';
 
     // Criar conteúdo HTML para impressão
     const printContent = `
@@ -143,11 +135,12 @@ export function PurchasePDFGenerator({ items, unidadeNome: propUnidadeNome, disa
           <thead>
             <tr>
               <th style="width: 10%">Código</th>
-              <th style="width: 35%">Descrição do Produto</th>
+              <th style="width: 29%">Descrição do Produto</th>
               <th style="width: 15%" class="text-center">Lote</th>
               <th style="width: 10%" class="text-center">Unid.</th>
-              <th style="width: 15%" class="text-center">Estoque Destino</th>
-              <th style="width: 15%" class="text-center">Qtd. Enviada</th>
+              <th style="width: 12%" class="text-center">Unid. Origem</th>
+              <th style="width: 12%" class="text-center">Estoque Destino</th>
+              <th style="width: 12%" class="text-center">Qtd. Enviada</th>
             </tr>
           </thead>
           <tbody>
@@ -157,6 +150,7 @@ export function PurchasePDFGenerator({ items, unidadeNome: propUnidadeNome, disa
                 <td>${item.descricao}</td>
                 <td class="text-center">${item.lote_selecionado || '-'}</td>
                 <td class="text-center">${item.unidade_medida}</td>
+                <td class="text-center">${getOriginDisplayValue(item)}</td>
                 <td class="text-center">${item.estoque_atual}</td>
                 <td class="text-center"><strong>${item.quantidade_reposicao}</strong></td>
               </tr>
@@ -233,7 +227,7 @@ export function PurchasePDFGenerator({ items, unidadeNome: propUnidadeNome, disa
       className={cn("w-full md:w-auto flex items-center justify-center gap-1", className)}
     >
       <Download className="h-3.5 w-3.5 shrink-0" />
-      <span className="truncate">PDF ({items.length})</span>
+      <span className="truncate">PDF ({displayedCount})</span>
     </Button>
   );
 }
